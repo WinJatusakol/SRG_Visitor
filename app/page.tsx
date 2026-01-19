@@ -249,7 +249,9 @@ export default function Home() {
       setDialog({
         open: true,
         type: "success",
-        message: "ส่งข้อมูลสำเร็จ ขอบคุณค่ะ",
+        message: result.warning
+          ? `${result.warning}\nส่งข้อมูลสำเร็จ ขอบคุณค่ะ`
+          : "ส่งข้อมูลสำเร็จ ขอบคุณค่ะ",
       });
     } catch (error) {
       const message =
