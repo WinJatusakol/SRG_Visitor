@@ -5,6 +5,15 @@ export async function POST(request) {
   try {
     const data = await request.json();
     const supabase = await createClient();
+    const toBoolean = (value) => {
+      if (typeof value === "boolean") {
+        return value;
+      }
+      if (typeof value === "string") {
+        return value === "yes" || value === "true";
+      }
+      return null;
+    };
 
     const insertPayload = {
       timestamp: data.timestamp ?? new Date().toISOString(),
@@ -15,19 +24,19 @@ export async function POST(request) {
       contactPhone: data.contactPhone ?? "",
       totalGuests: data.totalGuests ?? null,
       visitDateTime: data.visitDateTime ?? null,
-      meetingRoom: data.meetingRoom ?? "",
+      meetingRoom: toBoolean(data.meetingRoom),
       transportType: data.transportType ?? "",
       carBrand: data.carBrand ?? "",
       carLicense: data.carLicense ?? "",
-      foodRequired: data.foodRequired ?? "",
+      foodRequired: toBoolean(data.foodRequired),
       meals: data.meals ?? "",
       foodNote: data.foodNote ?? "",
-      souvenir: data.souvenir ?? "",
+      souvenir: toBoolean(data.souvenir),
       hostName: data.hostName ?? "",
     };
 
     const { error } = await supabase
-      .from("vip_visits")
+      .from("vip_visitor")
       .insert([insertPayload]);
 
     if (error) {

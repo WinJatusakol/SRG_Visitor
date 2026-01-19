@@ -212,29 +212,37 @@ export default function Home() {
       contactPhone: form.contactPhone,
       totalGuests: Number(form.totalGuests),
       visitDateTime: visitDateTimeValue,
-      meetingRoom: form.meetingRoom,
+      meetingRoom: form.meetingRoom === "yes",
       transportType: form.transportType,
       carBrand: form.transportType === "personal" ? form.carBrand : "",
       carLicense: form.transportType === "personal" ? form.carLicense : "",
-      foodRequired: form.foodRequired,
+      foodRequired: form.foodRequired === "yes",
       meals: form.meals.join(","),
       foodNote: form.foodNote,
-      souvenir: form.souvenir,
+      souvenir: form.souvenir === "yes",
       hostName: form.hostName,
     };
 
     try {
       setSubmitting(true);
-      const response = await fetch('/api/summit', {
+      const response = await fetch("/api/summit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
+      const result = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
+      if (!response.ok || result.success === false) {
+        const message =
+          result.error ?? `Request failed with status ${response.status}`;
+        setDialog({
+          open: true,
+          type: "error",
+          message,
+        });
+        return;
       }
 
       setForm(initialState);
@@ -244,7 +252,15 @@ export default function Home() {
         message: "ส่งข้อมูลสำเร็จ ขอบคุณค่ะ",
       });
     } catch (error) {
-      console.error(error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
+      setDialog({
+        open: true,
+        type: "error",
+        message,
+      });
     } finally {
       setSubmitting(false);
     }
