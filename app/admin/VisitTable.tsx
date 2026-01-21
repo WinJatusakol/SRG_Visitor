@@ -17,12 +17,12 @@ export default function VisitorTable({ visits }: { visits: any[] }) {
                             {/* กำหนดความกว้างตรงนี้ (รวมกันต้องได้ 100% หรือใกล้เคียง) 
               */}
 
-                            {/* 1. วันที่: เอาไป 20% พอ (ข้อความสั้น) */}
+                            {/* 1. วันที่: เอาไป 30% พอ (ข้อความสั้น) */}
                             <th className="w-[30%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 วันที่เข้าชม
                             </th>
 
-                            {/* 2. บริษัท VIP: เป็นพระเอก เอาไปเยอะสุด 45% */}
+                            {/* 2. บริษัท VIP: เป็นพระเอก เอาไปเยอะสุด 30% */}
                             <th className="w-[30%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 บริษัท VIP
                             </th>
@@ -40,7 +40,15 @@ export default function VisitorTable({ visits }: { visits: any[] }) {
                     </thead>
 
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {visits?.map((visit) => (
+                        {visits?.sort((a, b) => {
+                            // ดึงค่าวันที่ออกมาเทียบกัน โดยใช้ logic เดียวกับที่แสดงผล (มี ||)
+                            const dateA = new Date(a.visitDateTime || a.created_at).getTime();
+                            const dateB = new Date(b.visitDateTime || b.created_at).getTime();
+
+                            // เลือกรูปแบบการเรียง:
+                            // return dateB - dateA; // เรียงจาก "ล่าสุด" ไป "เก่าสุด" (Newest First)
+                            return dateA - dateB; // เรียงจาก "เก่าสุด" ไป "ล่าสุด" (Oldest First)
+                        }).map((visit) => (
                             <tr
                                 key={visit.id}
                                 onClick={() => setSelectedVisit(visit)}
