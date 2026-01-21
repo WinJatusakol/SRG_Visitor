@@ -108,11 +108,11 @@ export default function VisitorTable({ visits }: { visits: any[] }) {
                             <DetailItem label="ตำแหน่ง VIP" value={selectedVisit.vipPosition} />
                             <DetailItem label="สัญชาติ" value={selectedVisit.nationality} />
                             <DetailItem label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} />
-                            <DetailItem label="การเดินทาง" value={selectedVisit.transportType} />
+                            <DetailItem label="การเดินทาง" value={selectedVisit.transportType === "personal" ? "รถส่วนตัว" : "รถสาธารณะ"} />
                             <DetailItem label="ทะเบียนรถ" value={selectedVisit.carLicense} />
                             <DetailItem label="ยี่ห้อรถ" value={selectedVisit.carBrand} />
                             <DetailItem label="ห้องประชุม" value={selectedVisit.meetingRoom ? "ต้องการ" : "ไม่ต้องการ"} />
-                            <DetailItem label="อาหาร/มื้อ" value={`${selectedVisit.foodRequired || "-"} / ${selectedVisit.meals || "-"}`} />
+                            <DetailItem label="อาหาร/มื้อ" value={`${selectedVisit.foodRequired ? "ต้องการ" : "ไม่ต้องการ"} / ${selectedVisit.meals || "-"}`} />
 
                             <div className="col-span-1 md:col-span-2">
                                 <DetailItem label="ข้อมูลอาหารเพิ่มเติม" value={selectedVisit.foodNote} />
