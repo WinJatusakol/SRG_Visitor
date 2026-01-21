@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client"; // 👈 import ไฟล์ server.ts (ที่เป็น Browser code)
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";  
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
