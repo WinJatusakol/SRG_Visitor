@@ -45,6 +45,24 @@ export async function POST(request) {
         ? data.carCount
         : Number(data.carCount ?? 0);
     const meetingRoomSelection = String(data.meetingRoomSelection ?? "").trim();
+    const siteVisit =
+      data.siteVisit &&
+      typeof data.siteVisit === "object" &&
+      !Array.isArray(data.siteVisit)
+        ? data.siteVisit
+        : null;
+    const executiveHost =
+      data.executiveHost &&
+      typeof data.executiveHost === "object" &&
+      !Array.isArray(data.executiveHost)
+        ? data.executiveHost
+        : null;
+    const submittedBy =
+      data.submittedBy &&
+      typeof data.submittedBy === "object" &&
+      !Array.isArray(data.submittedBy)
+        ? data.submittedBy
+        : null;
     const foodPreferences =
       data.foodPreferences &&
       typeof data.foodPreferences === "object" &&
@@ -131,6 +149,8 @@ export async function POST(request) {
       visitDateTime: data.visitDateTime ?? null,
       meetingRoom,
       meetingRoomSelection,
+      siteVisit,
+      executiveHost,
       transportType: data.transportType ?? "",
       carCount: Number.isFinite(carCount) ? carCount : null,
       cars: cars.length > 0 ? cars : null,
@@ -143,6 +163,7 @@ export async function POST(request) {
       souvenirPreferences,
       presentationFile,
       hostName: data.hostName ?? "",
+      submittedBy,
     };
 
     const { error } = await supabase
@@ -156,15 +177,18 @@ export async function POST(request) {
         msg.includes('column "cars"') ||
         msg.includes('column "carCount"') ||
         msg.includes('column "meetingRoomSelection"') ||
+        msg.includes('column "siteVisit"') ||
+        msg.includes('column "executiveHost"') ||
         msg.includes('column "foodPreferences"') ||
         msg.includes('column "souvenirPreferences"') ||
-        msg.includes('column "presentationFile"')
+        msg.includes('column "presentationFile"') ||
+        msg.includes('column "submittedBy"')
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ guests (jsonb), cars (jsonb), carCount (int), meetingRoomSelection (text), foodPreferences (jsonb), souvenirPreferences (jsonb), presentationFile (jsonb) ในตาราง vip_visitor ก่อน',
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ guests (jsonb), cars (jsonb), carCount (int), meetingRoomSelection (text), siteVisit (jsonb), executiveHost (jsonb), foodPreferences (jsonb), souvenirPreferences (jsonb), presentationFile (jsonb), submittedBy (jsonb) ในตาราง vip_visitor ก่อน',
           },
           { status: 500 }
         );
@@ -222,6 +246,24 @@ export async function POST(request) {
     const foodRequiredText = foodRequired === null ? "-" : yesNo(foodRequired);
     const meetingRoomText = meetingRoom === null ? "-" : yesNo(meetingRoom);
     const souvenirText = souvenir === null ? "-" : yesNo(souvenir);
+    const svAreas =
+      siteVisit && Array.isArray(siteVisit.areas) ? siteVisit.areas : [];
+    const svApproverName =
+      siteVisit && typeof siteVisit.approverName === "string"
+        ? siteVisit.approverName.trim()
+        : "";
+    const svApproverPosition =
+      siteVisit && typeof siteVisit.approverPosition === "string"
+        ? siteVisit.approverPosition.trim()
+        : "";
+    const siteVisitText =
+      svAreas.length > 0
+        ? `${svAreas.join(", ")}`
+        : "-";
+    const siteVisitApproverText =
+      svAreas.length > 0
+        ? `${svApproverName || "-"} / ${svApproverPosition || "-"}`
+        : "-";
 
     const sp = souvenirPreferences;
     const spGiftSet =
@@ -377,9 +419,58 @@ export async function POST(request) {
         ? String(hostEmailMap[hostName]).trim()
         : "";
 
+    const sbName =
+      submittedBy && typeof submittedBy.name === "string"
+        ? submittedBy.name.trim()
+        : "";
+    const sbPosition =
+      submittedBy && typeof submittedBy.position === "string"
+        ? submittedBy.position.trim()
+        : "";
+    const submittedByText = sbName
+      ? `${sbName} / ${sbPosition || "-"}`
+      : "-";
+
+    const exType =
+      executiveHost && typeof executiveHost.type === "string"
+        ? executiveHost.type
+        : "";
+    const executiveHostText = (() => {
+      if (exType === "other") {
+        const firstName =
+          typeof executiveHost.firstName === "string"
+            ? executiveHost.firstName.trim()
+            : "";
+        const middleName =
+          typeof executiveHost.middleName === "string"
+            ? executiveHost.middleName.trim()
+            : "";
+        const lastName =
+          typeof executiveHost.lastName === "string"
+            ? executiveHost.lastName.trim()
+            : "";
+        const position =
+          typeof executiveHost.position === "string"
+            ? executiveHost.position.trim()
+            : "";
+        const fullName = [firstName, middleName, lastName]
+          .filter(Boolean)
+          .join(" ");
+        if (!fullName && !position) return "-";
+        return `${fullName || "-"} / ${position || "-"}`;
+      }
+
+      const presetName =
+        executiveHost && typeof executiveHost.name === "string"
+          ? executiveHost.name.trim()
+          : "";
+      return presetName || "-";
+    })();
+
     const housekeepingText = [
       "แจ้งงานสำหรับแม่บ้าน",
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
+      `ผู้บริหารต้อนรับ: ${executiveHostText}`,
       `หัวข้อ: ${data.visitTopic ?? "-"}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
@@ -387,9 +478,12 @@ export async function POST(request) {
       `เมนู: \n${foodMenuText}`,
       `อาหารพิเศษ: ${specialDietText}`,
       `แพ้อาหาร: ${allergyText}`,
+      `การเข้าชม: ${siteVisitText}`,
+      `ผู้อนุญาต: ${siteVisitApproverText}`,
       `จำนวนผู้เข้าร่วม: ${data.totalGuests ?? "-"}`,
       `ของที่ระลึก: ${souvenirText}`,
       `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
+      `ผู้กรอกฟอร์ม: ${submittedByText}`,
     ].join("\n");
 
     const managerText = [
@@ -408,6 +502,9 @@ export async function POST(request) {
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการห้องประชุม: ${meetingRoomText}`,
       `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
+      `การเข้าชม: ${siteVisitText}`,
+      `ผู้อนุญาต: ${siteVisitApproverText}`,
+      `ผู้บริหารต้อนรับ: ${executiveHostText}`,
       `ประเภทรถ: ${transportTypeText}`,
       `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
       `ข้อมูลรถ:\n${carsText}`,
@@ -418,7 +515,7 @@ export async function POST(request) {
       `แพ้อาหาร: ${allergyText}`,
       `ของที่ระลึก: ${souvenirText}`,
       `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
-      `ผู้ลงข้อมูล: ${data.hostName ?? "-"}`,
+      `ผู้กรอกฟอร์ม: ${submittedByText}`,
     ].join("\n");
 
     const hostText = [
@@ -439,6 +536,9 @@ export async function POST(request) {
       `ข้อมูลรถ:\n${carsText}`,
       `ต้องการห้องประชุม: ${meetingRoomText}`,
       `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
+      `การเข้าชม: ${siteVisitText}`,
+      `ผู้อนุญาต: ${siteVisitApproverText}`,
+      `ผู้บริหารต้อนรับ: ${executiveHostText}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
       `มื้ออาหาร: ${meals}`,
       `เมนู: \n${foodMenuText}`,
@@ -446,6 +546,7 @@ export async function POST(request) {
       `แพ้อาหาร: ${allergyText}`,
       `ของที่ระลึก: ${souvenirText}`,
       `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
+      `ผู้กรอกฟอร์ม: ${submittedByText}`,
     ].join("\n");
 
     const mailTasks = [
@@ -478,6 +579,7 @@ export async function POST(request) {
       const securityText = [
         "แจ้งการเข้าพบแขก VIP (รถส่วนตัว)",
         `เข้ามาพบ: ${data.hostName ?? "-"}`,
+        `ผู้บริหารต้อนรับ: ${executiveHostText}`,
         `หัวข้อ: ${data.visitTopic ?? "-"}`,
         `เวลาที่มาถึง: ${visitDateTime}`,
         `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
@@ -485,6 +587,7 @@ export async function POST(request) {
         `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
         `ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
         `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
+        `ผู้กรอกฟอร์ม: ${submittedByText}`,
       ].join("\n");
 
       mailTasks.push(

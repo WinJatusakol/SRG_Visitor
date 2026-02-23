@@ -40,6 +40,9 @@ type VisitFormState = {
   visitTime: string;
   meetingRoom: YesNo | "";
   meetingRoomSelection: string;
+  siteVisitAreas: string[];
+  siteVisitApproverName: string;
+  siteVisitApproverPosition: string;
   transportType: TransportType | "";
   carCount: string;
   cars: Car[];
@@ -65,7 +68,15 @@ type VisitFormState = {
   souvenirGiftSet: string;
   souvenirGiftSetCount: string;
   souvenirExtra: string;
+  submittedByName: string;
+  submittedByPosition: string;
   hostName: string;
+  hostNameOther: string;
+  executiveHostChoice: string;
+  executiveHostFirstName: string;
+  executiveHostMiddleName: string;
+  executiveHostLastName: string;
+  executiveHostPosition: string;
 };
 
 type DialogType = "success" | "error";
@@ -82,7 +93,8 @@ for (let hour = 6; hour <= 21; hour += 1) {
   timeSlots.push(`${hour.toString().padStart(2, "0")}:30`);
 }
 
-const hostOptions = ["Name1", "Name2"];
+const hostOptions = ["Name1", "Name2", "อื่นๆ"];
+const executiveHostOptions = ["Name01", "Name02", "Name03", "อื่นๆ"];
 
 const meetingRoomOptions: MeetingRoomOption[] = [
   {
@@ -110,6 +122,8 @@ const meetingRoomOptions: MeetingRoomOption[] = [
     capacity: 8,
   },
 ];
+
+const siteVisitAreaOptions = ["โรงงาน", "QC", "Warehouse", "Lab"];
 
 const breakfastMenuOptions = [
   "ขนมปังปิ้ง + เนย/แยม",
@@ -167,6 +181,9 @@ const initialState: VisitFormState = {
   visitTime: "",
   meetingRoom: "",
   meetingRoomSelection: "",
+  siteVisitAreas: [],
+  siteVisitApproverName: "",
+  siteVisitApproverPosition: "",
   transportType: "",
   carCount: "",
   cars: [],
@@ -192,7 +209,15 @@ const initialState: VisitFormState = {
   souvenirGiftSet: "",
   souvenirGiftSetCount: "",
   souvenirExtra: "",
+  submittedByName: "",
+  submittedByPosition: "",
   hostName: "",
+  hostNameOther: "",
+  executiveHostChoice: "",
+  executiveHostFirstName: "",
+  executiveHostMiddleName: "",
+  executiveHostLastName: "",
+  executiveHostPosition: "",
 };
 
 export default function Home() {
@@ -321,6 +346,25 @@ export default function Home() {
       }));
     }
 
+    if (name === "executiveHostChoice") {
+      return setForm((prev) => ({
+        ...prev,
+        executiveHostChoice: value,
+        executiveHostFirstName: value === "อื่นๆ" ? prev.executiveHostFirstName : "",
+        executiveHostMiddleName: value === "อื่นๆ" ? prev.executiveHostMiddleName : "",
+        executiveHostLastName: value === "อื่นๆ" ? prev.executiveHostLastName : "",
+        executiveHostPosition: value === "อื่นๆ" ? prev.executiveHostPosition : "",
+      }));
+    }
+
+    if (name === "hostName" && value !== "อื่นๆ") {
+      return setForm((prev) => ({
+        ...prev,
+        hostName: value,
+        hostNameOther: "",
+      }));
+    }
+
     if (name === "transportType") {
       return setForm((prev) => ({
         ...prev,
@@ -350,6 +394,24 @@ export default function Home() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleSiteVisitAreaChange = (value: string, checked: boolean) => {
+    setForm((prev) => {
+      if (checked) {
+        return prev.siteVisitAreas.includes(value)
+          ? prev
+          : { ...prev, siteVisitAreas: [...prev.siteVisitAreas, value] };
+      }
+
+      const nextAreas = prev.siteVisitAreas.filter((area) => area !== value);
+      return {
+        ...prev,
+        siteVisitAreas: nextAreas,
+        siteVisitApproverName: nextAreas.length > 0 ? prev.siteVisitApproverName : "",
+        siteVisitApproverPosition: nextAreas.length > 0 ? prev.siteVisitApproverPosition : "",
+      };
+    });
   };
 
   const handleDietToggle = (key: "halal" | "vegan") => {
@@ -509,6 +571,14 @@ export default function Home() {
     if (form.meetingRoom === "yes" && !form.meetingRoomSelection.trim()) {
       messages.push("กรุณาเลือกห้องประชุม");
     }
+    if (form.siteVisitAreas.length > 0) {
+      if (!form.siteVisitApproverName.trim()) {
+        messages.push("กรุณากรอกชื่อผู้อนุญาตให้เข้าชม");
+      }
+      if (!form.siteVisitApproverPosition.trim()) {
+        messages.push("กรุณากรอกตำแหน่งผู้อนุญาตให้เข้าชม");
+      }
+    }
     if (!form.transportType) {
       messages.push("กรุณาเลือกประเภทรถ");
     }
@@ -598,6 +668,29 @@ export default function Home() {
     if (!form.hostName.trim()) {
       messages.push("กรุณาเลือกผู้ที่จะเข้ามาพบ");
     }
+    if (form.hostName === "อื่นๆ" && !form.hostNameOther.trim()) {
+      messages.push("กรุณาระบุบุคคลที่เข้าพบ (อื่นๆ)");
+    }
+    if (!form.executiveHostChoice.trim()) {
+      messages.push("กรุณาเลือกผู้บริหารที่จะมาดูแลต้อนรับแขก");
+    }
+    if (form.executiveHostChoice === "อื่นๆ") {
+      if (!form.executiveHostFirstName.trim()) {
+        messages.push("กรุณากรอกชื่อผู้บริหาร (อื่นๆ)");
+      }
+      if (!form.executiveHostLastName.trim()) {
+        messages.push("กรุณากรอกนามสกุลผู้บริหาร (อื่นๆ)");
+      }
+      if (!form.executiveHostPosition.trim()) {
+        messages.push("กรุณากรอกตำแหน่งผู้บริหาร (อื่นๆ)");
+      }
+    }
+    if (!form.submittedByName.trim()) {
+      messages.push("กรุณากรอกชื่อผู้กรอกฟอร์ม");
+    }
+    if (!form.submittedByPosition.trim()) {
+      messages.push("กรุณากรอกตำแหน่งผู้กรอกฟอร์ม");
+    }
     if (presentationFile && presentationFile.size > maxPresentationFileSize) {
       messages.push("ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)");
     }
@@ -629,6 +722,15 @@ export default function Home() {
     const meetingRoomLabel = form.meetingRoomSelection
       ? form.meetingRoomSelection
       : "";
+
+    const siteVisit =
+      form.siteVisitAreas.length > 0
+        ? {
+            areas: form.siteVisitAreas,
+            approverName: form.siteVisitApproverName,
+            approverPosition: form.siteVisitApproverPosition,
+          }
+        : null;
 
     const foodPreferences =
       form.foodRequired === "yes"
@@ -685,6 +787,28 @@ export default function Home() {
           }
         : null;
 
+    const executiveHost =
+      form.executiveHostChoice === "อื่นๆ"
+        ? {
+            type: "other",
+            firstName: form.executiveHostFirstName,
+            middleName: form.executiveHostMiddleName,
+            lastName: form.executiveHostLastName,
+            position: form.executiveHostPosition,
+          }
+        : {
+            type: "preset",
+            name: form.executiveHostChoice,
+          };
+
+    const submittedBy = {
+      name: form.submittedByName,
+      position: form.submittedByPosition,
+    };
+
+    const hostNameValue =
+      form.hostName === "อื่นๆ" ? form.hostNameOther : form.hostName;
+
     const payload = {
       timestamp: new Date().toISOString(),
       clientCompany: form.clientCompany,
@@ -699,6 +823,7 @@ export default function Home() {
       visitDateTime: visitDateTimeValue,
       meetingRoom: form.meetingRoom === "yes",
       meetingRoomSelection: meetingRoomLabel,
+      siteVisit,
       transportType: form.transportType,
       carCount:
         form.transportType === "personal" ? Number(form.carCount || 0) : 0,
@@ -710,7 +835,9 @@ export default function Home() {
       foodPreferences,
       souvenir: form.souvenir === "yes",
       souvenirPreferences,
-      hostName: form.hostName,
+      executiveHost,
+      hostName: hostNameValue,
+      submittedBy,
     };
 
     try {
@@ -1126,6 +1253,57 @@ export default function Home() {
                   <option value="personal">รถส่วนตัว</option>
                   <option value="public">รถสาธารณะ</option>
                 </select>
+              </div>
+
+              <div className="space-y-3 md:col-span-2">
+                <div className="rounded-lg border border-zinc-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-zinc-900">
+                    การเข้าชม
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                    {siteVisitAreaOptions.map((item) => (
+                      <label key={item} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={form.siteVisitAreas.includes(item)}
+                          onChange={(e) =>
+                            handleSiteVisitAreaChange(item, e.target.checked)
+                          }
+                        />
+                        <span>{item}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {form.siteVisitAreas.length > 0 && (
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium">
+                          ชื่อผู้อนุญาตให้เข้าชม
+                        </label>
+                        <input
+                          type="text"
+                          name="siteVisitApproverName"
+                          value={form.siteVisitApproverName}
+                          onChange={handleChange}
+                          className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                          placeholder="เช่น นาย/นาง ..."
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium">ตำแหน่ง</label>
+                        <input
+                          type="text"
+                          name="siteVisitApproverPosition"
+                          value={form.siteVisitApproverPosition}
+                          onChange={handleChange}
+                          className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                          placeholder="เช่น Manager"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {transportPersonal && (
@@ -1695,6 +1873,90 @@ export default function Home() {
                 </select>
               </div>
 
+              {form.hostName === "อื่นๆ" && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    ระบุบุคคลที่เข้าพบ (อื่นๆ)
+                  </label>
+                  <input
+                    type="text"
+                    name="hostNameOther"
+                    value={form.hostNameOther}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder="เช่น นาย/นาง ..."
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">
+                  ผู้บริหารดูแลต้อนรับแขก
+                </label>
+                <select
+                  name="executiveHostChoice"
+                  value={form.executiveHostChoice}
+                  onChange={handleChange}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                >
+                  <option value="">เลือกผู้บริหาร</option>
+                  {executiveHostOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {form.executiveHostChoice === "อื่นๆ" && (
+                <div className="grid gap-4 md:col-span-2 md:grid-cols-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">ชื่อ</label>
+                    <input
+                      type="text"
+                      name="executiveHostFirstName"
+                      value={form.executiveHostFirstName}
+                      onChange={handleChange}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      placeholder="ชื่อ"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">ชื่อกลาง</label>
+                    <input
+                      type="text"
+                      name="executiveHostMiddleName"
+                      value={form.executiveHostMiddleName}
+                      onChange={handleChange}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      placeholder="(ถ้ามี)"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">นามสกุล</label>
+                    <input
+                      type="text"
+                      name="executiveHostLastName"
+                      value={form.executiveHostLastName}
+                      onChange={handleChange}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      placeholder="นามสกุล"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">ตำแหน่ง</label>
+                    <input
+                      type="text"
+                      name="executiveHostPosition"
+                      value={form.executiveHostPosition}
+                      onChange={handleChange}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      placeholder="ตำแหน่ง"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">หัวข้อที่เกี่ยวข้อง</label>
                 <input
@@ -1718,6 +1980,31 @@ export default function Home() {
                 className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                 placeholder="ระบุรายละเอียดเพิ่มเติม เช่น จุดประสงค์"
               />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">ชื่อผู้กรอกฟอร์ม</label>
+                <input
+                  type="text"
+                  name="submittedByName"
+                  value={form.submittedByName}
+                  onChange={handleChange}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  placeholder="เช่น นาย/นาง ..."
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">ตำแหน่งผู้กรอกฟอร์ม</label>
+                <input
+                  type="text"
+                  name="submittedByPosition"
+                  value={form.submittedByPosition}
+                  onChange={handleChange}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  placeholder="เช่น Officer"
+                />
+              </div>
             </div>
           </section>
 
