@@ -1,10 +1,28 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 import nodemailer from "nodemailer";
+import { randomUUID } from "crypto";
 
 export async function POST(request) {
   try {
-    const data = await request.json();
+    const contentType = request.headers.get("content-type") || "";
+    const parsed =
+      contentType.includes("multipart/form-data")
+        ? await (async () => {
+            const formData = await request.formData();
+            const raw = formData.get("data");
+            const file = formData.get("presentationFile");
+            const data =
+              typeof raw === "string"
+                ? JSON.parse(raw)
+                : raw && typeof raw === "object"
+                  ? JSON.parse(String(raw))
+                  : {};
+            return { data, file };
+          })()
+        : { data: await request.json(), file: null };
+
+    const data = parsed.data ?? {};
     const supabase = await createClient();
     const toBoolean = (value) => {
       if (typeof value === "boolean") {
@@ -33,6 +51,71 @@ export async function POST(request) {
       !Array.isArray(data.foodPreferences)
         ? data.foodPreferences
         : null;
+    const souvenirPreferences =
+      data.souvenirPreferences &&
+      typeof data.souvenirPreferences === "object" &&
+      !Array.isArray(data.souvenirPreferences)
+        ? data.souvenirPreferences
+        : null;
+
+    const presentationFileInput = parsed.file;
+    const bucketName =
+      process.env.SUPABASE_PRESENTATION_BUCKET || "vip_visitor_attachments";
+    const toSafeFilename = (value) =>
+      String(value || "")
+        .replace(/[/\\?%*:|"<>]/g, "_")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    let presentationFile = null;
+    if (presentationFileInput && presentationFileInput instanceof File) {
+      const maxSize = 10 * 1024 * 1024;
+      if (presentationFileInput.size > maxSize) {
+        return NextResponse.json(
+          { success: false, error: "ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)" },
+          { status: 400 }
+        );
+      }
+
+      const originalName = toSafeFilename(presentationFileInput.name);
+      const fileExt = originalName.includes(".")
+        ? originalName.split(".").pop()
+        : "";
+      const datedPrefix = new Date().toISOString().slice(0, 10);
+      const objectPath = `${datedPrefix}/${randomUUID()}${
+        fileExt ? `.${fileExt}` : ""
+      }`;
+      const arrayBuffer = await presentationFileInput.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      const uploadResult = await supabase.storage
+        .from(bucketName)
+        .upload(objectPath, bytes, {
+          contentType:
+            presentationFileInput.type || "application/octet-stream",
+          upsert: false,
+        });
+
+      if (uploadResult.error) {
+        return NextResponse.json(
+          { success: false, error: uploadResult.error.message },
+          { status: 500 }
+        );
+      }
+
+      const publicUrlResult = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(objectPath);
+
+      presentationFile = {
+        bucket: bucketName,
+        path: objectPath,
+        originalName,
+        mimeType: presentationFileInput.type || "",
+        size: presentationFileInput.size,
+        publicUrl: publicUrlResult?.data?.publicUrl ?? "",
+      };
+    }
 
     const insertPayload = {
       timestamp: data.timestamp ?? new Date().toISOString(),
@@ -57,6 +140,8 @@ export async function POST(request) {
       meals: data.meals ?? "",
       foodPreferences,
       souvenir,
+      souvenirPreferences,
+      presentationFile,
       hostName: data.hostName ?? "",
     };
 
@@ -71,13 +156,15 @@ export async function POST(request) {
         msg.includes('column "cars"') ||
         msg.includes('column "carCount"') ||
         msg.includes('column "meetingRoomSelection"') ||
-        msg.includes('column "foodPreferences"')
+        msg.includes('column "foodPreferences"') ||
+        msg.includes('column "souvenirPreferences"') ||
+        msg.includes('column "presentationFile"')
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ guests (jsonb), cars (jsonb), carCount (int), meetingRoomSelection (text), foodPreferences (jsonb) ในตาราง vip_visitor ก่อน',
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ guests (jsonb), cars (jsonb), carCount (int), meetingRoomSelection (text), foodPreferences (jsonb), souvenirPreferences (jsonb), presentationFile (jsonb) ในตาราง vip_visitor ก่อน',
           },
           { status: 500 }
         );
@@ -135,6 +222,20 @@ export async function POST(request) {
     const foodRequiredText = foodRequired === null ? "-" : yesNo(foodRequired);
     const meetingRoomText = meetingRoom === null ? "-" : yesNo(meetingRoom);
     const souvenirText = souvenir === null ? "-" : yesNo(souvenir);
+
+    const sp = souvenirPreferences;
+    const spGiftSet =
+      sp && typeof sp.giftSet === "string" ? sp.giftSet.trim() : "";
+    const spCount =
+      sp && Number.isFinite(Number(sp.count)) ? Number(sp.count) : 0;
+    const spExtra = sp && typeof sp.extra === "string" ? sp.extra.trim() : "";
+    const souvenirDetailText = souvenir
+      ? [
+          `ประเภท: ${spGiftSet || "-"}`,
+          `จำนวนชุด: ${spCount > 0 ? spCount : "-"}`,
+          `ของพิเศษ: ${spExtra || "-"}`,
+        ].join("\n")
+      : "-";
 
     const fp = foodPreferences;
     const fpMenus =
@@ -287,6 +388,8 @@ export async function POST(request) {
       `อาหารพิเศษ: ${specialDietText}`,
       `แพ้อาหาร: ${allergyText}`,
       `จำนวนผู้เข้าร่วม: ${data.totalGuests ?? "-"}`,
+      `ของที่ระลึก: ${souvenirText}`,
+      `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
     ].join("\n");
 
     const managerText = [
@@ -314,6 +417,7 @@ export async function POST(request) {
       `อาหารพิเศษ: ${specialDietText}`,
       `แพ้อาหาร: ${allergyText}`,
       `ของที่ระลึก: ${souvenirText}`,
+      `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
       `ผู้ลงข้อมูล: ${data.hostName ?? "-"}`,
     ].join("\n");
 
@@ -341,6 +445,7 @@ export async function POST(request) {
       `อาหารพิเศษ: ${specialDietText}`,
       `แพ้อาหาร: ${allergyText}`,
       `ของที่ระลึก: ${souvenirText}`,
+      `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
     ].join("\n");
 
     const mailTasks = [

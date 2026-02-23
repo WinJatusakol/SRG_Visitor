@@ -62,6 +62,9 @@ type VisitFormState = {
   allergies: string[];
   allergyOther: string;
   souvenir: YesNo | "";
+  souvenirGiftSet: string;
+  souvenirGiftSetCount: string;
+  souvenirExtra: string;
   hostName: string;
 };
 
@@ -135,6 +138,8 @@ const dinnerDessertOptions = ["ไอศกรีมวานิลลา", "เ
 
 const allergyOptions = ["ทะเล", "ถั่ว", "นม", "ไข่", "กลูเตน", "งา", "อื่นๆ"];
 
+const souvenirGiftSetOptions = ["Giftset 01", "Giftset 02", "Giftset 03"];
+
 const createEmptyGuest = (): Guest => ({
   firstName: "",
   middleName: "",
@@ -184,11 +189,15 @@ const initialState: VisitFormState = {
   allergies: [],
   allergyOther: "",
   souvenir: "",
+  souvenirGiftSet: "",
+  souvenirGiftSetCount: "",
+  souvenirExtra: "",
   hostName: "",
 };
 
 export default function Home() {
   const [form, setForm] = useState<VisitFormState>(initialState);
+  const [presentationFile, setPresentationFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dialog, setDialog] = useState<DialogState>({
     open: false,
@@ -228,6 +237,9 @@ export default function Home() {
     }
 
     if (name === "halalCount" || name === "veganCount") {
+      value = value.replace(/\D/g, "");
+    }
+    if (name === "souvenirGiftSetCount") {
       value = value.replace(/\D/g, "");
     }
 
@@ -296,6 +308,16 @@ export default function Home() {
         veganCount: value === "yes" ? prev.veganCount : "",
         allergies: value === "yes" ? prev.allergies : [],
         allergyOther: value === "yes" ? prev.allergyOther : "",
+      }));
+    }
+
+    if (name === "souvenir") {
+      return setForm((prev) => ({
+        ...prev,
+        souvenir: value as YesNo,
+        souvenirGiftSet: value === "yes" ? prev.souvenirGiftSet : "",
+        souvenirGiftSetCount: value === "yes" ? prev.souvenirGiftSetCount : "",
+        souvenirExtra: value === "yes" ? prev.souvenirExtra : "",
       }));
     }
 
@@ -418,6 +440,7 @@ export default function Home() {
 
   const validate = () => {
     const messages: string[] = [];
+    const maxPresentationFileSize = 10 * 1024 * 1024;
 
     if (!form.clientCompany.trim()) {
       messages.push("กรุณากรอกบริษัทลูกค้าที่พาแขก VIP มา");
@@ -563,8 +586,20 @@ export default function Home() {
     if (!form.souvenir) {
       messages.push("กรุณาระบุว่าจะรับของที่ระลึกหรือไม่");
     }
+    if (form.souvenir === "yes") {
+      if (!form.souvenirGiftSet.trim()) {
+        messages.push("กรุณาเลือกประเภทของที่ระลึก");
+      }
+      const count = Number(form.souvenirGiftSetCount || 0);
+      if (!form.souvenirGiftSetCount.trim() || count <= 0) {
+        messages.push("กรุณาระบุจำนวนชุดของที่ระลึก");
+      }
+    }
     if (!form.hostName.trim()) {
       messages.push("กรุณาเลือกผู้ที่จะเข้ามาพบ");
+    }
+    if (presentationFile && presentationFile.size > maxPresentationFileSize) {
+      messages.push("ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)");
     }
 
     return messages;
@@ -641,6 +676,15 @@ export default function Home() {
           }
         : null;
 
+    const souvenirPreferences =
+      form.souvenir === "yes"
+        ? {
+            giftSet: form.souvenirGiftSet,
+            count: Number(form.souvenirGiftSetCount || 0),
+            extra: form.souvenirExtra,
+          }
+        : null;
+
     const payload = {
       timestamp: new Date().toISOString(),
       clientCompany: form.clientCompany,
@@ -665,18 +709,31 @@ export default function Home() {
       meals: form.meals.join(","),
       foodPreferences,
       souvenir: form.souvenir === "yes",
+      souvenirPreferences,
       hostName: form.hostName,
     };
 
     try {
       setSubmitting(true);
-      const response = await fetch("/api/summit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await (async () => {
+        if (!presentationFile) {
+          return fetch("/api/summit", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+        }
+
+        const formData = new FormData();
+        formData.append("data", JSON.stringify(payload));
+        formData.append("presentationFile", presentationFile);
+        return fetch("/api/summit", {
+          method: "POST",
+          body: formData,
+        });
+      })();
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok || result.success === false) {
@@ -691,6 +748,7 @@ export default function Home() {
       }
 
       setForm(initialState);
+      setPresentationFile(null);
       setDialog({
         open: true,
         type: "success",
@@ -1524,6 +1582,93 @@ export default function Home() {
                   <span>ไม่ต้องการ</span>
                 </label>
               </div>
+            </div>
+
+            {form.souvenir === "yes" && (
+              <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-4">
+                <div className="text-sm font-semibold text-zinc-900">
+                  รายละเอียดของที่ระลึก
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">
+                      ประเภทของที่ระลึก
+                    </label>
+                    <select
+                      name="souvenirGiftSet"
+                      value={form.souvenirGiftSet}
+                      onChange={handleChange}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    >
+                      <option value="">เลือกประเภท</option>
+                      {souvenirGiftSetOptions.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">จำนวนชุด</label>
+                    <input
+                      type="number"
+                      min={1}
+                      name="souvenirGiftSetCount"
+                      value={form.souvenirGiftSetCount}
+                      onChange={handleChange}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      placeholder="เช่น 5"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 md:col-span-2">
+                    <label className="text-sm font-medium">
+                      เพิ่มของพิเศษ (ถ้ามี)
+                    </label>
+                    <textarea
+                      name="souvenirExtra"
+                      value={form.souvenirExtra}
+                      onChange={handleChange}
+                      rows={3}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      placeholder="ระบุของพิเศษเพิ่มเติม เช่น ใส่โลโก้, การ์ดข้อความ, ของเพิ่มอื่นๆ"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5">
+            <h2 className="text-base font-semibold text-zinc-900">
+              ไฟล์สำหรับการประชุม
+            </h2>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">แนบไฟล์นำเสนอ (ไม่บังคับ)</label>
+              <input
+                type="file"
+                name="presentationFile"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  setPresentationFile(file);
+                }}
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
+              />
+              {presentationFile && (
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
+                  <div>
+                    ไฟล์ที่เลือก: {presentationFile.name} (
+                    {Math.ceil(presentationFile.size / 1024)} KB)
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                    onClick={() => setPresentationFile(null)}
+                    disabled={submitting}
+                  >
+                    เอาออก
+                  </button>
+                </div>
+              )}
             </div>
           </section>
 
