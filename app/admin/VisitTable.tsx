@@ -19,7 +19,6 @@ import {
     AlertCircle
 } from "lucide-react";
 
-// --- Types (เหมือนเดิม) ---
 type Visit = {
     id: string | number;
     visitDateTime?: string | null;
@@ -38,7 +37,6 @@ type Visit = {
     foodRequired?: boolean | null;
     meals?: string | null;
     souvenir?: boolean | null;
-    // ข้อมูลที่เพิ่มมาใหม่
     visitTopic?: string | null;
     visitDetail?: string | null;
     guests?: unknown[] | null;
@@ -46,6 +44,8 @@ type Visit = {
     cars?: unknown[] | null;
     meetingRoomSelection?: string | null;
     foodPreferences?: unknown | null;
+    // ✨ เพิ่ม Type สำหรับของที่ระลึกแบบละเอียด (ตามหน้า page.tsx ของเพื่อน)
+    souvenirPreferences?: unknown | null; 
 };
 
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
@@ -56,7 +56,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         return [...visits].sort((b, a) => {
             const dateA = new Date(a.visitDateTime || a.created_at || 0).getTime();
             const dateB = new Date(b.visitDateTime || b.created_at || 0).getTime();
-            return dateB - dateA; // Newest first
+            return dateB - dateA;
         });
     }, [visits]);
 
@@ -138,9 +138,24 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         return parts.length > 0 ? parts.join(" | ") : "-";
     };
 
+    // ✨ ฟังก์ชันใหม่สำหรับจัดการข้อมูลของที่ระลึก
+    const souvenirText = (value: unknown) => {
+        if (!value || typeof value !== "object") return "-";
+        const v = value as Record<string, unknown>;
+        const giftSet = typeof v.giftSet === "string" && v.giftSet ? v.giftSet : "-";
+        const count = typeof v.count === "number" ? v.count : 0;
+        const extra = typeof v.extra === "string" && v.extra.trim() ? v.extra : "-";
+        
+        const lines = [];
+        lines.push(`• ประเภท: ${giftSet}`);
+        lines.push(`• จำนวน: ${count} ชุด`);
+        if (extra !== "-") lines.push(`• เพิ่มเติม: ${extra}`);
+        
+        return lines.join("\n");
+    };
+
     return (
         <div className="p-2 md:p-4 space-y-6 bg-gray-50/50 min-h-screen rounded-3xl">
-            {/* --- Header Section with Gradient Text --- */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
                 <div>
                     <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600">
@@ -156,9 +171,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 </div>
             </div>
 
-{/* --- Premium Table Card (ตารางสวยงามของคุณ) --- */}
             <div className="bg-white/80 backdrop-blur-xl rounded-[4xl] shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden relative z-0">
-                {/* Decorative background blob */}
                 <div className="absolute top-0 right-0 -z-10 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
                 <div className="overflow-x-auto p-2">
@@ -179,7 +192,8 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     <tr
                                         key={visit.id}
                                         onClick={() => setSelectedVisit(visit)}
-                                        className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y- rounded-2xl cursor-pointer relative z-10"
+                                        // ✨ แก้ไขจาก hover:-translate-y- เป็น hover:-translate-y-1 
+                                        className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10"
                                     >
                                         <td className="px-6 py-5 align-top">
                                            <div className="flex items-start gap-3">
@@ -251,7 +265,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 </div>
             </div>
 
-            {/* --- Premium Modal (นำข้อมูลของเพื่อนมายัดใส่ดีไซน์ของคุณ) --- */}
             {selectedVisit && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white w-full max-w-3xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
@@ -280,7 +293,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar bg-gray-50/30">
                             <div className="space-y-8">
 
-                                {/* Group 1: ข้อมูลพื้นฐานและการเข้าพบ (ข้อมูลเพื่อน) */}
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                                         <MessageSquareText className="w-4 h-4 text-blue-500" /> ข้อมูลทั่วไปและการเข้าพบ
@@ -305,7 +317,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
                                 <Separator />
 
-                                {/* Group 2: ผู้เข้าร่วม (ข้อมูลเพื่อน) */}
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                                         <Users className="w-4 h-4 text-indigo-500" /> รายชื่อผู้เข้าร่วม ({selectedVisit.totalGuests || 0} ท่าน)
@@ -314,14 +325,13 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         <PremiumDetailItem 
                                             label="รายละเอียดรายบุคคล" 
                                             value={guestsText(selectedVisit.guests)} 
-                                            multiline
+                                            multiline 
                                         />
                                     </div>
                                 </div>
 
                                 <Separator />
 
-                                {/* Group 3: การเดินทาง (ข้อมูลเพื่อน) */}
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                                         <CarFront className="w-4 h-4 text-emerald-500" /> ข้อมูลการเดินทาง
@@ -331,12 +341,10 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                             <PremiumDetailItem label="ประเภท" value={selectedVisit.transportType === "personal" ? "รถส่วนตัว" : "รถสาธารณะ"} simple />
                                             <PremiumDetailItem label="จำนวนรถ" value={selectedVisit.transportType === "personal" ? (selectedVisit.carCount ?? "-") : "-"} simple />
                                             
-                                            {/* Fallback ในกรณีที่ไม่มีข้อมูลใน Array cars */}
                                             {selectedVisit.carLicense && <PremiumDetailItem label="ทะเบียนรถ" value={selectedVisit.carLicense} simple isPrimary />}
                                             {selectedVisit.carBrand && !selectedVisit.carLicense && <PremiumDetailItem label="ยี่ห้อรถ" value={selectedVisit.carBrand} simple />}
                                         </div>
                                         
-                                        {/* ข้อมูลรถยนต์แบบ Array ที่เพื่อนทำมา */}
                                         {selectedVisit.transportType === "personal" && selectedVisit.cars && (
                                             <div className="pt-4 border-t border-gray-50">
                                                 <PremiumDetailItem label="ข้อมูลรถเพิ่มเติม" value={carsText(selectedVisit.cars)} multiline />
@@ -345,7 +353,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     </div>
                                 </div>
 
-                                {/* Group 4: การรับรองและอาหาร (ผสมดีไซน์ Premium + ข้อมูลเพื่อน) */}
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                                         <Utensils className="w-4 h-4 text-orange-500" /> การรับรองและอาหาร
@@ -376,6 +383,12 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                             <dd className={`text-sm font-bold ${selectedVisit.souvenir ? 'text-pink-700' : 'text-gray-400'}`}>
                                                 {selectedVisit.souvenir ? "เตรียมของที่ระลึก" : "ไม่ต้องการ"}
                                             </dd>
+                                            {/* ✨ ส่วนที่เพิ่มมาใหม่: โชว์ข้อมูลของที่ระลึกแบบละเอียด */}
+                                            {selectedVisit.souvenir && selectedVisit.souvenirPreferences ? (
+                                                <div className="mt-3 bg-white p-3 rounded-xl border border-pink-100/50 text-sm text-pink-800 whitespace-pre-line leading-relaxed">
+                                                    {souvenirText(selectedVisit.souvenirPreferences)}
+                                                </div>
+                                            ) : null}
                                         </div>
 
                                         {/* อาหาร */}
@@ -390,7 +403,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                                          {selectedVisit.foodRequired ? `ต้องการ (${selectedVisit.meals || "ไม่ระบุมื้อ"})` : "ไม่ต้องการอาหาร"}
                                                     </dd>
                                                     
-                                                    {/* กล่องเมนูอาหารและแพ้อาหาร (เพื่อนส่งมา) */}
                                                     {selectedVisit.foodRequired && (
                                                         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                             <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-100/50">
@@ -427,25 +439,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     );
 }
 
-// --- Helper Components (เพื่อความสวยงาม) ---
-
-// เส้นคั่นบางๆ
 function Separator() {
     return <div className="h-px w-full bg-linear-to-r from-transparent via-gray-200 to-transparent my-2"></div>
 }
 
-// Avatar สร้างจากตัวอักษรแรกของชื่อบริษัท
 function CompanyAvatar({ name, size = "md", idx = 0 }: { name?: string | null; size?: "md" | "lg"; idx?: number }) {
     const initial = name && name.length > 0 ? name.charAt(0).toUpperCase() : <Building2 className={size === "lg" ? "w-6 h-6" : "w-4 h-4"} />;
 
-    // จานสีสำหรับสุ่มให้แต่ละบริษัทสีไม่เหมือนกัน
     const colorPalettes = [
         'from-blue-400 to-indigo-500 text-white shadow-blue-200/50',
         'from-purple-400 to-pink-500 text-white shadow-purple-200/50',
         'from-emerald-400 to-teal-500 text-white shadow-emerald-200/50',
         'from-orange-400 to-red-500 text-white shadow-orange-200/50',
     ];
-    // เลือกสีตาม index หรือชื่อ (เพื่อให้บริษัทเดิมสีเดิมเสมอ)
     const colorClass = colorPalettes[(idx || (name?.length || 0)) % colorPalettes.length];
 
     const sizeClass = size === "lg" ? "w-14 h-14 text-xl rounded-2xl" : "w-10 h-10 text-sm rounded-xl";
@@ -457,22 +463,20 @@ function CompanyAvatar({ name, size = "md", idx = 0 }: { name?: string | null; s
     );
 }
 
-// Item แสดงข้อมูลใน Modal แบบใหม่
-// Item แสดงข้อมูลใน Modal แบบใหม่
 function PremiumDetailItem({ 
     label, 
     value, 
     icon, 
     simple = false, 
     isPrimary = false,
-    multiline = false // ✨ 1. เพิ่มการรับค่า multiline ตรงนี้
+    multiline = false 
 }: { 
     label: string; 
     value: ReactNode; 
     icon?: ReactNode; 
     simple?: boolean; 
     isPrimary?: boolean;
-    multiline?: boolean; // ✨ 2. เพิ่ม Type Definition ตรงนี้
+    multiline?: boolean; 
 }) {
     const displayValue = value === null || value === undefined || value === "" ? "—" : value;
 
@@ -480,7 +484,6 @@ function PremiumDetailItem({
          return (
             <div>
                 <dt className="text-xs text-gray-400 mb-1">{label}</dt>
-                {/* ✨ 3. ปรับให้รองรับ whitespace-pre-line ถ้ามีการส่ง multiline เข้ามาในแบบ simple */}
                 <dd className={`text-sm ${isPrimary ? 'font-bold text-gray-900' : 'font-medium text-gray-700'} ${multiline ? 'whitespace-pre-line leading-relaxed' : ''}`}>
                     {displayValue}
                 </dd>
@@ -489,14 +492,12 @@ function PremiumDetailItem({
     }
 
     return (
-        // ✨ 4. ถ้าเป็น multiline ให้ขยายเต็มความกว้าง (w-full)
         <div className={`flex items-start gap-3 p-3 rounded-2xl bg-white border border-gray-100/80 shadow-sm hover:shadow-md transition-shadow group ${multiline ? 'w-full' : ''}`}>
             {icon && (
                 <div className={`mt-1 p-2 rounded-xl shrink-0 ${isPrimary ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'} transition-colors`}>
                     <span className="[&>svg]:w-4 [&>svg]:h-4">{icon}</span>
                 </div>
             )}
-            {/* ✨ 5. ถ้าเป็น multiline ให้ถอดคลาส truncate ออก และใส่ whitespace-pre-line เพื่อให้ขึ้นบรรทัดใหม่ */}
             <div className={`overflow-hidden ${multiline ? 'w-full' : ''}`}>
                 <dt className="text-xs font-medium text-gray-400 mb-0.5">{label}</dt>
                 <dd className={`text-sm ${isPrimary ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'} ${multiline ? 'whitespace-pre-line leading-relaxed mt-1' : 'truncate'}`}>
