@@ -10,6 +10,7 @@ type Guest = {
   firstName: string;
   middleName: string;
   lastName: string;
+  company: string;
   position: string;
   nationality: string;
 };
@@ -22,7 +23,6 @@ type Car = {
 type VisitFormState = {
   clientCompany: string;
   vipCompany: string;
-  vipPosition: string;
   nationality: string;
   contactPhone: string;
   totalGuests: string;
@@ -153,6 +153,7 @@ const createEmptyGuest = (): Guest => ({
   firstName: "",
   middleName: "",
   lastName: "",
+  company: "",
   position: "",
   nationality: "",
 });
@@ -165,7 +166,6 @@ const createEmptyCar = (): Car => ({
 const initialState: VisitFormState = {
   clientCompany: "",
   vipCompany: "",
-  vipPosition: "",
   nationality: "",
   contactPhone: "",
   totalGuests: "",
@@ -230,6 +230,19 @@ export default function Home() {
   );
 
   const t = (th: string, en: string) => (lang === "th" ? th : en);
+  const siteVisitAreaLabel = (value: string) => {
+    if (value === "โรงงาน") return t("โรงงาน", "Factory");
+    if (value === "QC") return "QC";
+    if (value === "Warehouse") return t("คลังสินค้า", "Warehouse");
+    if (value === "Lab") return t("ห้องแล็บ", "Lab");
+    return value;
+  };
+  const mealLabel = (value: string) => {
+    if (value === "เช้า") return t("เช้า", "Breakfast");
+    if (value === "กลางวัน") return t("กลางวัน", "Lunch");
+    if (value === "เย็น") return t("เย็น", "Dinner");
+    return value;
+  };
 
   const handleChange = (
     event: ChangeEvent<
@@ -505,8 +518,8 @@ export default function Home() {
     if (!form.clientCompany.trim()) {
       messages.push(
         t(
-          "กรุณากรอกบริษัทลูกค้าที่พาแขก VIP มา",
-          "Please enter the client company bringing the VIP guest."
+          "กรุณากรอกบริษัทของคุณ",
+          "Please enter your company."
         )
       );
     }
@@ -518,16 +531,8 @@ export default function Home() {
         )
       );
     }
-    if (!form.vipPosition.trim()) {
-      messages.push(
-        t(
-          "กรุณากรอกตำแหน่งของแขก VIP",
-          "Please enter the VIP guest position."
-        )
-      );
-    }
     if (!form.nationality.trim()) {
-      messages.push(t("กรุณากรอกสัญชาติ", "Please enter the nationality."));
+      messages.push(t("กรุณากรอกสัญชาติบริษัท", "Please enter the company nationality."));
     }
     if (!form.contactPhone.trim()) {
       messages.push(
@@ -926,7 +931,6 @@ export default function Home() {
     }
 
     const cars = form.transportType === "personal" ? form.cars : [];
-    const firstCar = cars[0] ?? null;
 
     const siteVisit =
       form.siteVisitAreas.length > 0
@@ -1015,10 +1019,8 @@ export default function Home() {
       timestamp: new Date().toISOString(),
       clientCompany: form.clientCompany,
       vipCompany: form.vipCompany,
-      vipPosition: form.vipPosition,
       nationality: form.nationality,
       contactPhone: form.contactPhone,
-      totalGuests: Number(form.totalGuests),
       guests: form.guests,
       visitTopic: form.visitTopic,
       visitDetail: form.visitDetail,
@@ -1026,19 +1028,11 @@ export default function Home() {
         form.visitDate && form.visitTime
           ? `${form.visitDate}T${form.visitTime}`
           : "",
-      meetingRoom: form.meetingRoom === "yes",
       meetingRoomSelection: form.meetingRoomSelection || "",
       siteVisit,
       transportType: form.transportType,
-      carCount:
-        form.transportType === "personal" ? Number(form.carCount || 0) : 0,
       cars,
-      carBrand: firstCar?.brand ?? "",
-      carLicense: firstCar?.license ?? "",
-      foodRequired: form.foodRequired === "yes",
-      meals: form.meals.join(","),
       foodPreferences,
-      souvenir: form.souvenir === "yes",
       souvenirPreferences,
       executiveHost,
       hostName: form.hostName === "อื่นๆ" ? form.hostNameOther : form.hostName,
@@ -1282,8 +1276,8 @@ export default function Home() {
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
                   {t(
-                    "บริษัทลูกค้าที่พาแขก VIP มา",
-                    "Client company (bringing VIP guest)"
+                    "บริษัทของคุณ",
+                    "Your company (bringing VIP guest)"
                   )}
                 </label>
                 <input
@@ -1314,20 +1308,6 @@ export default function Home() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("ตำแหน่งของแขก VIP", "VIP guest position")}
-                </label>
-                <input
-                  type="text"
-                  name="vipPosition"
-                  value={form.vipPosition}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t("เช่น CEO, Director", "e.g., CEO, Director")}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
                   {t("สัญชาติ", "Nationality")}
                 </label>
                 <input
@@ -1344,7 +1324,7 @@ export default function Home() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("เบอร์ลูกค้าที่จะพาแขกมา", "Contact phone")}
+                  {t("เบอร์ผู้ประสานงาน", "Contact phone")}
                 </label>
                 <input
                   type="tel"
@@ -1383,12 +1363,12 @@ export default function Home() {
                     return (
                       <div
                         key={String(index)}
-                        className="rounded-lg border border-zinc-200 bg-white p-4"
+                        className="rounded-lg border border-zinc-200 bg-white p-5"
                       >
                         <div className="text-sm font-semibold text-zinc-900">
                           {t("ผู้เข้าร่วมคนที่", "Attendee")} {index + 1}
                         </div>
-                        <div className="mt-3 grid gap-3 md:grid-cols-5">
+                        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                           <input
                             type="text"
                             value={guest.firstName}
@@ -1427,6 +1407,19 @@ export default function Home() {
                             }
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                             placeholder={t("นามสกุล", "Last name")}
+                          />
+                          <input
+                            type="text"
+                            value={guest.company}
+                            onChange={(e) =>
+                              handleGuestChange(
+                                index,
+                                "company",
+                                e.target.value
+                              )
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("บริษัท", "Company")}
                           />
                           <input
                             type="text"
@@ -1608,7 +1601,7 @@ export default function Home() {
                             handleSiteVisitAreaChange(item, e.target.checked)
                           }
                         />
-                        <span>{item}</span>
+                        <span>{siteVisitAreaLabel(item)}</span>
                       </label>
                     ))}
                   </div>
@@ -1691,7 +1684,10 @@ export default function Home() {
                                     )
                                   }
                                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                                  placeholder="ยี่ห้อรถ เช่น Toyota, Honda"
+                                  placeholder={t(
+                                    "ยี่ห้อรถ เช่น Toyota, Honda",
+                                    "Car brand e.g., Toyota, Honda"
+                                  )}
                                 />
                                 <input
                                   type="text"
@@ -1704,7 +1700,10 @@ export default function Home() {
                                     )
                                   }
                                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                                  placeholder="ทะเบียนรถ เช่น 1กก 1234"
+                                  placeholder={t(
+                                    "ทะเบียนรถ เช่น 1กก 1234",
+                                    "Car license e.g., 1กก 1234"
+                                  )}
                                 />
                               </div>
                             </div>
@@ -1738,7 +1737,7 @@ export default function Home() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  ต้องการจัดอาหารหรือไม่
+                  {t("ต้องการจัดอาหารหรือไม่", "Food required?")}
                 </label>
                 <div className="mt-1 flex gap-4 text-sm">
                   <label className="flex items-center gap-2">
@@ -1749,7 +1748,7 @@ export default function Home() {
                       checked={foodRequiredYes}
                       onChange={handleChange}
                     />
-                    <span>ต้องการ</span>
+                    <span>{t("ต้องการ", "Yes")}</span>
                   </label>
                   <label className="flex items-center gap-2">
                     <input
@@ -1759,7 +1758,7 @@ export default function Home() {
                       checked={form.foodRequired === "no"}
                       onChange={handleChange}
                     />
-                    <span>ไม่ต้องการ</span>
+                    <span>{t("ไม่ต้องการ", "No")}</span>
                   </label>
                 </div>
               </div>
@@ -1767,7 +1766,7 @@ export default function Home() {
               {foodRequiredYes && (
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    มื้ออาหารที่ต้องการ
+                    {t("มื้ออาหารที่ต้องการ", "Meals")}
                   </label>
                   <div className="mt-1 flex flex-wrap gap-4 text-sm">
                     <label className="flex items-center gap-2">
@@ -1777,7 +1776,7 @@ export default function Home() {
                         checked={form.meals.includes("เช้า")}
                         onChange={handleMealsChange}
                       />
-                      <span>เช้า</span>
+                      <span>{mealLabel("เช้า")}</span>
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -1786,7 +1785,7 @@ export default function Home() {
                         checked={form.meals.includes("กลางวัน")}
                         onChange={handleMealsChange}
                       />
-                      <span>กลางวัน</span>
+                      <span>{mealLabel("กลางวัน")}</span>
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -1795,7 +1794,7 @@ export default function Home() {
                         checked={form.meals.includes("เย็น")}
                         onChange={handleMealsChange}
                       />
-                      <span>เย็น</span>
+                      <span>{mealLabel("เย็น")}</span>
                     </label>
                   </div>
                 </div>
@@ -1809,14 +1808,14 @@ export default function Home() {
                   form.meals.includes("เย็น")) && (
                   <div className="rounded-lg border border-zinc-200 bg-white p-4">
                     <div className="text-sm font-semibold text-zinc-900">
-                      เลือกเมนูอาหาร
+                      {t("เลือกเมนูอาหาร", "Select menu")}
                     </div>
 
                     {form.meals.includes("เช้า") && (
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
                         <div className="flex flex-col gap-1">
                           <label className="text-sm font-medium">
-                            อาหารเช้า
+                            {t("อาหารเช้า", "Breakfast")}
                           </label>
                           <select
                             name="breakfastMenu"
@@ -1824,7 +1823,9 @@ export default function Home() {
                             onChange={handleChange}
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                           >
-                            <option value="">เลือกเมนูอาหารเช้า</option>
+                            <option value="">
+                              {t("เลือกเมนูอาหารเช้า", "Select breakfast menu")}
+                            </option>
                             {breakfastMenuOptions.map((item) => (
                               <option key={item} value={item}>
                                 {item}
@@ -1835,7 +1836,10 @@ export default function Home() {
                         {form.breakfastMenu === "อื่นๆ" && (
                           <div className="flex flex-col gap-1">
                             <label className="text-sm font-medium">
-                              ระบุอาหารเช้า (อื่นๆ)
+                              {t(
+                                "ระบุอาหารเช้า (อื่นๆ)",
+                                "Specify breakfast (Other)"
+                              )}
                             </label>
                             <input
                               type="text"
@@ -1843,7 +1847,10 @@ export default function Home() {
                               value={form.breakfastMenuOther}
                               onChange={handleChange}
                               className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder="เช่น แซนด์วิชทูน่า"
+                              placeholder={t(
+                                "เช่น แซนด์วิชทูน่า",
+                                "e.g., tuna sandwich"
+                              )}
                             />
                           </div>
                         )}
@@ -1854,7 +1861,7 @@ export default function Home() {
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
                         <div className="flex flex-col gap-1">
                           <label className="text-sm font-medium">
-                            อาหารกลางวัน
+                            {t("อาหารกลางวัน", "Lunch")}
                           </label>
                           <select
                             name="lunchMenu"
@@ -1862,7 +1869,9 @@ export default function Home() {
                             onChange={handleChange}
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                           >
-                            <option value="">เลือกเมนูอาหารกลางวัน</option>
+                            <option value="">
+                              {t("เลือกเมนูอาหารกลางวัน", "Select lunch menu")}
+                            </option>
                             {lunchMenuOptions.map((item) => (
                               <option key={item} value={item}>
                                 {item}
@@ -1873,7 +1882,10 @@ export default function Home() {
                         {form.lunchMenu === "อื่นๆ" && (
                           <div className="flex flex-col gap-1">
                             <label className="text-sm font-medium">
-                              ระบุอาหารกลางวัน (อื่นๆ)
+                              {t(
+                                "ระบุอาหารกลางวัน (อื่นๆ)",
+                                "Specify lunch (Other)"
+                              )}
                             </label>
                             <input
                               type="text"
@@ -1881,13 +1893,16 @@ export default function Home() {
                               value={form.lunchMenuOther}
                               onChange={handleChange}
                               className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder="เช่น ข้าวมันไก่"
+                              placeholder={t(
+                                "เช่น ข้าวมันไก่",
+                                "e.g., chicken rice"
+                              )}
                             />
                           </div>
                         )}
                         <div className="flex flex-col gap-1">
                           <label className="text-sm font-medium">
-                            ของหวาน (กลางวัน)
+                            {t("ของหวาน (กลางวัน)", "Dessert (Lunch)")}
                           </label>
                           <select
                             name="lunchDessert"
@@ -1895,7 +1910,7 @@ export default function Home() {
                             onChange={handleChange}
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                           >
-                            <option value="">เลือกของหวาน</option>
+                            <option value="">{t("เลือกของหวาน", "Select dessert")}</option>
                             {lunchDessertOptions.map((item) => (
                               <option key={item} value={item}>
                                 {item}
@@ -1906,7 +1921,10 @@ export default function Home() {
                         {form.lunchDessert === "อื่นๆ" && (
                           <div className="flex flex-col gap-1">
                             <label className="text-sm font-medium">
-                              ระบุของหวาน (กลางวัน) (อื่นๆ)
+                              {t(
+                                "ระบุของหวาน (กลางวัน) (อื่นๆ)",
+                                "Specify dessert (Lunch) (Other)"
+                              )}
                             </label>
                             <input
                               type="text"
@@ -1914,7 +1932,10 @@ export default function Home() {
                               value={form.lunchDessertOther}
                               onChange={handleChange}
                               className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder="เช่น เค้กช็อกโกแลต"
+                              placeholder={t(
+                                "เช่น เค้กช็อกโกแลต",
+                                "e.g., chocolate cake"
+                              )}
                             />
                           </div>
                         )}
@@ -1925,7 +1946,7 @@ export default function Home() {
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
                         <div className="flex flex-col gap-1">
                           <label className="text-sm font-medium">
-                            อาหารเย็น
+                            {t("อาหารเย็น", "Dinner")}
                           </label>
                           <select
                             name="dinnerMenu"
@@ -1933,7 +1954,9 @@ export default function Home() {
                             onChange={handleChange}
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                           >
-                            <option value="">เลือกเมนูอาหารเย็น</option>
+                            <option value="">
+                              {t("เลือกเมนูอาหารเย็น", "Select dinner menu")}
+                            </option>
                             {dinnerMenuOptions.map((item) => (
                               <option key={item} value={item}>
                                 {item}
@@ -1944,7 +1967,10 @@ export default function Home() {
                         {form.dinnerMenu === "อื่นๆ" && (
                           <div className="flex flex-col gap-1">
                             <label className="text-sm font-medium">
-                              ระบุอาหารเย็น (อื่นๆ)
+                              {t(
+                                "ระบุอาหารเย็น (อื่นๆ)",
+                                "Specify dinner (Other)"
+                              )}
                             </label>
                             <input
                               type="text"
@@ -1952,13 +1978,16 @@ export default function Home() {
                               value={form.dinnerMenuOther}
                               onChange={handleChange}
                               className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder="เช่น ข้าวผัดทะเล"
+                              placeholder={t(
+                                "เช่น ข้าวผัดทะเล",
+                                "e.g., seafood fried rice"
+                              )}
                             />
                           </div>
                         )}
                         <div className="flex flex-col gap-1">
                           <label className="text-sm font-medium">
-                            ของหวาน (เย็น)
+                            {t("ของหวาน (เย็น)", "Dessert (Dinner)")}
                           </label>
                           <select
                             name="dinnerDessert"
@@ -1966,7 +1995,7 @@ export default function Home() {
                             onChange={handleChange}
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                           >
-                            <option value="">เลือกของหวาน</option>
+                            <option value="">{t("เลือกของหวาน", "Select dessert")}</option>
                             {dinnerDessertOptions.map((item) => (
                               <option key={item} value={item}>
                                 {item}
@@ -1977,7 +2006,10 @@ export default function Home() {
                         {form.dinnerDessert === "อื่นๆ" && (
                           <div className="flex flex-col gap-1">
                             <label className="text-sm font-medium">
-                              ระบุของหวาน (เย็น) (อื่นๆ)
+                              {t(
+                                "ระบุของหวาน (เย็น) (อื่นๆ)",
+                                "Specify dessert (Dinner) (Other)"
+                              )}
                             </label>
                             <input
                               type="text"
@@ -1985,7 +2017,7 @@ export default function Home() {
                               value={form.dinnerDessertOther}
                               onChange={handleChange}
                               className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder="เช่น เครปเค้ก"
+                              placeholder={t("เช่น เครปเค้ก", "e.g., crepe cake")}
                             />
                           </div>
                         )}
@@ -1997,7 +2029,7 @@ export default function Home() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-lg border border-zinc-200 bg-white p-4">
                     <div className="text-sm font-semibold text-zinc-900">
-                      อาหารพิเศษ
+                      {t("อาหารพิเศษ", "Special diet")}
                     </div>
                     <div className="mt-3 space-y-3 text-sm">
                       <div className="flex items-center gap-3">
@@ -2007,7 +2039,7 @@ export default function Home() {
                             checked={form.halalEnabled}
                             onChange={() => handleDietToggle("halal")}
                           />
-                          <span>ฮาลาล</span>
+                          <span>{t("ฮาลาล", "Halal")}</span>
                         </label>
                         <input
                           type="number"
@@ -2021,7 +2053,7 @@ export default function Home() {
                               ? "border-zinc-300 bg-white focus:border-zinc-900"
                               : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
                           }`}
-                          placeholder="จำนวนชุด"
+                          placeholder={t("จำนวนชุด", "Sets")}
                         />
                       </div>
                       <div className="flex items-center gap-3">
@@ -2031,7 +2063,7 @@ export default function Home() {
                             checked={form.veganEnabled}
                             onChange={() => handleDietToggle("vegan")}
                           />
-                          <span>วีแกน</span>
+                          <span>{t("วีแกน", "Vegan")}</span>
                         </label>
                         <input
                           type="number"
@@ -2045,7 +2077,7 @@ export default function Home() {
                               ? "border-zinc-300 bg-white focus:border-zinc-900"
                               : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
                           }`}
-                          placeholder="จำนวนชุด"
+                          placeholder={t("จำนวนชุด", "Sets")}
                         />
                       </div>
                     </div>
@@ -2053,7 +2085,7 @@ export default function Home() {
 
                   <div className="rounded-lg border border-zinc-200 bg-white p-4">
                     <div className="text-sm font-semibold text-zinc-900">
-                      แพ้อาหาร
+                      {t("แพ้อาหาร", "Allergies")}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-4 text-sm">
                       {allergyOptions.map((item) => (
@@ -2073,7 +2105,7 @@ export default function Home() {
                     {form.allergies.includes("อื่นๆ") && (
                       <div className="mt-3 flex flex-col gap-1">
                         <label className="text-sm font-medium">
-                          ระบุ (อื่นๆ)
+                          {t("ระบุ (อื่นๆ)", "Specify (Other)")}
                         </label>
                         <input
                           type="text"
@@ -2081,7 +2113,10 @@ export default function Home() {
                           value={form.allergyOther}
                           onChange={handleChange}
                           className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          placeholder="เช่น กล้วย, กาแฟ, ถั่วเหลือง"
+                          placeholder={t(
+                            "เช่น กล้วย, กาแฟ, ถั่วเหลือง",
+                            "e.g., banana, coffee, soy"
+                          )}
                         />
                       </div>
                     )}
@@ -2091,7 +2126,9 @@ export default function Home() {
             )}
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">ของที่ระลึก</label>
+              <label className="text-sm font-medium">
+                {t("ของที่ระลึก", "Souvenir")}
+              </label>
               <div className="mt-1 flex gap-4 text-sm">
                 <label className="flex items-center gap-2">
                   <input
@@ -2101,7 +2138,7 @@ export default function Home() {
                     checked={form.souvenir === "yes"}
                     onChange={handleChange}
                   />
-                  <span>ต้องการ</span>
+                  <span>{t("ต้องการ", "Yes")}</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -2111,7 +2148,7 @@ export default function Home() {
                     checked={form.souvenir === "no"}
                     onChange={handleChange}
                   />
-                  <span>ไม่ต้องการ</span>
+                  <span>{t("ไม่ต้องการ", "No")}</span>
                 </label>
               </div>
             </div>
@@ -2119,12 +2156,12 @@ export default function Home() {
             {form.souvenir === "yes" && (
               <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-4">
                 <div className="text-sm font-semibold text-zinc-900">
-                  รายละเอียดของที่ระลึก
+                  {t("รายละเอียดของที่ระลึก", "Souvenir details")}
                 </div>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <div className="flex flex-col gap-1">
                     <label className="text-sm font-medium">
-                      ประเภทของที่ระลึก
+                      {t("ประเภทของที่ระลึก", "Souvenir type")}
                     </label>
                     <select
                       name="souvenirGiftSet"
@@ -2132,7 +2169,7 @@ export default function Home() {
                       onChange={handleChange}
                       className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                     >
-                      <option value="">เลือกประเภท</option>
+                      <option value="">{t("เลือกประเภท", "Select type")}</option>
                       {souvenirGiftSetOptions.map((item) => (
                         <option key={item} value={item}>
                           {item}
@@ -2141,7 +2178,9 @@ export default function Home() {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">จำนวนชุด</label>
+                    <label className="text-sm font-medium">
+                      {t("จำนวนชุด", "Quantity")}
+                    </label>
                     <input
                       type="number"
                       min={1}
@@ -2149,12 +2188,12 @@ export default function Home() {
                       value={form.souvenirGiftSetCount}
                       onChange={handleChange}
                       className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder="เช่น 5"
+                      placeholder={t("เช่น 5", "e.g., 5")}
                     />
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
                     <label className="text-sm font-medium">
-                      เพิ่มของพิเศษ (ถ้ามี)
+                      {t("เพิ่มของพิเศษ (ถ้ามี)", "Add extras (optional)")}
                     </label>
                     <textarea
                       name="souvenirExtra"
@@ -2162,7 +2201,10 @@ export default function Home() {
                       onChange={handleChange}
                       rows={3}
                       className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder="ระบุของพิเศษเพิ่มเติม เช่น ใส่โลโก้, การ์ดข้อความ, ของเพิ่มอื่นๆ"
+                      placeholder={t(
+                        "ระบุของพิเศษเพิ่มเติม เช่น ใส่โลโก้, การ์ดข้อความ, ของเพิ่มอื่นๆ",
+                        "Describe extras, e.g., logo, message card, additional items"
+                      )}
                     />
                   </div>
                 </div>
@@ -2238,7 +2280,7 @@ export default function Home() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("บุคคลที่เข้าพบ", "Host to visit")}
+                  {t("บุคคลที่ลูกค้าต้องการเข้าพบ", "Host to visit")}
                 </label>
                 <select
                   name="hostName"

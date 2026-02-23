@@ -24,27 +24,22 @@ export async function POST(request) {
 
     const data = parsed.data ?? {};
     const supabase = createServiceClient();
-    const toBoolean = (value) => {
-      if (typeof value === "boolean") {
-        return value;
-      }
-      if (typeof value === "string") {
-        return value === "yes" || value === "true";
-      }
-      return null;
-    };
-
-    const meetingRoom = toBoolean(data.meetingRoom);
-    const foodRequired = toBoolean(data.foodRequired);
-    const souvenir = toBoolean(data.souvenir);
 
     const guests = Array.isArray(data.guests) ? data.guests : [];
     const cars = Array.isArray(data.cars) ? data.cars : [];
+    const transportType = String(data.transportType ?? "").trim();
+    const carCountInput =
+      typeof data.carCount === "number" ? data.carCount : Number(data.carCount ?? 0);
     const carCount =
-      typeof data.carCount === "number"
-        ? data.carCount
-        : Number(data.carCount ?? 0);
+      transportType === "personal"
+        ? cars.length > 0
+          ? cars.length
+          : Number.isFinite(carCountInput)
+            ? carCountInput
+            : 0
+        : 0;
     const meetingRoomSelection = String(data.meetingRoomSelection ?? "").trim();
+    const meetingRoom = Boolean(meetingRoomSelection);
     const siteVisit =
       data.siteVisit &&
       typeof data.siteVisit === "object" &&
@@ -69,12 +64,18 @@ export async function POST(request) {
       !Array.isArray(data.foodPreferences)
         ? data.foodPreferences
         : null;
+    const foodRequired = Boolean(foodPreferences);
     const souvenirPreferences =
       data.souvenirPreferences &&
       typeof data.souvenirPreferences === "object" &&
       !Array.isArray(data.souvenirPreferences)
         ? data.souvenirPreferences
         : null;
+    const souvenir = Boolean(souvenirPreferences);
+    const totalGuestsInput =
+      typeof data.totalGuests === "number" ? data.totalGuests : Number(data.totalGuests ?? 0);
+    const totalGuests =
+      guests.length > 0 ? guests.length : Number.isFinite(totalGuestsInput) ? totalGuestsInput : null;
 
     const presentationFileInput = parsed.file;
     const bucketName =
@@ -169,23 +170,14 @@ export async function POST(request) {
       timestamp: data.timestamp ?? new Date().toISOString(),
       clientCompany: data.clientCompany ?? "",
       vipCompany: data.vipCompany ?? "",
-      vipPosition: data.vipPosition ?? "",
       nationality: data.nationality ?? "",
       contactPhone: data.contactPhone ?? "",
-      totalGuests: data.totalGuests ?? null,
       visitTopic: data.visitTopic ?? "",
       visitDetail: data.visitDetail ?? "",
       visitDateTime: data.visitDateTime ?? null,
-      meetingRoom,
       meetingRoomSelection,
       executiveHost,
-      transportType: data.transportType ?? "",
-      carCount: Number.isFinite(carCount) ? carCount : null,
-      carBrand: data.carBrand ?? "",
-      carLicense: data.carLicense ?? "",
-      foodRequired,
-      meals: data.meals ?? "",
-      souvenir,
+      transportType,
       hostName: data.hostName ?? "",
       submittedBy,
     };
@@ -199,7 +191,6 @@ export async function POST(request) {
     if (insertError) {
       const msg = String(insertError.message ?? "");
       if (
-        msg.includes('column "carCount"') ||
         msg.includes('column "meetingRoomSelection"') ||
         msg.includes('column "executiveHost"') ||
         msg.includes('column "submittedBy"')
@@ -208,7 +199,7 @@ export async function POST(request) {
           {
             success: false,
             error:
-              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ carCount (int), meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb) ในตาราง vip_visitor ก่อน',
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb) ในตาราง vip_visitor ก่อน',
           },
           { status: 500 }
         );
@@ -240,6 +231,7 @@ export async function POST(request) {
         firstName: guest?.firstName ?? "",
         middleName: guest?.middleName ?? "",
         lastName: guest?.lastName ?? "",
+        company: guest?.company ?? "",
         position: guest?.position ?? "",
         nationality: guest?.nationality ?? "",
       }));
@@ -248,6 +240,17 @@ export async function POST(request) {
         .insert(guestRows);
       if (guestError) {
         await rollback();
+        const msg = String(guestError.message ?? "");
+        if (msg.includes('column "company"')) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                'ฐานข้อมูลยังไม่มีคอลัมน์ company กรุณาเพิ่มคอลัมน์ company (text) ในตาราง vip_visitor_guests ก่อน',
+            },
+            { status: 500 }
+          );
+        }
         return NextResponse.json(
           { success: false, error: guestError.message },
           { status: 500 }
@@ -361,15 +364,22 @@ export async function POST(request) {
     };
 
     const transportTypeText =
-      data.transportType === "personal"
+      transportType === "personal"
         ? "รถส่วนตัว"
-        : data.transportType === "public"
+        : transportType === "public"
           ? "รถสาธารณะ"
           : "-";
     const yesNo = (value) => (value ? "ต้องการ" : "ไม่ต้องการ");
     const visitDateTime = formatDateTime(data.visitDateTime);
     const submittedAt = formatDateTime(data.timestamp ?? new Date().toISOString());
-    const meals = data.meals ?? "-";
+    const fpMeals =
+      foodPreferences && Array.isArray(foodPreferences.meals)
+        ? foodPreferences.meals
+            .filter((item) => typeof item === "string")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [];
+    const meals = fpMeals.length > 0 ? fpMeals.join(", ") : "-";
     const foodRequiredText = foodRequired === null ? "-" : yesNo(foodRequired);
     const meetingRoomText = meetingRoom === null ? "-" : yesNo(meetingRoom);
     const souvenirText = souvenir === null ? "-" : yesNo(souvenir);
@@ -465,10 +475,10 @@ export async function POST(request) {
     const allergyText = allergyTextParts.length > 0 ? allergyTextParts.join(" | ") : "-";
 
     const shouldSendSecurity =
-      data.transportType === "personal" &&
+      transportType === "personal" &&
       cars.length > 0 &&
-      String(cars[0]?.brand ?? data.carBrand ?? "").trim() &&
-      String(cars[0]?.license ?? data.carLicense ?? "").trim();
+      String(cars[0]?.brand ?? "").trim() &&
+      String(cars[0]?.license ?? "").trim();
 
     const carsText =
       cars.length > 0
@@ -493,9 +503,11 @@ export async function POST(request) {
               ]
                 .filter(Boolean)
                 .join(" ");
+              const company =
+                typeof guest?.company === "string" ? guest.company.trim() : "";
               return `- คนที่ ${index + 1}: ${fullName || "-"} / ${
-                guest?.position ?? "-"
-              } / ${guest?.nationality ?? "-"}`;
+                company || "-"
+              } / ${guest?.position ?? "-"} / ${guest?.nationality ?? "-"}`;
             })
             .join("\n")
         : "-";
@@ -607,7 +619,7 @@ export async function POST(request) {
       `แพ้อาหาร: ${allergyText}`,
       `การเข้าชม: ${siteVisitText}`,
       `ผู้อนุญาต: ${siteVisitApproverText}`,
-      `จำนวนผู้เข้าร่วม: ${data.totalGuests ?? "-"}`,
+      `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
       `ของที่ระลึก: ${souvenirText}`,
       `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
       `ผู้กรอกฟอร์ม: ${submittedByText}`,
@@ -618,10 +630,9 @@ export async function POST(request) {
       `เวลาแจ้ง: ${submittedAt}`,
       `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
       `บริษัทแขก VIP: ${data.vipCompany ?? "-"}`,
-      `ตำแหน่งแขก VIP: ${data.vipPosition ?? "-"}`,
       `สัญชาติ: ${data.nationality ?? "-"}`,
       `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
-      `จำนวนผู้เข้าร่วม: ${data.totalGuests ?? "-"}`,
+      `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
       `หัวข้อ: ${data.visitTopic ?? "-"}`,
       `รายละเอียด: ${data.visitDetail ?? "-"}`,
@@ -654,9 +665,8 @@ export async function POST(request) {
       `เวลาที่มาถึง: ${visitDateTime}`,
       `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
       `บริษัทแขก VIP: ${data.vipCompany ?? "-"}`,
-      `ตำแหน่งแขก VIP: ${data.vipPosition ?? "-"}`,
       `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
-      `จำนวนผู้เข้าร่วม: ${data.totalGuests ?? "-"}`,
+      `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
       `รายชื่อผู้เข้าร่วม:\n${guestsText}`,
       `ประเภทรถ: ${transportTypeText}`,
       `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
