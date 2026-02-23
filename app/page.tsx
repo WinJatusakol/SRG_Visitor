@@ -13,6 +13,8 @@ type VisitFormState = {
   nationality: string;
   contactPhone: string;
   totalGuests: string;
+  visitTopic: string;
+  visitDetail: string;
   visitDate: string;
   visitTime: string;
   meetingRoom: YesNo | "";
@@ -34,15 +36,13 @@ type DialogState = {
   message: string;
 };
 
-const mealOrder = ["เช้า", "กลางวัน", "เย็น"] as const;
-const sortMeals = (meals: string[]) =>
-  [...meals].sort((a, b) => mealOrder.indexOf(a as never) - mealOrder.indexOf(b as never));
-
 const timeSlots: string[] = [];
 for (let hour = 6; hour <= 21; hour += 1) {
   timeSlots.push(`${hour.toString().padStart(2, "0")}:00`);
   timeSlots.push(`${hour.toString().padStart(2, "0")}:30`);
 }
+
+const hostOptions = ["Name1", "Name2"];
 
 const initialState: VisitFormState = {
   clientCompany: "",
@@ -51,6 +51,8 @@ const initialState: VisitFormState = {
   nationality: "",
   contactPhone: "",
   totalGuests: "",
+  visitTopic: "",
+  visitDetail: "",
   visitDate: "",
   visitTime: "",
   meetingRoom: "",
@@ -112,12 +114,12 @@ export default function Home() {
         }
         return {
           ...prev,
-          meals: sortMeals([...prev.meals, value]),
+          meals: [...prev.meals, value],
         };
       }
       return {
         ...prev,
-        meals: sortMeals(prev.meals.filter((meal) => meal !== value)),
+        meals: prev.meals.filter((meal) => meal !== value),
       };
     });
   };
@@ -142,6 +144,12 @@ export default function Home() {
     }
     if (!form.totalGuests.trim()) {
       messages.push("กรุณากรอกจำนวนผู้เข้าร่วม");
+    }
+    if (!form.visitTopic.trim()) {
+      messages.push("กรุณากรอกหัวข้อที่จะเข้ามา");
+    }
+    if (!form.visitDetail.trim()) {
+      messages.push("กรุณากรอกรายละเอียด");
     }
     if (!form.visitDate.trim()) {
       messages.push("กรุณาเลือกวันที่มาถึง");
@@ -182,7 +190,7 @@ export default function Home() {
       messages.push("กรุณาระบุว่าจะรับของที่ระลึกหรือไม่");
     }
     if (!form.hostName.trim()) {
-      messages.push("กรุณากรอกชื่อพนักงานที่ดูแล");
+      messages.push("กรุณาเลือกผู้ที่จะเข้ามาพบ");
     }
 
     return messages;
@@ -215,13 +223,15 @@ export default function Home() {
       nationality: form.nationality,
       contactPhone: form.contactPhone,
       totalGuests: Number(form.totalGuests),
+      visitTopic: form.visitTopic,
+      visitDetail: form.visitDetail,
       visitDateTime: visitDateTimeValue,
       meetingRoom: form.meetingRoom === "yes",
       transportType: form.transportType,
       carBrand: form.transportType === "personal" ? form.carBrand : "",
       carLicense: form.transportType === "personal" ? form.carLicense : "",
       foodRequired: form.foodRequired === "yes",
-      meals: sortMeals(form.meals).join(","),
+      meals: form.meals.join(","),
       foodNote: form.foodNote,
       souvenir: form.souvenir === "yes",
       hostName: form.hostName,
@@ -655,7 +665,7 @@ export default function Home() {
                     checked={form.souvenir === "no"}
                     onChange={handleChange}
                   />
-                  <span>ไม่ต้องกาดูแลร</span>
+                  <span>ไม่ต้องการ</span>
                 </label>
               </div>
             </div>
@@ -666,17 +676,46 @@ export default function Home() {
               ข้อมูลผู้ดูแลภายในองค์กร
             </h2>
 
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">เข้ามาพบใคร</label>
+                <select
+                  name="hostName"
+                  value={form.hostName}
+                  onChange={handleChange}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                >
+                  <option value="">เลือกผู้ที่จะเข้ามาพบ</option>
+                  {hostOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">หัวข้อที่จะเข้ามา</label>
+                <input
+                  type="text"
+                  name="visitTopic"
+                  value={form.visitTopic}
+                  onChange={handleChange}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  placeholder="เช่น ประชุม, เยี่ยมชม, นำเสนอ"
+                />
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">
-                ชื่อพนักงานที่ดูแล/ชื่อผู้ลงข้อมูล
-              </label>
-              <input
-                type="text"
-                name="hostName"
-                value={form.hostName}
+              <label className="text-sm font-medium">รายละเอียด</label>
+              <textarea
+                name="visitDetail"
+                value={form.visitDetail}
                 onChange={handleChange}
+                rows={3}
                 className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                placeholder="ระบุชื่อ-นามสกุล"
+                placeholder="ระบุรายละเอียดเพิ่มเติม เช่น จุดประสงค์/สิ่งที่ต้องเตรียม"
               />
             </div>
           </section>

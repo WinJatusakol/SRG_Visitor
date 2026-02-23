@@ -13,6 +13,8 @@ type Visit = {
     nationality?: string | null;
     contactPhone?: string | null;
     totalGuests?: number | null;
+    visitTopic?: string | null;
+    visitDetail?: string | null;
     hostName?: string | null;
     transportType?: string | null;
     carLicense?: string | null;
@@ -137,6 +139,11 @@ export default function VisitorTable({ visits }: { visits: Visit[] }) {
                             <DetailItem label="ตำแหน่ง VIP" value={selectedVisit.vipPosition} />
                             <DetailItem label="สัญชาติ" value={selectedVisit.nationality} />
                             <DetailItem label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} />
+                            <DetailItem label="เข้ามาพบ" value={selectedVisit.hostName} />
+                            <DetailItem label="หัวข้อ" value={selectedVisit.visitTopic} />
+                            <div className="col-span-1 md:col-span-2">
+                                <DetailItem label="รายละเอียด" value={selectedVisit.visitDetail} />
+                            </div>
                             <DetailItem label="การเดินทาง" value={selectedVisit.transportType === "personal" ? "รถส่วนตัว" : "รถสาธารณะ"} />
                             <DetailItem label="ทะเบียนรถ" value={selectedVisit.carLicense} />
                             <DetailItem label="ยี่ห้อรถ" value={selectedVisit.carBrand} />

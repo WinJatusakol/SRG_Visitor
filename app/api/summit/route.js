@@ -28,6 +28,8 @@ export async function POST(request) {
       nationality: data.nationality ?? "",
       contactPhone: data.contactPhone ?? "",
       totalGuests: data.totalGuests ?? null,
+      visitTopic: data.visitTopic ?? "",
+      visitDetail: data.visitDetail ?? "",
       visitDateTime: data.visitDateTime ?? null,
       meetingRoom,
       transportType: data.transportType ?? "",
@@ -135,6 +137,8 @@ export async function POST(request) {
 
     const housekeepingText = [
       "แจ้งงานสำหรับแม่บ้าน",
+      `เข้ามาพบ: ${data.hostName ?? "-"}`,
+      `หัวข้อ: ${data.visitTopic ?? "-"}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
       `มื้ออาหาร: ${meals}`,
@@ -150,6 +154,9 @@ export async function POST(request) {
       `สัญชาติ: ${data.nationality ?? "-"}`,
       `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
       `จำนวนผู้เข้าร่วม: ${data.totalGuests ?? "-"}`,
+      `เข้ามาพบ: ${data.hostName ?? "-"}`,
+      `หัวข้อ: ${data.visitTopic ?? "-"}`,
+      `รายละเอียด: ${data.visitDetail ?? "-"}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการห้องประชุม: ${meetingRoomText}`,
       `ประเภทรถ: ${transportTypeText}`,
@@ -159,7 +166,7 @@ export async function POST(request) {
       `มื้ออาหาร: ${meals}`,
       `หมายเหตุอาหาร: ${data.foodNote ?? "-"}`,
       `ของที่ระลึก: ${souvenirText}`,
-      `ผู้ดูแลภายใน: ${data.hostName ?? "-"}`,
+      `ผู้ลงข้อมูล: ${data.hostName ?? "-"}`,
     ].join("\n");
 
     const mailTasks = [
@@ -180,6 +187,8 @@ export async function POST(request) {
     if (shouldSendSecurity) {
       const securityText = [
         "แจ้งการเข้าพบแขก VIP (รถส่วนตัว)",
+        `เข้ามาพบ: ${data.hostName ?? "-"}`,
+        `หัวข้อ: ${data.visitTopic ?? "-"}`,
         `เวลาที่มาถึง: ${visitDateTime}`,
         `ยี่ห้อรถ: ${data.carBrand ?? "-"}`,
         `ทะเบียนรถ: ${data.carLicense ?? "-"}`,
