@@ -56,7 +56,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             {/* --- Header Section with Gradient Text --- */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
                 <div>
-                    <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+                    <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600">
                         Visitor Log
                     </h2>
                     <p className="text-gray-500 text-sm mt-1">รายการแขกคนสำคัญและผู้มาเยือน</p>
@@ -71,7 +71,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
             {/* --- Premium Table Card --- */}
             {/* ใช้ backdrop-blur และ shadow ใหญ่ขึ้นเพื่อให้ดูลอยตัว */}
-            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden relative z-0">
+            <div className="bg-white/80 backdrop-blur-xl rounded-[4xl] shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden relative z-0">
                 {/* Decorative background blob */}
                 <div className="absolute top-0 right-0 -z-10 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
@@ -93,11 +93,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     <tr
                                         key={visit.id}
                                         onClick={() => setSelectedVisit(visit)}
-                                        className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y-[2px] rounded-2xl cursor-pointer relative z-10"
+                                        className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y-[0.5] rounded-2xl cursor-pointer relative z-10"
                                     >
                                         <td className="px-6 py-5 align-top">
                                            <div className="flex items-start gap-3">
-                                               <div className="flex-shrink-0 w-12 h-12 bg-blue-50/80 text-blue-600 rounded-xl flex flex-col items-center justify-center shadow-sm border border-blue-100/50 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                               <div className="shrink-0 w-12 h-12 bg-blue-50/80 text-blue-600 rounded-xl flex flex-col items-center justify-center shadow-sm border border-blue-100/50 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                                     <span className="text-xs font-bold uppercase leading-none">{visitDate.toLocaleDateString("en-US", { month: "short" })}</span>
                                                     <span className="text-lg font-extrabold leading-none mt-0.5">{visitDate.getDate()}</span>
                                                </div>
@@ -172,7 +172,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                     <div className="bg-white w-full max-w-2xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
 
                         {/* Modal Header with subtle gradient pattern */}
-                        <div className="relative px-6 py-5 border-b border-gray-100 overflow-hidden bg-gradient-to-br from-blue-50 via-white to-white">
+                        <div className="relative px-6 py-5 border-b border-gray-100 overflow-hidden bg-linear-to-br from-blue-50 via-white to-white">
                              {/* Decorative Background Elements */}
                              <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-100/50 rounded-full blur-2xl pointer-events-none"></div>
                              <div className="absolute top-5 left-5 w-16 h-16 bg-indigo-50/60 rounded-full blur-xl pointer-events-none"></div>
@@ -305,7 +305,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
 // เส้นคั่นบางๆ
 function Separator() {
-    return <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-200 to-transparent my-2"></div>
+    return <div className="h-px w-full bg-linear-to-r from-transparent via-gray-200 to-transparent my-2"></div>
 }
 
 // Avatar สร้างจากตัวอักษรแรกของชื่อบริษัท
@@ -325,7 +325,7 @@ function CompanyAvatar({ name, size = "md", idx = 0 }: { name?: string | null; s
     const sizeClass = size === "lg" ? "w-14 h-14 text-xl rounded-2xl" : "w-10 h-10 text-sm rounded-xl";
 
     return (
-        <div className={`flex-shrink-0 ${sizeClass} flex items-center justify-center font-extrabold bg-gradient-to-br shadow-lg ${colorClass}`}>
+        <div className={`shrink-0 ${sizeClass} flex items-center justify-center font-extrabold bg-linear-to-br shadow-lg ${colorClass}`}>
             {initial}
         </div>
     );
