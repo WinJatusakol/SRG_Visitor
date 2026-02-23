@@ -664,7 +664,7 @@ export default function Home() {
 
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium">
-                ชื่อพนักงานที่ดูแล/ร่วมคุยกับลูกค้า
+                ชื่อพนักงานที่ดูแล/ชื่อผู้ลงข้อมูล
               </label>
               <input
                 type="text"
