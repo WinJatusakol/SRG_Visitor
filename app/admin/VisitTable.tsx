@@ -13,21 +13,103 @@ type Visit = {
     nationality?: string | null;
     contactPhone?: string | null;
     totalGuests?: number | null;
+    guests?: unknown[] | null;
     visitTopic?: string | null;
     visitDetail?: string | null;
     hostName?: string | null;
     transportType?: string | null;
+    carCount?: number | null;
+    cars?: unknown[] | null;
     carLicense?: string | null;
     carBrand?: string | null;
     meetingRoom?: boolean | null;
+    meetingRoomSelection?: string | null;
     foodRequired?: boolean | null;
     meals?: string | null;
-    foodNote?: string | null;
+    foodPreferences?: unknown | null;
     souvenir?: boolean | null;
 };
 
 export default function VisitorTable({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+
+    const guestsText = (value: unknown[] | null | undefined) => {
+        if (!Array.isArray(value) || value.length === 0) return "-";
+        return value
+            .map((guest, index) => {
+                const g = guest as Record<string, unknown>;
+                const fullName = [g.firstName, g.middleName, g.lastName]
+                    .filter((part) => typeof part === "string" && part.trim())
+                    .join(" ");
+                const position = typeof g.position === "string" ? g.position : "-";
+                const nationality = typeof g.nationality === "string" ? g.nationality : "-";
+                return `- คนที่ ${index + 1}: ${fullName || "-"} / ${position} / ${nationality}`;
+            })
+            .join("\n");
+    };
+
+    const carsText = (value: unknown[] | null | undefined) => {
+        if (!Array.isArray(value) || value.length === 0) return "-";
+        return value
+            .map((car, index) => {
+                const c = car as Record<string, unknown>;
+                const brand = typeof c.brand === "string" ? c.brand : "-";
+                const license = typeof c.license === "string" ? c.license : "-";
+                return `- คันที่ ${index + 1}: ${brand} / ${license}`;
+            })
+            .join("\n");
+    };
+
+    const foodMenuText = (value: unknown) => {
+        if (!value || typeof value !== "object") return "-";
+        const v = value as Record<string, unknown>;
+        const menus = (v.menus && typeof v.menus === "object") ? (v.menus as Record<string, unknown>) : null;
+        if (!menus) return "-";
+
+        const lines: string[] = [];
+        const breakfast = typeof menus.breakfast === "string" ? menus.breakfast.trim() : "";
+        if (breakfast) lines.push(`เช้า: ${breakfast}`);
+
+        const lunch = menus.lunch && typeof menus.lunch === "object" ? (menus.lunch as Record<string, unknown>) : null;
+        if (lunch) {
+            const main = typeof lunch.main === "string" ? lunch.main.trim() : "";
+            const dessert = typeof lunch.dessert === "string" ? lunch.dessert.trim() : "";
+            if (main || dessert) lines.push(`กลางวัน: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
+        }
+
+        const dinner = menus.dinner && typeof menus.dinner === "object" ? (menus.dinner as Record<string, unknown>) : null;
+        if (dinner) {
+            const main = typeof dinner.main === "string" ? dinner.main.trim() : "";
+            const dessert = typeof dinner.dessert === "string" ? dinner.dessert.trim() : "";
+            if (main || dessert) lines.push(`เย็น: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
+        }
+
+        return lines.length > 0 ? lines.join("\n") : "-";
+    };
+
+    const specialDietText = (value: unknown) => {
+        if (!value || typeof value !== "object") return "-";
+        const v = value as Record<string, unknown>;
+        const d = (v.specialDiet && typeof v.specialDiet === "object") ? (v.specialDiet as Record<string, unknown>) : null;
+        if (!d) return "-";
+        const halal = Number(d.halalSets ?? 0);
+        const vegan = Number(d.veganSets ?? 0);
+        if ((halal || 0) <= 0 && (vegan || 0) <= 0) return "-";
+        return `ฮาลาล: ${halal > 0 ? halal : "-"} ชุด, วีแกน: ${vegan > 0 ? vegan : "-"} ชุด`;
+    };
+
+    const allergyText = (value: unknown) => {
+        if (!value || typeof value !== "object") return "-";
+        const v = value as Record<string, unknown>;
+        const a = (v.allergies && typeof v.allergies === "object") ? (v.allergies as Record<string, unknown>) : null;
+        if (!a) return "-";
+        const items = Array.isArray(a.items) ? a.items.filter((x) => typeof x === "string" && x.trim()) as string[] : [];
+        const other = typeof a.other === "string" ? a.other.trim() : "";
+        const parts: string[] = [];
+        if (items.length > 0) parts.push(items.join(", "));
+        if (other) parts.push(`อื่นๆ: ${other}`);
+        return parts.length > 0 ? parts.join(" | ") : "-";
+    };
 
     return (
         <>
@@ -144,15 +226,36 @@ export default function VisitorTable({ visits }: { visits: Visit[] }) {
                             <div className="col-span-1 md:col-span-2">
                                 <DetailItem label="รายละเอียด" value={selectedVisit.visitDetail} />
                             </div>
+                            <div className="col-span-1 md:col-span-2">
+                                <DetailItem
+                                    label="รายชื่อผู้เข้าร่วม"
+                                    value={<div className="whitespace-pre-line">{guestsText(selectedVisit.guests)}</div>}
+                                />
+                            </div>
                             <DetailItem label="การเดินทาง" value={selectedVisit.transportType === "personal" ? "รถส่วนตัว" : "รถสาธารณะ"} />
+                            <DetailItem label="จำนวนรถ" value={selectedVisit.transportType === "personal" ? (selectedVisit.carCount ?? "-") : "-"} />
+                            <div className="col-span-1 md:col-span-2">
+                                <DetailItem
+                                    label="ข้อมูลรถ"
+                                    value={<div className="whitespace-pre-line">{carsText(selectedVisit.cars)}</div>}
+                                />
+                            </div>
                             <DetailItem label="ทะเบียนรถ" value={selectedVisit.carLicense} />
                             <DetailItem label="ยี่ห้อรถ" value={selectedVisit.carBrand} />
                             <DetailItem label="ห้องประชุม" value={selectedVisit.meetingRoom ? "ต้องการ" : "ไม่ต้องการ"} />
+                            <DetailItem label="ห้องประชุมที่เลือก" value={selectedVisit.meetingRoom ? (selectedVisit.meetingRoomSelection ?? "-") : "-"} />
                             <DetailItem label="อาหาร/มื้อ" value={`${selectedVisit.foodRequired ? "ต้องการ" : "ไม่ต้องการ"} / ${selectedVisit.meals || "-"}`} />
-
                             <div className="col-span-1 md:col-span-2">
-                                <DetailItem label="ข้อมูลอาหารเพิ่มเติม" value={selectedVisit.foodNote} />
+                                <DetailItem
+                                    label="เมนูอาหาร"
+                                    value={<div className="whitespace-pre-line">{foodMenuText(selectedVisit.foodPreferences)}</div>}
+                                />
                             </div>
+                            <DetailItem label="อาหารพิเศษ" value={specialDietText(selectedVisit.foodPreferences)} />
+                            <div className="col-span-1 md:col-span-2">
+                                <DetailItem label="แพ้อาหาร" value={allergyText(selectedVisit.foodPreferences)} />
+                            </div>
+
                             <div className="col-span-1 md:col-span-2">
                                 <DetailItem label="ของที่ระลึก" value={selectedVisit.souvenir ? "ต้องการ" : "ไม่ต้องการ"} />
                             </div>

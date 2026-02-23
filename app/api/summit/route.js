@@ -20,6 +20,20 @@ export async function POST(request) {
     const foodRequired = toBoolean(data.foodRequired);
     const souvenir = toBoolean(data.souvenir);
 
+    const guests = Array.isArray(data.guests) ? data.guests : [];
+    const cars = Array.isArray(data.cars) ? data.cars : [];
+    const carCount =
+      typeof data.carCount === "number"
+        ? data.carCount
+        : Number(data.carCount ?? 0);
+    const meetingRoomSelection = String(data.meetingRoomSelection ?? "").trim();
+    const foodPreferences =
+      data.foodPreferences &&
+      typeof data.foodPreferences === "object" &&
+      !Array.isArray(data.foodPreferences)
+        ? data.foodPreferences
+        : null;
+
     const insertPayload = {
       timestamp: data.timestamp ?? new Date().toISOString(),
       clientCompany: data.clientCompany ?? "",
@@ -28,16 +42,20 @@ export async function POST(request) {
       nationality: data.nationality ?? "",
       contactPhone: data.contactPhone ?? "",
       totalGuests: data.totalGuests ?? null,
+      guests: guests.length > 0 ? guests : null,
       visitTopic: data.visitTopic ?? "",
       visitDetail: data.visitDetail ?? "",
       visitDateTime: data.visitDateTime ?? null,
       meetingRoom,
+      meetingRoomSelection,
       transportType: data.transportType ?? "",
+      carCount: Number.isFinite(carCount) ? carCount : null,
+      cars: cars.length > 0 ? cars : null,
       carBrand: data.carBrand ?? "",
       carLicense: data.carLicense ?? "",
       foodRequired,
       meals: data.meals ?? "",
-      foodNote: data.foodNote ?? "",
+      foodPreferences,
       souvenir,
       hostName: data.hostName ?? "",
     };
@@ -47,6 +65,23 @@ export async function POST(request) {
       .insert([insertPayload]);
 
     if (error) {
+      const msg = String(error.message ?? "");
+      if (
+        msg.includes('column "guests"') ||
+        msg.includes('column "cars"') ||
+        msg.includes('column "carCount"') ||
+        msg.includes('column "meetingRoomSelection"') ||
+        msg.includes('column "foodPreferences"')
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ guests (jsonb), cars (jsonb), carCount (int), meetingRoomSelection (text), foodPreferences (jsonb) ในตาราง vip_visitor ก่อน',
+          },
+          { status: 500 }
+        );
+      }
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 500 }
@@ -61,6 +96,7 @@ export async function POST(request) {
     const securityEmail = process.env.SECURITY_EMAIL;
     const housekeepingEmail = process.env.HOUSEKEEPING_EMAIL;
     const managerEmail = process.env.MANAGER_EMAIL;
+    const hostEmailMapRaw = process.env.HOST_EMAIL_MAP;
 
     const missing = [];
     if (!smtpHost) missing.push("SMTP_HOST");
@@ -100,10 +136,99 @@ export async function POST(request) {
     const meetingRoomText = meetingRoom === null ? "-" : yesNo(meetingRoom);
     const souvenirText = souvenir === null ? "-" : yesNo(souvenir);
 
+    const fp = foodPreferences;
+    const fpMenus =
+      fp && typeof fp.menus === "object" && fp.menus ? fp.menus : null;
+    const fpSpecialDiet =
+      fp && typeof fp.specialDiet === "object" && fp.specialDiet
+        ? fp.specialDiet
+        : null;
+    const fpAllergies =
+      fp && typeof fp.allergies === "object" && fp.allergies ? fp.allergies : null;
+
+    const menuLines = [];
+    if (fpMenus && typeof fpMenus.breakfast === "string" && fpMenus.breakfast.trim()) {
+      menuLines.push(`เช้า: ${fpMenus.breakfast}`);
+    }
+    if (fpMenus && fpMenus.lunch && typeof fpMenus.lunch === "object") {
+      const main = typeof fpMenus.lunch.main === "string" ? fpMenus.lunch.main.trim() : "";
+      const dessert = typeof fpMenus.lunch.dessert === "string" ? fpMenus.lunch.dessert.trim() : "";
+      if (main || dessert) {
+        menuLines.push(`กลางวัน: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
+      }
+    }
+    if (fpMenus && fpMenus.dinner && typeof fpMenus.dinner === "object") {
+      const main = typeof fpMenus.dinner.main === "string" ? fpMenus.dinner.main.trim() : "";
+      const dessert = typeof fpMenus.dinner.dessert === "string" ? fpMenus.dinner.dessert.trim() : "";
+      if (main || dessert) {
+        menuLines.push(`เย็น: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
+      }
+    }
+    const foodMenuText = menuLines.length > 0 ? menuLines.join("\n") : "-";
+
+    const halalSets =
+      fpSpecialDiet && Number.isFinite(Number(fpSpecialDiet.halalSets))
+        ? Number(fpSpecialDiet.halalSets)
+        : 0;
+    const veganSets =
+      fpSpecialDiet && Number.isFinite(Number(fpSpecialDiet.veganSets))
+        ? Number(fpSpecialDiet.veganSets)
+        : 0;
+    const specialDietText =
+      halalSets > 0 || veganSets > 0
+        ? `ฮาลาล: ${halalSets || "-"} ชุด, วีแกน: ${veganSets || "-"} ชุด`
+        : "-";
+
+    const allergyItems =
+      fpAllergies && Array.isArray(fpAllergies.items) ? fpAllergies.items : [];
+    const allergyOther =
+      fpAllergies && typeof fpAllergies.other === "string"
+        ? fpAllergies.other.trim()
+        : "";
+    const allergyTextParts = [];
+    if (allergyItems.length > 0) {
+      allergyTextParts.push(allergyItems.join(", "));
+    }
+    if (allergyOther) {
+      allergyTextParts.push(`อื่นๆ: ${allergyOther}`);
+    }
+    const allergyText = allergyTextParts.length > 0 ? allergyTextParts.join(" | ") : "-";
+
     const shouldSendSecurity =
       data.transportType === "personal" &&
-      String(data.carBrand ?? "").trim() &&
-      String(data.carLicense ?? "").trim();
+      cars.length > 0 &&
+      String(cars[0]?.brand ?? data.carBrand ?? "").trim() &&
+      String(cars[0]?.license ?? data.carLicense ?? "").trim();
+
+    const carsText =
+      cars.length > 0
+        ? cars
+            .map(
+              (car, index) =>
+                `- คันที่ ${index + 1}: ${car?.brand ?? "-"} / ${
+                  car?.license ?? "-"
+                }`
+            )
+            .join("\n")
+        : "-";
+
+    const guestsText =
+      guests.length > 0
+        ? guests
+            .map((guest, index) => {
+              const fullName = [
+                guest?.firstName,
+                guest?.middleName,
+                guest?.lastName,
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return `- คนที่ ${index + 1}: ${fullName || "-"} / ${
+                guest?.position ?? "-"
+              } / ${guest?.nationality ?? "-"}`;
+            })
+            .join("\n")
+        : "-";
 
     if (shouldSendSecurity && !securityEmail) {
       return NextResponse.json(
@@ -135,6 +260,22 @@ export async function POST(request) {
       },
     });
 
+    let hostEmailMap = null;
+    if (hostEmailMapRaw && String(hostEmailMapRaw).trim()) {
+      try {
+        const parsed = JSON.parse(String(hostEmailMapRaw));
+        if (parsed && typeof parsed === "object") {
+          hostEmailMap = parsed;
+        }
+      } catch {}
+    }
+
+    const hostName = String(data.hostName ?? "").trim();
+    const hostEmail =
+      hostEmailMap && hostName && typeof hostEmailMap[hostName] === "string"
+        ? String(hostEmailMap[hostName]).trim()
+        : "";
+
     const housekeepingText = [
       "แจ้งงานสำหรับแม่บ้าน",
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
@@ -142,6 +283,9 @@ export async function POST(request) {
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
       `มื้ออาหาร: ${meals}`,
+      `เมนู: \n${foodMenuText}`,
+      `อาหารพิเศษ: ${specialDietText}`,
+      `แพ้อาหาร: ${allergyText}`,
       `จำนวนผู้เข้าร่วม: ${data.totalGuests ?? "-"}`,
     ].join("\n");
 
@@ -157,16 +301,46 @@ export async function POST(request) {
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
       `หัวข้อ: ${data.visitTopic ?? "-"}`,
       `รายละเอียด: ${data.visitDetail ?? "-"}`,
+      `รายชื่อผู้เข้าร่วม:\n${guestsText}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการห้องประชุม: ${meetingRoomText}`,
+      `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
       `ประเภทรถ: ${transportTypeText}`,
-      `ยี่ห้อรถ: ${data.carBrand ?? "-"}`,
-      `ทะเบียนรถ: ${data.carLicense ?? "-"}`,
+      `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
+      `ข้อมูลรถ:\n${carsText}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
       `มื้ออาหาร: ${meals}`,
-      `หมายเหตุอาหาร: ${data.foodNote ?? "-"}`,
+      `เมนู: \n${foodMenuText}`,
+      `อาหารพิเศษ: ${specialDietText}`,
+      `แพ้อาหาร: ${allergyText}`,
       `ของที่ระลึก: ${souvenirText}`,
       `ผู้ลงข้อมูล: ${data.hostName ?? "-"}`,
+    ].join("\n");
+
+    const hostText = [
+      "แจ้งการเข้าพบ (ผู้ถูกเข้าพบ)",
+      `เวลาแจ้ง: ${submittedAt}`,
+      `เข้ามาพบ: ${data.hostName ?? "-"}`,
+      `หัวข้อ: ${data.visitTopic ?? "-"}`,
+      `รายละเอียด: ${data.visitDetail ?? "-"}`,
+      `เวลาที่มาถึง: ${visitDateTime}`,
+      `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
+      `บริษัทแขก VIP: ${data.vipCompany ?? "-"}`,
+      `ตำแหน่งแขก VIP: ${data.vipPosition ?? "-"}`,
+      `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
+      `จำนวนผู้เข้าร่วม: ${data.totalGuests ?? "-"}`,
+      `รายชื่อผู้เข้าร่วม:\n${guestsText}`,
+      `ประเภทรถ: ${transportTypeText}`,
+      `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
+      `ข้อมูลรถ:\n${carsText}`,
+      `ต้องการห้องประชุม: ${meetingRoomText}`,
+      `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
+      `ต้องการอาหาร: ${foodRequiredText}`,
+      `มื้ออาหาร: ${meals}`,
+      `เมนู: \n${foodMenuText}`,
+      `อาหารพิเศษ: ${specialDietText}`,
+      `แพ้อาหาร: ${allergyText}`,
+      `ของที่ระลึก: ${souvenirText}`,
     ].join("\n");
 
     const mailTasks = [
@@ -184,14 +358,26 @@ export async function POST(request) {
       }),
     ];
 
+    if (hostEmail) {
+      mailTasks.push(
+        transporter.sendMail({
+          from: emailFrom,
+          to: hostEmail,
+          subject: "แจ้งการเข้าพบ VIP (ผู้ถูกเข้าพบ)",
+          text: hostText,
+        })
+      );
+    }
+
     if (shouldSendSecurity) {
       const securityText = [
         "แจ้งการเข้าพบแขก VIP (รถส่วนตัว)",
         `เข้ามาพบ: ${data.hostName ?? "-"}`,
         `หัวข้อ: ${data.visitTopic ?? "-"}`,
         `เวลาที่มาถึง: ${visitDateTime}`,
-        `ยี่ห้อรถ: ${data.carBrand ?? "-"}`,
-        `ทะเบียนรถ: ${data.carLicense ?? "-"}`,
+        `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
+        `ข้อมูลรถ:\n${carsText}`,
+        `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
         `ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
         `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
       ].join("\n");
