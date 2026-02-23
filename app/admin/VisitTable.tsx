@@ -1,10 +1,31 @@
 // components/VisitorTable.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
-export default function VisitorTable({ visits }: { visits: any[] }) {
-    const [selectedVisit, setSelectedVisit] = useState<any>(null);
+type Visit = {
+    id: string | number;
+    visitDateTime?: string | null;
+    created_at?: string | null;
+    clientCompany?: string | null;
+    vipCompany?: string | null;
+    vipPosition?: string | null;
+    nationality?: string | null;
+    contactPhone?: string | null;
+    totalGuests?: number | null;
+    hostName?: string | null;
+    transportType?: string | null;
+    carLicense?: string | null;
+    carBrand?: string | null;
+    meetingRoom?: boolean | null;
+    foodRequired?: boolean | null;
+    meals?: string | null;
+    foodNote?: string | null;
+    souvenir?: boolean | null;
+};
+
+export default function VisitorTable({ visits }: { visits: Visit[] }) {
+    const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
 
     return (
         <>
@@ -42,8 +63,8 @@ export default function VisitorTable({ visits }: { visits: any[] }) {
                     <tbody className="bg-white divide-y divide-gray-200">
                         {visits?.sort((a, b) => {
                             // ดึงค่าวันที่ออกมาเทียบกัน โดยใช้ logic เดียวกับที่แสดงผล (มี ||)
-                            const dateA = new Date(a.visitDateTime || a.created_at).getTime();
-                            const dateB = new Date(b.visitDateTime || b.created_at).getTime();
+                            const dateA = new Date(a.visitDateTime || a.created_at || 0).getTime();
+                            const dateB = new Date(b.visitDateTime || b.created_at || 0).getTime();
 
                             // เลือกรูปแบบการเรียง:
                             // return dateB - dateA; // เรียงจาก "ล่าสุด" ไป "เก่าสุด" (Newest First)
@@ -60,12 +81,12 @@ export default function VisitorTable({ visits }: { visits: any[] }) {
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 align-top">
                                     <div className="flex flex-col leading-tight">
                                         <span className="font-semibold">
-                                            {new Date(visit.visitDateTime || visit.created_at).toLocaleDateString("th-TH", {
+                                            {new Date(visit.visitDateTime || visit.created_at || 0).toLocaleDateString("th-TH", {
                                                 day: "2-digit", month: "short", year: "2-digit"
                                             })}
                                         </span>
                                         <span className="text-gray-400 text-xs">
-                                            {new Date(visit.visitDateTime || visit.created_at).toLocaleTimeString("th-TH", {
+                                            {new Date(visit.visitDateTime || visit.created_at || 0).toLocaleTimeString("th-TH", {
                                                 hour: '2-digit', minute: '2-digit'
                                             })} น.
                                         </span>
@@ -136,11 +157,12 @@ export default function VisitorTable({ visits }: { visits: any[] }) {
     );
 }
 
-function DetailItem({ label, value }: { label: string; value: any }) {
+function DetailItem({ label, value }: { label: string; value: ReactNode }) {
+    const displayValue = value === null || value === undefined || value === "" ? "-" : value;
     return (
         <div className="mb-4">
             <dt className="text-sm text-gray-500">{label}</dt>
-            <dd className="text-base text-gray-900 bg-gray-50 p-2 rounded">{value || "-"}</dd>
+            <dd className="text-base text-gray-900 bg-gray-50 p-2 rounded">{displayValue}</dd>
         </div>
     );
 }

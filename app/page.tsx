@@ -34,6 +34,10 @@ type DialogState = {
   message: string;
 };
 
+const mealOrder = ["เช้า", "กลางวัน", "เย็น"] as const;
+const sortMeals = (meals: string[]) =>
+  [...meals].sort((a, b) => mealOrder.indexOf(a as never) - mealOrder.indexOf(b as never));
+
 const timeSlots: string[] = [];
 for (let hour = 6; hour <= 21; hour += 1) {
   timeSlots.push(`${hour.toString().padStart(2, "0")}:00`);
@@ -108,12 +112,12 @@ export default function Home() {
         }
         return {
           ...prev,
-          meals: [...prev.meals, value],
+          meals: sortMeals([...prev.meals, value]),
         };
       }
       return {
         ...prev,
-        meals: prev.meals.filter((meal) => meal !== value),
+        meals: sortMeals(prev.meals.filter((meal) => meal !== value)),
       };
     });
   };
@@ -217,7 +221,7 @@ export default function Home() {
       carBrand: form.transportType === "personal" ? form.carBrand : "",
       carLicense: form.transportType === "personal" ? form.carLicense : "",
       foodRequired: form.foodRequired === "yes",
-      meals: form.meals.join(","),
+      meals: sortMeals(form.meals).join(","),
       foodNote: form.foodNote,
       souvenir: form.souvenir === "yes",
       hostName: form.hostName,
@@ -651,7 +655,7 @@ export default function Home() {
                     checked={form.souvenir === "no"}
                     onChange={handleChange}
                   />
-                  <span>ไม่ต้องการ</span>
+                  <span>ไม่ต้องกาดูแลร</span>
                 </label>
               </div>
             </div>
