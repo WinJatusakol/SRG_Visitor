@@ -197,6 +197,7 @@ const initialState: VisitFormState = {
 
 export default function Home() {
   const [form, setForm] = useState<VisitFormState>(initialState);
+  const [presentationFile, setPresentationFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dialog, setDialog] = useState<DialogState>({
     open: false,
@@ -439,6 +440,7 @@ export default function Home() {
 
   const validate = () => {
     const messages: string[] = [];
+    const maxPresentationFileSize = 10 * 1024 * 1024;
 
     if (!form.clientCompany.trim()) {
       messages.push("กรุณากรอกบริษัทลูกค้าที่พาแขก VIP มา");
@@ -596,6 +598,9 @@ export default function Home() {
     if (!form.hostName.trim()) {
       messages.push("กรุณาเลือกผู้ที่จะเข้ามาพบ");
     }
+    if (presentationFile && presentationFile.size > maxPresentationFileSize) {
+      messages.push("ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)");
+    }
 
     return messages;
   };
@@ -710,13 +715,25 @@ export default function Home() {
 
     try {
       setSubmitting(true);
-      const response = await fetch("/api/summit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await (async () => {
+        if (!presentationFile) {
+          return fetch("/api/summit", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+        }
+
+        const formData = new FormData();
+        formData.append("data", JSON.stringify(payload));
+        formData.append("presentationFile", presentationFile);
+        return fetch("/api/summit", {
+          method: "POST",
+          body: formData,
+        });
+      })();
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok || result.success === false) {
@@ -731,6 +748,7 @@ export default function Home() {
       }
 
       setForm(initialState);
+      setPresentationFile(null);
       setDialog({
         open: true,
         type: "success",
@@ -1618,6 +1636,40 @@ export default function Home() {
                 </div>
               </div>
             )}
+          </section>
+
+          <section className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5">
+            <h2 className="text-base font-semibold text-zinc-900">
+              ไฟล์สำหรับการประชุม
+            </h2>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">แนบไฟล์นำเสนอ (ไม่บังคับ)</label>
+              <input
+                type="file"
+                name="presentationFile"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  setPresentationFile(file);
+                }}
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
+              />
+              {presentationFile && (
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
+                  <div>
+                    ไฟล์ที่เลือก: {presentationFile.name} (
+                    {Math.ceil(presentationFile.size / 1024)} KB)
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                    onClick={() => setPresentationFile(null)}
+                    disabled={submitting}
+                  >
+                    เอาออก
+                  </button>
+                </div>
+              )}
+            </div>
           </section>
 
           <section className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5">
