@@ -14,7 +14,9 @@ import {
     X,
     MapPin,
     Briefcase,
-    ChevronRight
+    ChevronRight,
+    MessageSquareText, 
+    AlertCircle
 } from "lucide-react";
 
 // --- Types (เหมือนเดิม) ---
@@ -35,8 +37,15 @@ type Visit = {
     meetingRoom?: boolean | null;
     foodRequired?: boolean | null;
     meals?: string | null;
-    foodNote?: string | null;
     souvenir?: boolean | null;
+    // ข้อมูลที่เพิ่มมาใหม่
+    visitTopic?: string | null;
+    visitDetail?: string | null;
+    guests?: unknown[] | null;
+    carCount?: number | null;
+    cars?: unknown[] | null;
+    meetingRoomSelection?: string | null;
+    foodPreferences?: unknown | null;
 };
 
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
@@ -50,6 +59,84 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             return dateB - dateA; // Newest first
         });
     }, [visits]);
+
+    const guestsText = (value: unknown[] | null | undefined) => {
+        if (!Array.isArray(value) || value.length === 0) return "-";
+        return value
+            .map((guest, index) => {
+                const g = guest as Record<string, unknown>;
+                const fullName = [g.firstName, g.middleName, g.lastName]
+                    .filter((part) => typeof part === "string" && part.trim())
+                    .join(" ");
+                const position = typeof g.position === "string" ? g.position : "-";
+                const nationality = typeof g.nationality === "string" ? g.nationality : "-";
+                return `- คนที่ ${index + 1}: ${fullName || "-"} / ${position} / ${nationality}`;
+            })
+            .join("\n");
+    };
+
+    const carsText = (value: unknown[] | null | undefined) => {
+        if (!Array.isArray(value) || value.length === 0) return "-";
+        return value
+            .map((car, index) => {
+                const c = car as Record<string, unknown>;
+                const brand = typeof c.brand === "string" ? c.brand : "-";
+                const license = typeof c.license === "string" ? c.license : "-";
+                return `- คันที่ ${index + 1}: ${brand} / ${license}`;
+            })
+            .join("\n");
+    };
+
+    const foodMenuText = (value: unknown) => {
+        if (!value || typeof value !== "object") return "-";
+        const v = value as Record<string, unknown>;
+        const menus = (v.menus && typeof v.menus === "object") ? (v.menus as Record<string, unknown>) : null;
+        if (!menus) return "-";
+
+        const lines: string[] = [];
+        const breakfast = typeof menus.breakfast === "string" ? menus.breakfast.trim() : "";
+        if (breakfast) lines.push(`เช้า: ${breakfast}`);
+
+        const lunch = menus.lunch && typeof menus.lunch === "object" ? (menus.lunch as Record<string, unknown>) : null;
+        if (lunch) {
+            const main = typeof lunch.main === "string" ? lunch.main.trim() : "";
+            const dessert = typeof lunch.dessert === "string" ? lunch.dessert.trim() : "";
+            if (main || dessert) lines.push(`กลางวัน: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
+        }
+
+        const dinner = menus.dinner && typeof menus.dinner === "object" ? (menus.dinner as Record<string, unknown>) : null;
+        if (dinner) {
+            const main = typeof dinner.main === "string" ? dinner.main.trim() : "";
+            const dessert = typeof dinner.dessert === "string" ? dinner.dessert.trim() : "";
+            if (main || dessert) lines.push(`เย็น: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
+        }
+
+        return lines.length > 0 ? lines.join("\n") : "-";
+    };
+
+    const specialDietText = (value: unknown) => {
+        if (!value || typeof value !== "object") return "-";
+        const v = value as Record<string, unknown>;
+        const d = (v.specialDiet && typeof v.specialDiet === "object") ? (v.specialDiet as Record<string, unknown>) : null;
+        if (!d) return "-";
+        const halal = Number(d.halalSets ?? 0);
+        const vegan = Number(d.veganSets ?? 0);
+        if ((halal || 0) <= 0 && (vegan || 0) <= 0) return "-";
+        return `ฮาลาล: ${halal > 0 ? halal : "-"} ชุด, วีแกน: ${vegan > 0 ? vegan : "-"} ชุด`;
+    };
+
+    const allergyText = (value: unknown) => {
+        if (!value || typeof value !== "object") return "-";
+        const v = value as Record<string, unknown>;
+        const a = (v.allergies && typeof v.allergies === "object") ? (v.allergies as Record<string, unknown>) : null;
+        if (!a) return "-";
+        const items = Array.isArray(a.items) ? a.items.filter((x) => typeof x === "string" && x.trim()) as string[] : [];
+        const other = typeof a.other === "string" ? a.other.trim() : "";
+        const parts: string[] = [];
+        if (items.length > 0) parts.push(items.join(", "));
+        if (other) parts.push(`อื่นๆ: ${other}`);
+        return parts.length > 0 ? parts.join(" | ") : "-";
+    };
 
     return (
         <div className="p-2 md:p-4 space-y-6 bg-gray-50/50 min-h-screen rounded-3xl">
@@ -69,8 +156,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 </div>
             </div>
 
-            {/* --- Premium Table Card --- */}
-            {/* ใช้ backdrop-blur และ shadow ใหญ่ขึ้นเพื่อให้ดูลอยตัว */}
+{/* --- Premium Table Card (ตารางสวยงามของคุณ) --- */}
             <div className="bg-white/80 backdrop-blur-xl rounded-[4xl] shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden relative z-0">
                 {/* Decorative background blob */}
                 <div className="absolute top-0 right-0 -z-10 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
@@ -93,7 +179,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     <tr
                                         key={visit.id}
                                         onClick={() => setSelectedVisit(visit)}
-                                        className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y-[0.5] rounded-2xl cursor-pointer relative z-10"
+                                        className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y- rounded-2xl cursor-pointer relative z-10"
                                     >
                                         <td className="px-6 py-5 align-top">
                                            <div className="flex items-start gap-3">
@@ -165,21 +251,17 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 </div>
             </div>
 
-            {/* --- Premium Modal --- */}
+            {/* --- Premium Modal (นำข้อมูลของเพื่อนมายัดใส่ดีไซน์ของคุณ) --- */}
             {selectedVisit && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-                    {/* Modal Container: Slide-up on mobile, Fade-in scale-up on desktop */}
-                    <div className="bg-white w-full max-w-2xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
+                    <div className="bg-white w-full max-w-3xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
 
-                        {/* Modal Header with subtle gradient pattern */}
                         <div className="relative px-6 py-5 border-b border-gray-100 overflow-hidden bg-linear-to-br from-blue-50 via-white to-white">
-                             {/* Decorative Background Elements */}
                              <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-100/50 rounded-full blur-2xl pointer-events-none"></div>
                              <div className="absolute top-5 left-5 w-16 h-16 bg-indigo-50/60 rounded-full blur-xl pointer-events-none"></div>
 
                             <div className="relative z-10 flex justify-between items-start">
                                 <div className="flex gap-4">
-                                    {/* Company Avatar big version */}
                                     <CompanyAvatar name={selectedVisit.vipCompany} size="lg" />
                                     <div>
                                         <h2 className="text-xl font-bold text-gray-900 line-clamp-1">{selectedVisit.vipCompany || "ไม่ระบุบริษัท"}</h2>
@@ -189,106 +271,150 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         </p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setSelectedVisit(null)}
-                                    className="p-2 -mr-2 -mt-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100/50 rounded-full transition-colors"
-                                >
+                                <button onClick={() => setSelectedVisit(null)} className="p-2 -mr-2 -mt-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100/50 rounded-full transition-colors">
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Modal Body: ใช้ Grid ที่สะอาดตา และไอคอนนำทาง */}
                         <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar bg-gray-50/30">
                             <div className="space-y-8">
 
-                                {/* Group 1: ข้อมูลพื้นฐาน */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <PremiumDetailItem icon={<Building2 />} label="ลูกค้าบริษัท" value={selectedVisit.clientCompany} />
-                                    <PremiumDetailItem icon={<Globe2 />} label="สัญชาติ" value={selectedVisit.nationality} />
-                                    <PremiumDetailItem icon={<Phone />} label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} isPrimary/>
-                                    <PremiumDetailItem icon={<Users />} label="จำนวนผู้ติดตาม" value={selectedVisit.totalGuests ? `${selectedVisit.totalGuests} ท่าน` : null} />
+                                {/* Group 1: ข้อมูลพื้นฐานและการเข้าพบ (ข้อมูลเพื่อน) */}
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                        <MessageSquareText className="w-4 h-4 text-blue-500" /> ข้อมูลทั่วไปและการเข้าพบ
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <PremiumDetailItem icon={<Building2 />} label="บริษัทลูกค้า" value={selectedVisit.clientCompany} />
+                                        <PremiumDetailItem icon={<Globe2 />} label="สัญชาติ" value={selectedVisit.nationality} />
+                                        <PremiumDetailItem icon={<Phone />} label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} isPrimary />
+                                        <PremiumDetailItem icon={<UserCircle2 />} label="เข้ามาพบ (Host)" value={selectedVisit.hostName} />
+                                        
+                                        <div className="sm:col-span-2 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                            <dt className="text-xs font-medium text-gray-400 mb-1">หัวข้อการเข้าพบ</dt>
+                                            <dd className="text-sm font-bold text-gray-900 mb-3">{selectedVisit.visitTopic || "-"}</dd>
+                                            
+                                            <dt className="text-xs font-medium text-gray-400 mb-1">รายละเอียด</dt>
+                                            <dd className="text-sm text-gray-700 whitespace-pre-line leading-relaxed bg-gray-50/50 p-3 rounded-xl border border-gray-100/50">
+                                                {selectedVisit.visitDetail || "-"}
+                                            </dd>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <Separator />
 
-                                {/* Group 2: การเดินทาง */}
+                                {/* Group 2: ผู้เข้าร่วม (ข้อมูลเพื่อน) */}
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                        <CarFront className="w-4 h-4 text-indigo-500" /> ข้อมูลการเดินทาง
+                                        <Users className="w-4 h-4 text-indigo-500" /> รายชื่อผู้เข้าร่วม ({selectedVisit.totalGuests || 0} ท่าน)
                                     </h3>
-                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        <PremiumDetailItem
-                                            label="ประเภท"
-                                            value={selectedVisit.transportType === "personal" ? "รถส่วนตัว" : (selectedVisit.transportType ? "รถสาธารณะ" : null)}
-                                            simple
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                                        <PremiumDetailItem 
+                                            label="รายละเอียดรายบุคคล" 
+                                            value={guestsText(selectedVisit.guests)} 
+                                            multiline
                                         />
-                                        <PremiumDetailItem label="ทะเบียนรถ" value={selectedVisit.carLicense} simple isPrimary />
-                                        <PremiumDetailItem label="ยี่ห้อรถ" value={selectedVisit.carBrand} simple />
                                     </div>
                                 </div>
 
-                                {/* Group 3: การรับรอง (ใช้ Card สีเด่นขึ้นถ้าต้องการ) */}
+                                <Separator />
+
+                                {/* Group 3: การเดินทาง (ข้อมูลเพื่อน) */}
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                        <Gift className="w-4 h-4 text-pink-500" /> การรับรอง
+                                        <CarFront className="w-4 h-4 text-emerald-500" /> ข้อมูลการเดินทาง
+                                    </h3>
+                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                            <PremiumDetailItem label="ประเภท" value={selectedVisit.transportType === "personal" ? "รถส่วนตัว" : "รถสาธารณะ"} simple />
+                                            <PremiumDetailItem label="จำนวนรถ" value={selectedVisit.transportType === "personal" ? (selectedVisit.carCount ?? "-") : "-"} simple />
+                                            
+                                            {/* Fallback ในกรณีที่ไม่มีข้อมูลใน Array cars */}
+                                            {selectedVisit.carLicense && <PremiumDetailItem label="ทะเบียนรถ" value={selectedVisit.carLicense} simple isPrimary />}
+                                            {selectedVisit.carBrand && !selectedVisit.carLicense && <PremiumDetailItem label="ยี่ห้อรถ" value={selectedVisit.carBrand} simple />}
+                                        </div>
+                                        
+                                        {/* ข้อมูลรถยนต์แบบ Array ที่เพื่อนทำมา */}
+                                        {selectedVisit.transportType === "personal" && selectedVisit.cars && (
+                                            <div className="pt-4 border-t border-gray-50">
+                                                <PremiumDetailItem label="ข้อมูลรถเพิ่มเติม" value={carsText(selectedVisit.cars)} multiline />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Group 4: การรับรองและอาหาร (ผสมดีไซน์ Premium + ข้อมูลเพื่อน) */}
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                        <Utensils className="w-4 h-4 text-orange-500" /> การรับรองและอาหาร
                                     </h3>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {/* Highlight Card ถ้าต้องการห้องประชุม */}
-                                        <div className={`p-4 rounded-2xl border flex items-start gap-3 transition-colors ${
-                                            selectedVisit.meetingRoom
-                                                ? 'bg-blue-50/50 border-blue-100'
-                                                : 'bg-white border-gray-100'
-                                        }`}>
-                                            <div className={`p-2 rounded-lg ${selectedVisit.meetingRoom ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
-                                                <Users className="w-5 h-5" />
+                                        {/* ห้องประชุม */}
+                                        <div className={`p-4 rounded-2xl border ${selectedVisit.meetingRoom ? 'bg-blue-50/50 border-blue-100' : 'bg-white border-gray-100'}`}>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className={`p-2 rounded-lg ${selectedVisit.meetingRoom ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <Users className="w-5 h-5" />
+                                                </div>
+                                                <dt className="text-xs text-gray-500 font-bold">ห้องประชุม</dt>
                                             </div>
-                                            <div>
-                                                <dt className="text-xs text-gray-500 mb-1">ห้องประชุม</dt>
-                                                <dd className={`text-sm font-bold ${selectedVisit.meetingRoom ? 'text-blue-700' : 'text-gray-400'}`}>
-                                                    {selectedVisit.meetingRoom ? "ต้องการใช้ห้องประชุม" : "ไม่ต้องการ"}
-                                                </dd>
-                                            </div>
+                                            <dd className={`text-sm font-bold ${selectedVisit.meetingRoom ? 'text-blue-700' : 'text-gray-400'}`}>
+                                                {selectedVisit.meetingRoom ? (selectedVisit.meetingRoomSelection || "ต้องการใช้ห้องประชุม") : "ไม่ต้องการ"}
+                                            </dd>
                                         </div>
 
-                                        <div className={`p-4 rounded-2xl border flex items-start gap-3 transition-colors ${
-                                             selectedVisit.souvenir
-                                                ? 'bg-pink-50/50 border-pink-100'
-                                                : 'bg-white border-gray-100'
-                                        }`}>
-                                            <div className={`p-2 rounded-lg ${selectedVisit.souvenir ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-400'}`}>
-                                                <Gift className="w-5 h-5" />
+                                        {/* ของที่ระลึก */}
+                                        <div className={`p-4 rounded-2xl border ${selectedVisit.souvenir ? 'bg-pink-50/50 border-pink-100' : 'bg-white border-gray-100'}`}>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className={`p-2 rounded-lg ${selectedVisit.souvenir ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <Gift className="w-5 h-5" />
+                                                </div>
+                                                <dt className="text-xs text-gray-500 font-bold">ของที่ระลึก</dt>
                                             </div>
-                                            <div>
-                                                <dt className="text-xs text-gray-500 mb-1">ของที่ระลึก</dt>
-                                                <dd className={`text-sm font-bold ${selectedVisit.souvenir ? 'text-pink-700' : 'text-gray-400'}`}>
-                                                    {selectedVisit.souvenir ? "เตรียมของที่ระลึก" : "ไม่ต้องการ"}
-                                                </dd>
-                                            </div>
+                                            <dd className={`text-sm font-bold ${selectedVisit.souvenir ? 'text-pink-700' : 'text-gray-400'}`}>
+                                                {selectedVisit.souvenir ? "เตรียมของที่ระลึก" : "ไม่ต้องการ"}
+                                            </dd>
                                         </div>
 
                                         {/* อาหาร */}
-                                        <div className="sm:col-span-2 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                                            <div className="flex items-start gap-3 mb-3">
+                                        <div className="sm:col-span-2 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                                            <div className="flex items-start gap-3">
                                                 <div className={`p-2 rounded-lg ${selectedVisit.foodRequired ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-400'}`}>
                                                     <Utensils className="w-5 h-5" />
                                                 </div>
-                                                <div>
-                                                    <dt className="text-xs text-gray-500 mb-1">อาหารและเครื่องดื่ม</dt>
+                                                <div className="flex-1">
+                                                    <dt className="text-xs text-gray-500 mb-1">อาหารและมื้อ</dt>
                                                     <dd className={`text-sm font-bold ${selectedVisit.foodRequired ? 'text-gray-900' : 'text-gray-400'}`}>
-                                                         {selectedVisit.foodRequired ? `ต้องการ (${selectedVisit.meals || "ไม่ระบุมื้อ"})` : "ไม่ต้องการ"}
+                                                         {selectedVisit.foodRequired ? `ต้องการ (${selectedVisit.meals || "ไม่ระบุมื้อ"})` : "ไม่ต้องการอาหาร"}
                                                     </dd>
+                                                    
+                                                    {/* กล่องเมนูอาหารและแพ้อาหาร (เพื่อนส่งมา) */}
+                                                    {selectedVisit.foodRequired && (
+                                                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-100/50">
+                                                                <span className="block text-xs text-orange-700 mb-2 font-bold">เมนูที่เลือก:</span>
+                                                                <div className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{foodMenuText(selectedVisit.foodPreferences)}</div>
+                                                            </div>
+                                                            <div className="space-y-3">
+                                                                <div className="bg-green-50/50 p-3 rounded-xl border border-green-100/50">
+                                                                    <span className="block text-xs text-green-700 mb-1 font-bold">อาหารพิเศษ:</span>
+                                                                    <div className="text-sm text-gray-700">{specialDietText(selectedVisit.foodPreferences)}</div>
+                                                                </div>
+                                                                <div className="bg-red-50/50 p-3 rounded-xl border border-red-100/50 flex items-start gap-2">
+                                                                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                                                                    <div>
+                                                                        <span className="block text-xs text-red-700 mb-1 font-bold">แพ้อาหาร:</span>
+                                                                        <div className="text-sm text-gray-700">{allergyText(selectedVisit.foodPreferences)}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-                                            {selectedVisit.foodNote && (
-                                                 <div className="mt-3 pl-11 text-sm text-gray-600 bg-orange-50/50 p-3 rounded-lg border border-orange-100/50 font-medium">
-                                                    <span className="block text-xs text-orange-700 mb-1 font-bold">Note:</span>
-                                                    "{selectedVisit.foodNote}"
-                                                 </div>
-                                            )}
                                         </div>
-
                                     </div>
                                 </div>
 
@@ -332,26 +458,48 @@ function CompanyAvatar({ name, size = "md", idx = 0 }: { name?: string | null; s
 }
 
 // Item แสดงข้อมูลใน Modal แบบใหม่
-function PremiumDetailItem({ label, value, icon, simple = false, isPrimary = false }: { label: string; value: ReactNode; icon?: ReactNode; simple?: boolean; isPrimary?: boolean }) {
+// Item แสดงข้อมูลใน Modal แบบใหม่
+function PremiumDetailItem({ 
+    label, 
+    value, 
+    icon, 
+    simple = false, 
+    isPrimary = false,
+    multiline = false // ✨ 1. เพิ่มการรับค่า multiline ตรงนี้
+}: { 
+    label: string; 
+    value: ReactNode; 
+    icon?: ReactNode; 
+    simple?: boolean; 
+    isPrimary?: boolean;
+    multiline?: boolean; // ✨ 2. เพิ่ม Type Definition ตรงนี้
+}) {
     const displayValue = value === null || value === undefined || value === "" ? "—" : value;
 
     if (simple) {
          return (
             <div>
                 <dt className="text-xs text-gray-400 mb-1">{label}</dt>
-                <dd className={`text-sm ${isPrimary ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{displayValue}</dd>
+                {/* ✨ 3. ปรับให้รองรับ whitespace-pre-line ถ้ามีการส่ง multiline เข้ามาในแบบ simple */}
+                <dd className={`text-sm ${isPrimary ? 'font-bold text-gray-900' : 'font-medium text-gray-700'} ${multiline ? 'whitespace-pre-line leading-relaxed' : ''}`}>
+                    {displayValue}
+                </dd>
             </div>
         );
     }
 
     return (
-        <div className="flex items-start gap-3 p-3 rounded-2xl bg-white border border-gray-100/80 shadow-sm hover:shadow-md transition-shadow group">
-            <div className={`mt-1 p-2 rounded-xl ${isPrimary ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'} transition-colors`}>
-                {icon && <span className="[&>svg]:w-4 [&>svg]:h-4">{icon}</span>}
-            </div>
-            <div className="overflow-hidden">
+        // ✨ 4. ถ้าเป็น multiline ให้ขยายเต็มความกว้าง (w-full)
+        <div className={`flex items-start gap-3 p-3 rounded-2xl bg-white border border-gray-100/80 shadow-sm hover:shadow-md transition-shadow group ${multiline ? 'w-full' : ''}`}>
+            {icon && (
+                <div className={`mt-1 p-2 rounded-xl shrink-0 ${isPrimary ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500'} transition-colors`}>
+                    <span className="[&>svg]:w-4 [&>svg]:h-4">{icon}</span>
+                </div>
+            )}
+            {/* ✨ 5. ถ้าเป็น multiline ให้ถอดคลาส truncate ออก และใส่ whitespace-pre-line เพื่อให้ขึ้นบรรทัดใหม่ */}
+            <div className={`overflow-hidden ${multiline ? 'w-full' : ''}`}>
                 <dt className="text-xs font-medium text-gray-400 mb-0.5">{label}</dt>
-                <dd className={`text-sm truncate ${isPrimary ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>
+                <dd className={`text-sm ${isPrimary ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'} ${multiline ? 'whitespace-pre-line leading-relaxed mt-1' : 'truncate'}`}>
                     {displayValue}
                 </dd>
             </div>
