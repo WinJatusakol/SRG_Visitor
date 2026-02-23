@@ -62,6 +62,9 @@ type VisitFormState = {
   allergies: string[];
   allergyOther: string;
   souvenir: YesNo | "";
+  souvenirGiftSet: string;
+  souvenirGiftSetCount: string;
+  souvenirExtra: string;
   hostName: string;
 };
 
@@ -135,6 +138,8 @@ const dinnerDessertOptions = ["ไอศกรีมวานิลลา", "เ
 
 const allergyOptions = ["ทะเล", "ถั่ว", "นม", "ไข่", "กลูเตน", "งา", "อื่นๆ"];
 
+const souvenirGiftSetOptions = ["Giftset 01", "Giftset 02", "Giftset 03"];
+
 const createEmptyGuest = (): Guest => ({
   firstName: "",
   middleName: "",
@@ -184,6 +189,9 @@ const initialState: VisitFormState = {
   allergies: [],
   allergyOther: "",
   souvenir: "",
+  souvenirGiftSet: "",
+  souvenirGiftSetCount: "",
+  souvenirExtra: "",
   hostName: "",
 };
 
@@ -228,6 +236,9 @@ export default function Home() {
     }
 
     if (name === "halalCount" || name === "veganCount") {
+      value = value.replace(/\D/g, "");
+    }
+    if (name === "souvenirGiftSetCount") {
       value = value.replace(/\D/g, "");
     }
 
@@ -296,6 +307,16 @@ export default function Home() {
         veganCount: value === "yes" ? prev.veganCount : "",
         allergies: value === "yes" ? prev.allergies : [],
         allergyOther: value === "yes" ? prev.allergyOther : "",
+      }));
+    }
+
+    if (name === "souvenir") {
+      return setForm((prev) => ({
+        ...prev,
+        souvenir: value as YesNo,
+        souvenirGiftSet: value === "yes" ? prev.souvenirGiftSet : "",
+        souvenirGiftSetCount: value === "yes" ? prev.souvenirGiftSetCount : "",
+        souvenirExtra: value === "yes" ? prev.souvenirExtra : "",
       }));
     }
 
@@ -563,6 +584,15 @@ export default function Home() {
     if (!form.souvenir) {
       messages.push("กรุณาระบุว่าจะรับของที่ระลึกหรือไม่");
     }
+    if (form.souvenir === "yes") {
+      if (!form.souvenirGiftSet.trim()) {
+        messages.push("กรุณาเลือกประเภทของที่ระลึก");
+      }
+      const count = Number(form.souvenirGiftSetCount || 0);
+      if (!form.souvenirGiftSetCount.trim() || count <= 0) {
+        messages.push("กรุณาระบุจำนวนชุดของที่ระลึก");
+      }
+    }
     if (!form.hostName.trim()) {
       messages.push("กรุณาเลือกผู้ที่จะเข้ามาพบ");
     }
@@ -641,6 +671,15 @@ export default function Home() {
           }
         : null;
 
+    const souvenirPreferences =
+      form.souvenir === "yes"
+        ? {
+            giftSet: form.souvenirGiftSet,
+            count: Number(form.souvenirGiftSetCount || 0),
+            extra: form.souvenirExtra,
+          }
+        : null;
+
     const payload = {
       timestamp: new Date().toISOString(),
       clientCompany: form.clientCompany,
@@ -665,6 +704,7 @@ export default function Home() {
       meals: form.meals.join(","),
       foodPreferences,
       souvenir: form.souvenir === "yes",
+      souvenirPreferences,
       hostName: form.hostName,
     };
 
@@ -1525,6 +1565,59 @@ export default function Home() {
                 </label>
               </div>
             </div>
+
+            {form.souvenir === "yes" && (
+              <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-4">
+                <div className="text-sm font-semibold text-zinc-900">
+                  รายละเอียดของที่ระลึก
+                </div>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">
+                      ประเภทของที่ระลึก
+                    </label>
+                    <select
+                      name="souvenirGiftSet"
+                      value={form.souvenirGiftSet}
+                      onChange={handleChange}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    >
+                      <option value="">เลือกประเภท</option>
+                      {souvenirGiftSetOptions.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">จำนวนชุด</label>
+                    <input
+                      type="number"
+                      min={1}
+                      name="souvenirGiftSetCount"
+                      value={form.souvenirGiftSetCount}
+                      onChange={handleChange}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      placeholder="เช่น 5"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 md:col-span-2">
+                    <label className="text-sm font-medium">
+                      เพิ่มของพิเศษ (ถ้ามี)
+                    </label>
+                    <textarea
+                      name="souvenirExtra"
+                      value={form.souvenirExtra}
+                      onChange={handleChange}
+                      rows={3}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      placeholder="ระบุของพิเศษเพิ่มเติม เช่น ใส่โลโก้, การ์ดข้อความ, ของเพิ่มอื่นๆ"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5">

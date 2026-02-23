@@ -33,6 +33,12 @@ export async function POST(request) {
       !Array.isArray(data.foodPreferences)
         ? data.foodPreferences
         : null;
+    const souvenirPreferences =
+      data.souvenirPreferences &&
+      typeof data.souvenirPreferences === "object" &&
+      !Array.isArray(data.souvenirPreferences)
+        ? data.souvenirPreferences
+        : null;
 
     const insertPayload = {
       timestamp: data.timestamp ?? new Date().toISOString(),
@@ -57,6 +63,7 @@ export async function POST(request) {
       meals: data.meals ?? "",
       foodPreferences,
       souvenir,
+      souvenirPreferences,
       hostName: data.hostName ?? "",
     };
 
@@ -71,13 +78,14 @@ export async function POST(request) {
         msg.includes('column "cars"') ||
         msg.includes('column "carCount"') ||
         msg.includes('column "meetingRoomSelection"') ||
-        msg.includes('column "foodPreferences"')
+        msg.includes('column "foodPreferences"') ||
+        msg.includes('column "souvenirPreferences"')
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ guests (jsonb), cars (jsonb), carCount (int), meetingRoomSelection (text), foodPreferences (jsonb) ในตาราง vip_visitor ก่อน',
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ guests (jsonb), cars (jsonb), carCount (int), meetingRoomSelection (text), foodPreferences (jsonb), souvenirPreferences (jsonb) ในตาราง vip_visitor ก่อน',
           },
           { status: 500 }
         );
@@ -135,6 +143,20 @@ export async function POST(request) {
     const foodRequiredText = foodRequired === null ? "-" : yesNo(foodRequired);
     const meetingRoomText = meetingRoom === null ? "-" : yesNo(meetingRoom);
     const souvenirText = souvenir === null ? "-" : yesNo(souvenir);
+
+    const sp = souvenirPreferences;
+    const spGiftSet =
+      sp && typeof sp.giftSet === "string" ? sp.giftSet.trim() : "";
+    const spCount =
+      sp && Number.isFinite(Number(sp.count)) ? Number(sp.count) : 0;
+    const spExtra = sp && typeof sp.extra === "string" ? sp.extra.trim() : "";
+    const souvenirDetailText = souvenir
+      ? [
+          `ประเภท: ${spGiftSet || "-"}`,
+          `จำนวนชุด: ${spCount > 0 ? spCount : "-"}`,
+          `ของพิเศษ: ${spExtra || "-"}`,
+        ].join("\n")
+      : "-";
 
     const fp = foodPreferences;
     const fpMenus =
@@ -287,6 +309,8 @@ export async function POST(request) {
       `อาหารพิเศษ: ${specialDietText}`,
       `แพ้อาหาร: ${allergyText}`,
       `จำนวนผู้เข้าร่วม: ${data.totalGuests ?? "-"}`,
+      `ของที่ระลึก: ${souvenirText}`,
+      `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
     ].join("\n");
 
     const managerText = [
@@ -314,6 +338,7 @@ export async function POST(request) {
       `อาหารพิเศษ: ${specialDietText}`,
       `แพ้อาหาร: ${allergyText}`,
       `ของที่ระลึก: ${souvenirText}`,
+      `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
       `ผู้ลงข้อมูล: ${data.hostName ?? "-"}`,
     ].join("\n");
 
@@ -341,6 +366,7 @@ export async function POST(request) {
       `อาหารพิเศษ: ${specialDietText}`,
       `แพ้อาหาร: ${allergyText}`,
       `ของที่ระลึก: ${souvenirText}`,
+      `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
     ].join("\n");
 
     const mailTasks = [
