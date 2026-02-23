@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import nodemailer from "nodemailer";
 import { randomUUID } from "crypto";
 
@@ -23,7 +23,7 @@ export async function POST(request) {
         : { data: await request.json(), file: null };
 
     const data = parsed.data ?? {};
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const toBoolean = (value) => {
       if (typeof value === "boolean") {
         return value;
@@ -106,13 +106,43 @@ export async function POST(request) {
       const arrayBuffer = await presentationFileInput.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
 
-      const uploadResult = await supabase.storage
-        .from(bucketName)
-        .upload(objectPath, bytes, {
-          contentType:
-            presentationFileInput.type || "application/octet-stream",
+      const uploadOnce = async () =>
+        supabase.storage.from(bucketName).upload(objectPath, bytes, {
+          contentType: presentationFileInput.type || "application/octet-stream",
           upsert: false,
         });
+
+      let uploadResult = await uploadOnce();
+      if (uploadResult.error) {
+        const msg = String(uploadResult.error.message ?? "");
+        const isBucketNotFound =
+          msg.toLowerCase().includes("bucket not found") ||
+          msg.toLowerCase().includes("no such bucket");
+
+        if (isBucketNotFound) {
+          const createBucketResult = await supabase.storage.createBucket(
+            bucketName,
+            { public: true }
+          );
+          if (createBucketResult.error) {
+            const createMsg = String(createBucketResult.error.message ?? "");
+            const alreadyExists =
+              createMsg.toLowerCase().includes("already exists") ||
+              createMsg.toLowerCase().includes("duplicate");
+            if (!alreadyExists) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: `สร้าง bucket ไม่สำเร็จ: ${createBucketResult.error.message}`,
+                },
+                { status: 500 }
+              );
+            }
+          }
+
+          uploadResult = await uploadOnce();
+        }
+      }
 
       if (uploadResult.error) {
         return NextResponse.json(
@@ -143,60 +173,157 @@ export async function POST(request) {
       nationality: data.nationality ?? "",
       contactPhone: data.contactPhone ?? "",
       totalGuests: data.totalGuests ?? null,
-      guests: guests.length > 0 ? guests : null,
       visitTopic: data.visitTopic ?? "",
       visitDetail: data.visitDetail ?? "",
       visitDateTime: data.visitDateTime ?? null,
       meetingRoom,
       meetingRoomSelection,
-      siteVisit,
       executiveHost,
       transportType: data.transportType ?? "",
       carCount: Number.isFinite(carCount) ? carCount : null,
-      cars: cars.length > 0 ? cars : null,
       carBrand: data.carBrand ?? "",
       carLicense: data.carLicense ?? "",
       foodRequired,
       meals: data.meals ?? "",
-      foodPreferences,
       souvenir,
-      souvenirPreferences,
-      presentationFile,
       hostName: data.hostName ?? "",
       submittedBy,
     };
 
-    const { error } = await supabase
+    const { data: insertedVisit, error: insertError } = await supabase
       .from("vip_visitor")
-      .insert([insertPayload]);
+      .insert([insertPayload])
+      .select("id")
+      .single();
 
-    if (error) {
-      const msg = String(error.message ?? "");
+    if (insertError) {
+      const msg = String(insertError.message ?? "");
       if (
-        msg.includes('column "guests"') ||
-        msg.includes('column "cars"') ||
         msg.includes('column "carCount"') ||
         msg.includes('column "meetingRoomSelection"') ||
-        msg.includes('column "siteVisit"') ||
         msg.includes('column "executiveHost"') ||
-        msg.includes('column "foodPreferences"') ||
-        msg.includes('column "souvenirPreferences"') ||
-        msg.includes('column "presentationFile"') ||
         msg.includes('column "submittedBy"')
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ guests (jsonb), cars (jsonb), carCount (int), meetingRoomSelection (text), siteVisit (jsonb), executiveHost (jsonb), foodPreferences (jsonb), souvenirPreferences (jsonb), presentationFile (jsonb), submittedBy (jsonb) ในตาราง vip_visitor ก่อน',
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ carCount (int), meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb) ในตาราง vip_visitor ก่อน',
           },
           { status: 500 }
         );
       }
       return NextResponse.json(
-        { success: false, error: error.message },
+        { success: false, error: insertError.message },
         { status: 500 }
       );
+    }
+
+    const visitorId = insertedVisit?.id;
+    if (!visitorId) {
+      return NextResponse.json(
+        { success: false, error: "ไม่สามารถสร้างรายการ vip_visitor ได้" },
+        { status: 500 }
+      );
+    }
+
+    const rollback = async () => {
+      try {
+        await supabase.from("vip_visitor").delete().eq("id", visitorId);
+      } catch {}
+    };
+
+    if (guests.length > 0) {
+      const guestRows = guests.map((guest, index) => ({
+        visitorId,
+        sortIndex: index,
+        firstName: guest?.firstName ?? "",
+        middleName: guest?.middleName ?? "",
+        lastName: guest?.lastName ?? "",
+        position: guest?.position ?? "",
+        nationality: guest?.nationality ?? "",
+      }));
+      const { error: guestError } = await supabase
+        .from("vip_visitor_guests")
+        .insert(guestRows);
+      if (guestError) {
+        await rollback();
+        return NextResponse.json(
+          { success: false, error: guestError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (cars.length > 0) {
+      const carRows = cars.map((car, index) => ({
+        visitorId,
+        sortIndex: index,
+        brand: car?.brand ?? "",
+        license: car?.license ?? "",
+      }));
+      const { error: carError } = await supabase
+        .from("vip_visitor_cars")
+        .insert(carRows);
+      if (carError) {
+        await rollback();
+        return NextResponse.json(
+          { success: false, error: carError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (foodPreferences) {
+      const { error: foodError } = await supabase
+        .from("vip_visitor_food")
+        .insert([{ visitorId, foodPreferences }]);
+      if (foodError) {
+        await rollback();
+        return NextResponse.json(
+          { success: false, error: foodError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (souvenirPreferences) {
+      const { error: souvenirError } = await supabase
+        .from("vip_visitor_souvenir")
+        .insert([{ visitorId, souvenirPreferences }]);
+      if (souvenirError) {
+        await rollback();
+        return NextResponse.json(
+          { success: false, error: souvenirError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (siteVisit) {
+      const { error: siteVisitError } = await supabase
+        .from("vip_visitor_site_visit")
+        .insert([{ visitorId, siteVisit }]);
+      if (siteVisitError) {
+        await rollback();
+        return NextResponse.json(
+          { success: false, error: siteVisitError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (presentationFile) {
+      const { error: presentationFileError } = await supabase
+        .from("vip_visitor_presentation_file")
+        .insert([{ visitorId, presentationFile }]);
+      if (presentationFileError) {
+        await rollback();
+        return NextResponse.json(
+          { success: false, error: presentationFileError.message },
+          { status: 500 }
+        );
+      }
     }
 
     const smtpHost = process.env.SMTP_HOST;

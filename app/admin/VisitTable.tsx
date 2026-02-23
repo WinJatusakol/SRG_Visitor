@@ -3,7 +3,7 @@
 
 import { useState, type ReactNode } from "react";
 
-type Visit = {
+export type Visit = {
     id: string | number;
     visitDateTime?: string | null;
     created_at?: string | null;

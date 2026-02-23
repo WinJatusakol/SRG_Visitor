@@ -19,13 +19,6 @@ type Car = {
   license: string;
 };
 
-type MeetingRoomOption = {
-  code: string;
-  name: string;
-  location: string;
-  capacity: number;
-};
-
 type VisitFormState = {
   clientCompany: string;
   vipCompany: string;
@@ -81,6 +74,8 @@ type VisitFormState = {
 
 type DialogType = "success" | "error";
 
+type Lang = "th" | "en";
+
 type DialogState = {
   open: boolean;
   type: DialogType;
@@ -96,7 +91,7 @@ for (let hour = 6; hour <= 21; hour += 1) {
 const hostOptions = ["Name1", "Name2", "อื่นๆ"];
 const executiveHostOptions = ["Name01", "Name02", "Name03", "อื่นๆ"];
 
-const meetingRoomOptions: MeetingRoomOption[] = [
+const meetingRoomOptions = [
   {
     code: "001",
     name: "ห้องประชุมใหญ่",
@@ -221,17 +216,20 @@ const initialState: VisitFormState = {
 };
 
 export default function Home() {
+  const [lang, setLang] = useState<Lang>("th");
   const [form, setForm] = useState<VisitFormState>(initialState);
   const [presentationFile, setPresentationFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dialog, setDialog] = useState<DialogState>({
     open: false,
     type: "error",
-    message: "กรุณากรอกข้อมูลให้ครบถ้วน",
+    message: "",
   });
   const [minVisitDate] = useState<string>(() =>
     new Date().toISOString().split("T")[0]
   );
+
+  const t = (th: string, en: string) => (lang === "th" ? th : en);
 
   const handleChange = (
     event: ChangeEvent<
@@ -505,194 +503,409 @@ export default function Home() {
     const maxPresentationFileSize = 10 * 1024 * 1024;
 
     if (!form.clientCompany.trim()) {
-      messages.push("กรุณากรอกบริษัทลูกค้าที่พาแขก VIP มา");
+      messages.push(
+        t(
+          "กรุณากรอกบริษัทลูกค้าที่พาแขก VIP มา",
+          "Please enter the client company bringing the VIP guest."
+        )
+      );
     }
     if (!form.vipCompany.trim()) {
-      messages.push("กรุณากรอกบริษัทของแขก VIP");
+      messages.push(
+        t(
+          "กรุณากรอกบริษัทของแขก VIP",
+          "Please enter the VIP guest company."
+        )
+      );
     }
     if (!form.vipPosition.trim()) {
-      messages.push("กรุณากรอกตำแหน่งของแขก VIP");
+      messages.push(
+        t(
+          "กรุณากรอกตำแหน่งของแขก VIP",
+          "Please enter the VIP guest position."
+        )
+      );
     }
     if (!form.nationality.trim()) {
-      messages.push("กรุณากรอกสัญชาติ");
+      messages.push(t("กรุณากรอกสัญชาติ", "Please enter the nationality."));
     }
     if (!form.contactPhone.trim()) {
-      messages.push("กรุณากรอกเบอร์ผู้ประสานงาน");
+      messages.push(
+        t(
+          "กรุณากรอกเบอร์ผู้ประสานงาน",
+          "Please enter the contact phone number."
+        )
+      );
     }
     if (!form.totalGuests.trim()) {
-      messages.push("กรุณากรอกจำนวนผู้เข้าร่วม");
+      messages.push(
+        t(
+          "กรุณากรอกจำนวนผู้เข้าร่วม",
+          "Please enter the total number of attendees."
+        )
+      );
     }
     if (Number(form.totalGuests || 0) > 0) {
       const expectedCount = Number(form.totalGuests || 0);
       for (let index = 0; index < expectedCount; index += 1) {
         const guest = form.guests[index];
         if (!guest) {
-          messages.push(`กรุณากรอกข้อมูลผู้เข้าร่วมคนที่ ${index + 1} ให้ครบ`);
+          messages.push(
+            t(
+              `กรุณากรอกข้อมูลผู้เข้าร่วมคนที่ ${index + 1} ให้ครบ`,
+              `Please complete attendee #${index + 1}.`
+            )
+          );
           continue;
         }
         if (!guest.firstName.trim()) {
-          messages.push(`กรุณากรอกชื่อผู้เข้าร่วมคนที่ ${index + 1}`);
+          messages.push(
+            t(
+              `กรุณากรอกชื่อผู้เข้าร่วมคนที่ ${index + 1}`,
+              `Please enter attendee #${index + 1} first name.`
+            )
+          );
         }
         if (!guest.lastName.trim()) {
-          messages.push(`กรุณากรอกนามสกุลผู้เข้าร่วมคนที่ ${index + 1}`);
+          messages.push(
+            t(
+              `กรุณากรอกนามสกุลผู้เข้าร่วมคนที่ ${index + 1}`,
+              `Please enter attendee #${index + 1} last name.`
+            )
+          );
         }
         if (!guest.position.trim()) {
-          messages.push(`กรุณากรอกตำแหน่งผู้เข้าร่วมคนที่ ${index + 1}`);
+          messages.push(
+            t(
+              `กรุณากรอกตำแหน่งผู้เข้าร่วมคนที่ ${index + 1}`,
+              `Please enter attendee #${index + 1} position.`
+            )
+          );
         }
         if (!guest.nationality.trim()) {
-          messages.push(`กรุณากรอกสัญชาติผู้เข้าร่วมคนที่ ${index + 1}`);
+          messages.push(
+            t(
+              `กรุณากรอกสัญชาติผู้เข้าร่วมคนที่ ${index + 1}`,
+              `Please enter attendee #${index + 1} nationality.`
+            )
+          );
         }
       }
     }
     if (!form.visitTopic.trim()) {
-      messages.push("กรุณากรอกหัวข้อที่จะเข้ามา");
+      messages.push(
+        t("กรุณากรอกหัวข้อที่จะเข้ามา", "Please enter the visit topic.")
+      );
     }
     if (!form.visitDetail.trim()) {
-      messages.push("กรุณากรอกรายละเอียด");
+      messages.push(
+        t("กรุณากรอกรายละเอียด", "Please enter the visit details.")
+      );
     }
     if (!form.visitDate.trim()) {
-      messages.push("กรุณาเลือกวันที่มาถึง");
+      messages.push(
+        t("กรุณาเลือกวันที่มาถึง", "Please select the arrival date.")
+      );
     }
     if (!form.visitTime.trim()) {
-      messages.push("กรุณาเลือกเวลาที่มาถึง");
+      messages.push(
+        t("กรุณาเลือกเวลาที่มาถึง", "Please select the arrival time.")
+      );
     }
     if (form.visitDate && form.visitTime) {
       const selected = new Date(`${form.visitDate}T${form.visitTime}`);
       const now = new Date();
       if (selected.getTime() < now.getTime()) {
         messages.push(
-          "กรุณาเลือกวันและเวลาที่มาถึงให้เป็นเวลาหลังจากปัจจุบัน"
+          t(
+            "กรุณาเลือกวันและเวลาที่มาถึงให้เป็นเวลาหลังจากปัจจุบัน",
+            "Please choose an arrival date/time in the future."
+          )
         );
       }
     }
     if (!form.meetingRoom) {
-      messages.push("กรุณาระบุว่าต้องการห้องประชุมหรือไม่");
+      messages.push(
+        t(
+          "กรุณาระบุว่าต้องการห้องประชุมหรือไม่",
+          "Please specify whether a meeting room is needed."
+        )
+      );
     }
     if (form.meetingRoom === "yes" && !form.meetingRoomSelection.trim()) {
-      messages.push("กรุณาเลือกห้องประชุม");
+      messages.push(
+        t("กรุณาเลือกห้องประชุม", "Please select a meeting room.")
+      );
     }
     if (form.siteVisitAreas.length > 0) {
       if (!form.siteVisitApproverName.trim()) {
-        messages.push("กรุณากรอกชื่อผู้อนุญาตให้เข้าชม");
+        messages.push(
+          t(
+            "กรุณากรอกชื่อผู้อนุญาตให้เข้าชม",
+            "Please enter the site visit approver name."
+          )
+        );
       }
       if (!form.siteVisitApproverPosition.trim()) {
-        messages.push("กรุณากรอกตำแหน่งผู้อนุญาตให้เข้าชม");
+        messages.push(
+          t(
+            "กรุณากรอกตำแหน่งผู้อนุญาตให้เข้าชม",
+            "Please enter the site visit approver position."
+          )
+        );
       }
     }
     if (!form.transportType) {
-      messages.push("กรุณาเลือกประเภทรถ");
+      messages.push(
+        t("กรุณาเลือกประเภทรถ", "Please select the transport type.")
+      );
     }
     if (form.transportType === "personal") {
       const count = Number(form.carCount || 0);
       if (!form.carCount.trim() || count <= 0) {
-        messages.push("กรุณากรอกจำนวนรถสำหรับรถส่วนตัว");
+        messages.push(
+          t(
+            "กรุณากรอกจำนวนรถสำหรับรถส่วนตัว",
+            "Please enter the number of private cars."
+          )
+        );
       } else {
         for (let index = 0; index < count; index += 1) {
           const car = form.cars[index];
           if (!car) {
-            messages.push(`กรุณากรอกข้อมูลรถคันที่ ${index + 1} ให้ครบ`);
+            messages.push(
+              t(
+                `กรุณากรอกข้อมูลรถคันที่ ${index + 1} ให้ครบ`,
+                `Please complete car #${index + 1} information.`
+              )
+            );
             continue;
           }
           if (!car.brand.trim()) {
-            messages.push(`กรุณากรอกยี่ห้อรถคันที่ ${index + 1}`);
+            messages.push(
+              t(
+                `กรุณากรอกยี่ห้อรถคันที่ ${index + 1}`,
+                `Please enter car #${index + 1} brand.`
+              )
+            );
           }
           if (!car.license.trim()) {
-            messages.push(`กรุณากรอกทะเบียนรถคันที่ ${index + 1}`);
+            messages.push(
+              t(
+                `กรุณากรอกทะเบียนรถคันที่ ${index + 1}`,
+                `Please enter car #${index + 1} license plate.`
+              )
+            );
           }
         }
       }
     }
     if (!form.foodRequired) {
-      messages.push("กรุณาระบุว่าจะรับอาหารหรือไม่");
+      messages.push(
+        t(
+          "กรุณาระบุว่าจะรับอาหารหรือไม่",
+          "Please specify whether catering is needed."
+        )
+      );
     }
     if (form.foodRequired === "yes" && form.meals.length === 0) {
-      messages.push("กรุณาเลือกมื้ออาหารที่ต้องการ");
+      messages.push(t("กรุณาเลือกมื้ออาหารที่ต้องการ", "Please select meal(s)."));
     }
     if (form.foodRequired === "yes") {
       if (form.meals.includes("เช้า") && !form.breakfastMenu.trim()) {
-        messages.push("กรุณาเลือกเมนูอาหารเช้า");
+        messages.push(
+          t(
+            "กรุณาเลือกเมนูอาหารเช้า",
+            "Please select the breakfast menu."
+          )
+        );
       }
       if (form.meals.includes("เช้า") && form.breakfastMenu === "อื่นๆ" && !form.breakfastMenuOther.trim()) {
-        messages.push("กรุณาระบุเมนูอาหารเช้า (อื่นๆ)");
+        messages.push(
+          t(
+            "กรุณาระบุเมนูอาหารเช้า (อื่นๆ)",
+            "Please specify the breakfast menu (Other)."
+          )
+        );
       }
       if (form.meals.includes("กลางวัน")) {
         if (!form.lunchMenu.trim()) {
-          messages.push("กรุณาเลือกเมนูอาหารกลางวัน");
+          messages.push(
+            t("กรุณาเลือกเมนูอาหารกลางวัน", "Please select the lunch menu.")
+          );
         }
         if (form.lunchMenu === "อื่นๆ" && !form.lunchMenuOther.trim()) {
-          messages.push("กรุณาระบุเมนูอาหารกลางวัน (อื่นๆ)");
+          messages.push(
+            t(
+              "กรุณาระบุเมนูอาหารกลางวัน (อื่นๆ)",
+              "Please specify the lunch menu (Other)."
+            )
+          );
         }
         if (!form.lunchDessert.trim()) {
-          messages.push("กรุณาเลือกของหวาน (กลางวัน)");
+          messages.push(
+            t(
+              "กรุณาเลือกของหวาน (กลางวัน)",
+              "Please select the lunch dessert."
+            )
+          );
         }
         if (form.lunchDessert === "อื่นๆ" && !form.lunchDessertOther.trim()) {
-          messages.push("กรุณาระบุของหวาน (กลางวัน) (อื่นๆ)");
+          messages.push(
+            t(
+              "กรุณาระบุของหวาน (กลางวัน) (อื่นๆ)",
+              "Please specify the lunch dessert (Other)."
+            )
+          );
         }
       }
       if (form.meals.includes("เย็น")) {
         if (!form.dinnerMenu.trim()) {
-          messages.push("กรุณาเลือกเมนูอาหารเย็น");
+          messages.push(
+            t("กรุณาเลือกเมนูอาหารเย็น", "Please select the dinner menu.")
+          );
         }
         if (form.dinnerMenu === "อื่นๆ" && !form.dinnerMenuOther.trim()) {
-          messages.push("กรุณาระบุเมนูอาหารเย็น (อื่นๆ)");
+          messages.push(
+            t(
+              "กรุณาระบุเมนูอาหารเย็น (อื่นๆ)",
+              "Please specify the dinner menu (Other)."
+            )
+          );
         }
         if (!form.dinnerDessert.trim()) {
-          messages.push("กรุณาเลือกของหวาน (เย็น)");
+          messages.push(
+            t("กรุณาเลือกของหวาน (เย็น)", "Please select the dinner dessert.")
+          );
         }
         if (form.dinnerDessert === "อื่นๆ" && !form.dinnerDessertOther.trim()) {
-          messages.push("กรุณาระบุของหวาน (เย็น) (อื่นๆ)");
+          messages.push(
+            t(
+              "กรุณาระบุของหวาน (เย็น) (อื่นๆ)",
+              "Please specify the dinner dessert (Other)."
+            )
+          );
         }
       }
       if (form.halalEnabled && Number(form.halalCount || 0) <= 0) {
-        messages.push("กรุณาระบุจำนวนชุดอาหารฮาลาล");
+        messages.push(
+          t(
+            "กรุณาระบุจำนวนชุดอาหารฮาลาล",
+            "Please specify the number of Halal meal sets."
+          )
+        );
       }
       if (form.veganEnabled && Number(form.veganCount || 0) <= 0) {
-        messages.push("กรุณาระบุจำนวนชุดอาหารวีแกน");
+        messages.push(
+          t(
+            "กรุณาระบุจำนวนชุดอาหารวีแกน",
+            "Please specify the number of Vegan meal sets."
+          )
+        );
       }
       if (form.allergies.includes("อื่นๆ") && !form.allergyOther.trim()) {
-        messages.push("กรุณาระบุรายการแพ้อาหาร (อื่นๆ)");
+        messages.push(
+          t(
+            "กรุณาระบุรายการแพ้อาหาร (อื่นๆ)",
+            "Please specify allergy item(s) (Other)."
+          )
+        );
       }
     }
     if (!form.souvenir) {
-      messages.push("กรุณาระบุว่าจะรับของที่ระลึกหรือไม่");
+      messages.push(
+        t(
+          "กรุณาระบุว่าจะรับของที่ระลึกหรือไม่",
+          "Please specify whether souvenirs are needed."
+        )
+      );
     }
     if (form.souvenir === "yes") {
       if (!form.souvenirGiftSet.trim()) {
-        messages.push("กรุณาเลือกประเภทของที่ระลึก");
+        messages.push(
+          t("กรุณาเลือกประเภทของที่ระลึก", "Please select a souvenir type.")
+        );
       }
       const count = Number(form.souvenirGiftSetCount || 0);
       if (!form.souvenirGiftSetCount.trim() || count <= 0) {
-        messages.push("กรุณาระบุจำนวนชุดของที่ระลึก");
+        messages.push(
+          t(
+            "กรุณาระบุจำนวนชุดของที่ระลึก",
+            "Please specify the number of souvenir sets."
+          )
+        );
       }
     }
     if (!form.hostName.trim()) {
-      messages.push("กรุณาเลือกผู้ที่จะเข้ามาพบ");
+      messages.push(
+        t("กรุณาเลือกผู้ที่จะเข้ามาพบ", "Please select the person to visit.")
+      );
     }
     if (form.hostName === "อื่นๆ" && !form.hostNameOther.trim()) {
-      messages.push("กรุณาระบุบุคคลที่เข้าพบ (อื่นๆ)");
+      messages.push(
+        t(
+          "กรุณาระบุบุคคลที่เข้าพบ (อื่นๆ)",
+          "Please specify the person to visit (Other)."
+        )
+      );
     }
     if (!form.executiveHostChoice.trim()) {
-      messages.push("กรุณาเลือกผู้บริหารที่จะมาดูแลต้อนรับแขก");
+      messages.push(
+        t(
+          "กรุณาเลือกผู้บริหารที่จะมาดูแลต้อนรับแขก",
+          "Please select the welcoming executive."
+        )
+      );
     }
     if (form.executiveHostChoice === "อื่นๆ") {
       if (!form.executiveHostFirstName.trim()) {
-        messages.push("กรุณากรอกชื่อผู้บริหาร (อื่นๆ)");
+        messages.push(
+          t(
+            "กรุณากรอกชื่อผู้บริหาร (อื่นๆ)",
+            "Please enter executive first name (Other)."
+          )
+        );
       }
       if (!form.executiveHostLastName.trim()) {
-        messages.push("กรุณากรอกนามสกุลผู้บริหาร (อื่นๆ)");
+        messages.push(
+          t(
+            "กรุณากรอกนามสกุลผู้บริหาร (อื่นๆ)",
+            "Please enter executive last name (Other)."
+          )
+        );
       }
       if (!form.executiveHostPosition.trim()) {
-        messages.push("กรุณากรอกตำแหน่งผู้บริหาร (อื่นๆ)");
+        messages.push(
+          t(
+            "กรุณากรอกตำแหน่งผู้บริหาร (อื่นๆ)",
+            "Please enter executive position (Other)."
+          )
+        );
       }
     }
     if (!form.submittedByName.trim()) {
-      messages.push("กรุณากรอกชื่อผู้กรอกฟอร์ม");
+      messages.push(
+        t(
+          "กรุณากรอกชื่อผู้กรอกฟอร์ม",
+          "Please enter the form submitter name."
+        )
+      );
     }
     if (!form.submittedByPosition.trim()) {
-      messages.push("กรุณากรอกตำแหน่งผู้กรอกฟอร์ม");
+      messages.push(
+        t(
+          "กรุณากรอกตำแหน่งผู้กรอกฟอร์ม",
+          "Please enter the form submitter position."
+        )
+      );
     }
     if (presentationFile && presentationFile.size > maxPresentationFileSize) {
-      messages.push("ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)");
+      messages.push(
+        t(
+          "ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)",
+          "Attachment too large (max 10MB)."
+        )
+      );
     }
 
     return messages;
@@ -712,16 +925,8 @@ export default function Home() {
       return;
     }
 
-    const visitDateTimeValue =
-      form.visitDate && form.visitTime
-        ? `${form.visitDate}T${form.visitTime}`
-        : "";
-
     const cars = form.transportType === "personal" ? form.cars : [];
     const firstCar = cars[0] ?? null;
-    const meetingRoomLabel = form.meetingRoomSelection
-      ? form.meetingRoomSelection
-      : "";
 
     const siteVisit =
       form.siteVisitAreas.length > 0
@@ -806,9 +1011,6 @@ export default function Home() {
       position: form.submittedByPosition,
     };
 
-    const hostNameValue =
-      form.hostName === "อื่นๆ" ? form.hostNameOther : form.hostName;
-
     const payload = {
       timestamp: new Date().toISOString(),
       clientCompany: form.clientCompany,
@@ -820,9 +1022,12 @@ export default function Home() {
       guests: form.guests,
       visitTopic: form.visitTopic,
       visitDetail: form.visitDetail,
-      visitDateTime: visitDateTimeValue,
+      visitDateTime:
+        form.visitDate && form.visitTime
+          ? `${form.visitDate}T${form.visitTime}`
+          : "",
       meetingRoom: form.meetingRoom === "yes",
-      meetingRoomSelection: meetingRoomLabel,
+      meetingRoomSelection: form.meetingRoomSelection || "",
       siteVisit,
       transportType: form.transportType,
       carCount:
@@ -836,7 +1041,7 @@ export default function Home() {
       souvenir: form.souvenir === "yes",
       souvenirPreferences,
       executiveHost,
-      hostName: hostNameValue,
+      hostName: form.hostName === "อื่นๆ" ? form.hostNameOther : form.hostName,
       submittedBy,
     };
 
@@ -880,14 +1085,20 @@ export default function Home() {
         open: true,
         type: "success",
         message: result.warning
-          ? `${result.warning}\nส่งข้อมูลสำเร็จ ขอบคุณค่ะ`
-          : "ส่งข้อมูลสำเร็จ ขอบคุณค่ะ",
+          ? `${result.warning}\n${t(
+              "ส่งข้อมูลสำเร็จ ขอบคุณค่ะ",
+              "Submitted successfully. Thank you."
+            )}`
+          : t("ส่งข้อมูลสำเร็จ ขอบคุณค่ะ", "Submitted successfully. Thank you."),
       });
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
+          : t(
+              "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
+              "An error occurred. Please try again."
+            );
       setDialog({
         open: true,
         type: "error",
@@ -904,25 +1115,27 @@ export default function Home() {
   const guestsCount = Number(form.totalGuests || 0);
 
   return (
-    <div className="min-h-screen bg-[#003951] px-4 py-10 font-sans text-black flex items-center justify-center">
+    <div className="min-h-screen bg-[linear-gradient(135deg,#6b7d58_0%,#788B64_38%,#E2CCA8_78%,#FAEFCC_100%)] px-4 py-10 font-sans text-[#142015] flex justify-center">
       {dialog.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-100 bg-white px-6 py-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-[#E2CCA8] bg-[#FAEFCC] px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
             <div className="flex items-start gap-3">
               <div
                 className={`flex h-10 w-10 items-center justify-center rounded-full text-base font-semibold ${
                   dialog.type === "success"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-red-100 text-red-700"
+                    ? "bg-[#788B64]/15 text-[#2F3B2B]"
+                    : "bg-[#E2CCA8] text-[#2F3B2B]"
                 }`}
               >
                 {dialog.type === "success" ? "✓" : "!"}
               </div>
               <div className="flex-1">
-                <h2 className="text-base font-semibold text-black">
-                  {dialog.type === "success" ? "สำเร็จ" : "กรุณาตรวจสอบข้อมูล"}
+                <h2 className="text-base font-semibold text-[#2F3B2B]">
+                  {dialog.type === "success"
+                    ? t("สำเร็จ", "Success")
+                    : t("กรุณาตรวจสอบข้อมูล", "Please review the form")}
                 </h2>
-                <div className="mt-2 max-h-72 overflow-y-auto whitespace-pre-line text-sm text-zinc-800">
+                <div className="mt-2 max-h-72 overflow-y-auto whitespace-pre-line text-sm text-[#2F3B2B]">
                   {dialog.message}
                 </div>
               </div>
@@ -930,7 +1143,7 @@ export default function Home() {
             <div className="mt-5 flex justify-end">
               <button
                 type="button"
-                className="rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
+                className="rounded-full bg-[#788B64] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#6b7d58] focus:outline-none focus:ring-2 focus:ring-[#788B64]/35"
                 onClick={() =>
                   setDialog((prev) => ({
                     ...prev,
@@ -938,40 +1151,140 @@ export default function Home() {
                   }))
                 }
               >
-                ปิด
+                {t("ปิด", "Close")}
               </button>
             </div>
           </div>
         </div>
       )}
-      <main className="relative mx-auto w-full max-w-4xl rounded-2xl border border-white/30 bg-white/95 px-8 py-10 shadow-xl">
-        <div className="mb-6 flex items-center justify-center">
-          <Image
-            src="/logo.png"
-            alt="Sustain Republix logo"
-            width={80}
-            height={80}
-            className="h-20 w-auto"
-            priority
-          />
+      <main className="relative mx-auto w-full max-w-6xl rounded-2xl border border-[#E2CCA8]/80 bg-[#FAEFCC]/90 px-6 py-8 shadow-[0_16px_50px_rgba(0,0,0,0.18)] md:px-10 md:py-10">
+        <div className="relative mb-6 flex items-center justify-center">
+          <div className="flex flex-wrap items-center justify-center gap-6">
+            <Image
+              src="/mainlogo.png"
+              alt="Main logo"
+              width={360}
+              height={120}
+              className="h-16 w-auto"
+              priority
+            />
+            <Image
+              src="/EpacLogo.png"
+              alt="EPAC logo"
+              width={160}
+              height={160}
+              className="h-16 w-auto"
+              priority
+            />
+          </div>
+          <div className="absolute right-0 top-0 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLang("th")}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                lang === "th"
+                  ? "border-[#788B64] bg-[#788B64] text-white"
+                  : "border-[#E2CCA8] bg-white/70 text-[#1b2a18] hover:border-[#788B64]"
+              }`}
+            >
+              ไทย
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang("en")}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                lang === "en"
+                  ? "border-[#788B64] bg-[#788B64] text-white"
+                  : "border-[#E2CCA8] bg-white/70 text-[#1b2a18] hover:border-[#788B64]"
+              }`}
+            >
+              EN
+            </button>
+          </div>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-center">
-          แบบฟอร์มแจ้งเข้าพบแขก VIP
+        <h1 className="text-center text-2xl font-semibold tracking-tight text-[#2F3B2B] md:text-3xl">
+          {t("แบบฟอร์มแจ้งเข้าพบแขก VIP", "VIP Visitor Notification Form")}
         </h1>
-        <p className="mt-3 text-sm text-zinc-700 text-center">
-          กรอกข้อมูลให้ครบถ้วนเพื่อแจ้งหน่วยงานที่เกี่ยวข้อง และบันทึกลงระบบฐานข้อมูล
+        <p className="mt-3 text-center text-sm text-[#2F3B2B]/80">
+          {t(
+            "กรอกข้อมูลให้ครบถ้วนเพื่อแจ้งหน่วยงานที่เกี่ยวข้อง และบันทึกลงระบบฐานข้อมูล",
+            "Fill in the details to notify related departments and record the visit."
+          )}
         </p>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <section className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5">
-            <h2 className="text-base font-semibold text-zinc-900">
-              ข้อมูลลูกค้าและแขก VIP
-            </h2>
+        <div className="mt-8 grid gap-6 lg:grid-cols-[300px_1fr]">
+          <aside className="h-fit rounded-2xl border border-[#E2CCA8]/80 bg-white/55 p-5 backdrop-blur lg:sticky lg:top-6">
+            <div className="text-sm font-semibold text-[#1b2a18]">
+              {t("ไปยังส่วนที่ต้องกรอก", "Jump to section")}
+            </div>
+            <div className="mt-1 text-xs leading-relaxed text-[#1b2a18]/75">
+              {t(
+                "คลิกเพื่อเลื่อนไปยังหัวข้อ และกดส่งข้อมูลที่แถบด้านล่าง",
+                "Click to jump to a section, then submit using the bottom bar."
+              )}
+            </div>
+            <nav className="mt-4 space-y-2 text-sm">
+              <a
+                href="#section-1"
+                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+              >
+                {t("1) ข้อมูลลูกค้าและแขก", "1) Client & Guests")}
+              </a>
+              <a
+                href="#section-2"
+                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+              >
+                {t("2) กำหนดการและสถานที่", "2) Schedule & Location")}
+              </a>
+              <a
+                href="#section-3"
+                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+              >
+                {t("3) อาหารและของที่ระลึก", "3) Catering & Souvenirs")}
+              </a>
+              <a
+                href="#section-4"
+                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+              >
+                {t("4) ไฟล์สำหรับการประชุม", "4) Meeting File")}
+              </a>
+              <a
+                href="#section-5"
+                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+              >
+                {t("5) ผู้ดูแลภายในองค์กร", "5) Internal Contacts")}
+              </a>
+            </nav>
+          </aside>
+
+          <form
+            onSubmit={handleSubmit}
+            className="min-w-0 space-y-6 [&_section]:scroll-mt-24 [&_section]:rounded-2xl [&_section]:border [&_section]:border-[#E2CCA8] [&_section]:bg-white/70 [&_section]:px-5 [&_section]:py-6 [&_label]:text-sm [&_label]:font-medium [&_label]:text-[#1b2a18] [&_input[type='checkbox']]:accent-[#788B64] [&_input[type='radio']]:accent-[#788B64] [&_input:not([type='checkbox']):not([type='radio'])]:rounded-lg [&_input:not([type='checkbox']):not([type='radio'])]:border [&_input:not([type='checkbox']):not([type='radio'])]:border-[#E2CCA8] [&_input:not([type='checkbox']):not([type='radio'])]:bg-white [&_input:not([type='checkbox']):not([type='radio'])]:px-3 [&_input:not([type='checkbox']):not([type='radio'])]:py-2 [&_input:not([type='checkbox']):not([type='radio'])]:text-sm [&_input:not([type='checkbox']):not([type='radio'])]:outline-none [&_input:not([type='checkbox']):not([type='radio'])]:transition [&_input:not([type='checkbox']):not([type='radio'])]:focus:border-[#788B64] [&_input:not([type='checkbox']):not([type='radio'])]:focus:ring-2 [&_input:not([type='checkbox']):not([type='radio'])]:focus:ring-[#788B64]/30 [&_select]:rounded-lg [&_select]:border [&_select]:border-[#E2CCA8] [&_select]:bg-white [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:outline-none [&_select]:transition [&_select]:focus:border-[#788B64] [&_select]:focus:ring-2 [&_select]:focus:ring-[#788B64]/30 [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-[#E2CCA8] [&_textarea]:bg-white [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:outline-none [&_textarea]:transition [&_textarea]:focus:border-[#788B64] [&_textarea]:focus:ring-2 [&_textarea]:focus:ring-[#788B64]/30"
+          >
+            <section
+              id="section-1"
+              className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5"
+            >
+              <h2 className="flex items-center gap-3 text-base font-semibold text-[#1b2a18]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
+                  1
+                </span>
+                <span>{t("ข้อมูลลูกค้าและแขก VIP", "Client & VIP Guest Info")}</span>
+              </h2>
+              <div className="text-sm text-[#1b2a18]/75">
+                {t(
+                  "ข้อมูลบริษัทและรายชื่อผู้เข้าร่วม",
+                  "Company information and attendee list."
+                )}
+              </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  บริษัทลูกค้าที่พาแขก VIP มา
+                  {t(
+                    "บริษัทลูกค้าที่พาแขก VIP มา",
+                    "Client company (bringing VIP guest)"
+                  )}
                 </label>
                 <input
                   type="text"
@@ -979,13 +1292,13 @@ export default function Home() {
                   value={form.clientCompany}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder="เช่น บริษัท ABC จำกัด"
+                  placeholder={t("เช่น บริษัท ABC จำกัด", "e.g., ABC Co., Ltd.")}
                 />
               </div>
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  แขก VIP มาจากบริษัท
+                  {t("แขก VIP มาจากบริษัท", "VIP guest company")}
                 </label>
                 <input
                   type="text"
@@ -993,7 +1306,7 @@ export default function Home() {
                   value={form.vipCompany}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder="เช่น บริษัท XYZ จำกัด"
+                  placeholder={t("เช่น บริษัท XYZ จำกัด", "e.g., XYZ Co., Ltd.")}
                 />
               </div>
             </div>
@@ -1001,7 +1314,7 @@ export default function Home() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  ตำแหน่งของแขก VIP
+                  {t("ตำแหน่งของแขก VIP", "VIP guest position")}
                 </label>
                 <input
                   type="text"
@@ -1009,19 +1322,21 @@ export default function Home() {
                   value={form.vipPosition}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder="เช่น CEO, Director"
+                  placeholder={t("เช่น CEO, Director", "e.g., CEO, Director")}
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">สัญชาติ</label>
+                <label className="text-sm font-medium">
+                  {t("สัญชาติ", "Nationality")}
+                </label>
                 <input
                   type="text"
                   name="nationality"
                   value={form.nationality}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder="เช่น Thai, Japanese"
+                  placeholder={t("เช่น Thai, Japanese", "e.g., Thai, Japanese")}
                 />
               </div>
             </div>
@@ -1029,7 +1344,7 @@ export default function Home() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  เบอร์ลูกค้าที่จะพาแขกมา
+                  {t("เบอร์ลูกค้าที่จะพาแขกมา", "Contact phone")}
                 </label>
                 <input
                   type="tel"
@@ -1037,13 +1352,13 @@ export default function Home() {
                   value={form.contactPhone}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder="เช่น 08x-xxx-xxxx"
+                  placeholder={t("เช่น 08x-xxx-xxxx", "e.g., +66 xx xxx xxxx")}
                 />
               </div>
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  จำนวนผู้เข้าร่วมทั้งหมด
+                  {t("จำนวนผู้เข้าร่วมทั้งหมด", "Total attendees")}
                 </label>
                 <input
                   type="number"
@@ -1052,7 +1367,7 @@ export default function Home() {
                   value={form.totalGuests}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder="เช่น 5"
+                  placeholder={t("เช่น 5", "e.g., 5")}
                 />
               </div>
             </div>
@@ -1060,7 +1375,7 @@ export default function Home() {
             {guestsCount > 0 && (
               <div className="space-y-3">
                 <div className="text-sm font-medium text-zinc-900">
-                  รายชื่อผู้เข้าร่วม
+                  {t("รายชื่อผู้เข้าร่วม", "Attendees")}
                 </div>
                 <div className="space-y-4">
                   {Array.from({ length: guestsCount }, (_, index) => {
@@ -1071,7 +1386,7 @@ export default function Home() {
                         className="rounded-lg border border-zinc-200 bg-white p-4"
                       >
                         <div className="text-sm font-semibold text-zinc-900">
-                          ผู้เข้าร่วมคนที่ {index + 1}
+                          {t("ผู้เข้าร่วมคนที่", "Attendee")} {index + 1}
                         </div>
                         <div className="mt-3 grid gap-3 md:grid-cols-5">
                           <input
@@ -1085,7 +1400,7 @@ export default function Home() {
                               )
                             }
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder="ชื่อ"
+                            placeholder={t("ชื่อ", "First name")}
                           />
                           <input
                             type="text"
@@ -1098,7 +1413,7 @@ export default function Home() {
                               )
                             }
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder="ชื่อกลาง (ถ้ามี)"
+                            placeholder={t("ชื่อกลาง (ถ้ามี)", "Middle name (optional)")}
                           />
                           <input
                             type="text"
@@ -1111,7 +1426,7 @@ export default function Home() {
                               )
                             }
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder="นามสกุล"
+                            placeholder={t("นามสกุล", "Last name")}
                           />
                           <input
                             type="text"
@@ -1124,7 +1439,7 @@ export default function Home() {
                               )
                             }
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder="ตำแหน่ง"
+                            placeholder={t("ตำแหน่ง", "Position")}
                           />
                           <input
                             type="text"
@@ -1137,7 +1452,7 @@ export default function Home() {
                               )
                             }
                             className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder="สัญชาติ"
+                            placeholder={t("สัญชาติ", "Nationality")}
                           />
                         </div>
                       </div>
@@ -1148,15 +1463,27 @@ export default function Home() {
             )}
           </section>
 
-          <section className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5">
-            <h2 className="text-base font-semibold text-zinc-900">
-              กำหนดการเข้าพบและสถานที่
-            </h2>
+            <section
+              id="section-2"
+              className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5"
+            >
+              <h2 className="flex items-center gap-3 text-base font-semibold text-[#1b2a18]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
+                  2
+                </span>
+                <span>{t("กำหนดการเข้าพบและสถานที่", "Schedule & Location")}</span>
+              </h2>
+              <div className="text-sm text-[#1b2a18]/75">
+                {t(
+                  "วันเวลา ห้องประชุม การเข้าชม และข้อมูลรถ",
+                  "Date/time, meeting room, site visit, and transport details."
+                )}
+              </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  วันที่มาถึง
+                  {t("วันที่มาถึง", "Arrival date")}
                 </label>
                 <input
                   type="date"
@@ -1170,7 +1497,7 @@ export default function Home() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  เวลาที่มาถึง
+                  {t("เวลาที่มาถึง", "Arrival time")}
                 </label>
                 <select
                   name="visitTime"
@@ -1178,7 +1505,7 @@ export default function Home() {
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                 >
-                  <option value="">เลือกเวลาที่มาถึง</option>
+                  <option value="">{t("เลือกเวลาที่มาถึง", "Select arrival time")}</option>
                   {timeSlots.map((slot) => (
                     <option key={slot} value={slot}>
                       {slot}
@@ -1191,7 +1518,7 @@ export default function Home() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  ต้องการห้องประชุมหรือไม่
+                  {t("ต้องการห้องประชุมหรือไม่", "Meeting room needed?")}
                 </label>
                 <div className="mt-1 flex gap-4 text-sm">
                   <label className="flex items-center gap-2">
@@ -1202,7 +1529,7 @@ export default function Home() {
                       checked={meetingRoomYes}
                       onChange={handleChange}
                     />
-                    <span>ต้องการ</span>
+                    <span>{t("ต้องการ", "Yes")}</span>
                   </label>
                   <label className="flex items-center gap-2">
                     <input
@@ -1212,14 +1539,14 @@ export default function Home() {
                       checked={form.meetingRoom === "no"}
                       onChange={handleChange}
                     />
-                    <span>ไม่ต้องการ</span>
+                    <span>{t("ไม่ต้องการ", "No")}</span>
                   </label>
                 </div>
 
                 {meetingRoomYes && (
                   <div className="mt-3 flex flex-col gap-1">
                     <label className="text-sm font-medium">
-                      เลือกห้องประชุม
+                      {t("เลือกห้องประชุม", "Select meeting room")}
                     </label>
                     <select
                       name="meetingRoomSelection"
@@ -1227,9 +1554,14 @@ export default function Home() {
                       onChange={handleChange}
                       className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                     >
-                      <option value="">เลือกห้องประชุม</option>
+                      <option value="">
+                        {t("เลือกห้องประชุม", "Select meeting room")}
+                      </option>
                       {meetingRoomOptions.map((room) => {
-                        const label = `${room.code} ${room.name} ${room.location} (ความจุ ${room.capacity} คน)`;
+                        const label =
+                          lang === "th"
+                            ? `${room.code} ${room.name} ${room.location} (ความจุ ${room.capacity} คน)`
+                            : `${room.code} ${room.name} ${room.location} (Capacity ${room.capacity})`;
                         return (
                           <option key={room.code} value={label}>
                             {label}
@@ -1242,23 +1574,29 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">ประเภทรถ</label>
+                <label className="text-sm font-medium">
+                  {t("ประเภทรถ", "Transport type")}
+                </label>
                 <select
                   name="transportType"
                   value={form.transportType}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                 >
-                  <option value="">เลือกประเภทรถ</option>
-                  <option value="personal">รถส่วนตัว</option>
-                  <option value="public">รถสาธารณะ</option>
+                  <option value="">
+                    {t("เลือกประเภทรถ", "Select transport type")}
+                  </option>
+                  <option value="personal">{t("รถส่วนตัว", "Private car")}</option>
+                  <option value="public">
+                    {t("รถสาธารณะ", "Public transport")}
+                  </option>
                 </select>
               </div>
 
               <div className="space-y-3 md:col-span-2">
                 <div className="rounded-lg border border-zinc-200 bg-white p-4">
                   <div className="text-sm font-semibold text-zinc-900">
-                    การเข้าชม
+                    {t("การเข้าชม", "Site visit")}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-4 text-sm">
                     {siteVisitAreaOptions.map((item) => (
@@ -1279,7 +1617,7 @@ export default function Home() {
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
                       <div className="flex flex-col gap-1">
                         <label className="text-sm font-medium">
-                          ชื่อผู้อนุญาตให้เข้าชม
+                          {t("ชื่อผู้อนุญาตให้เข้าชม", "Site visit approver")}
                         </label>
                         <input
                           type="text"
@@ -1287,18 +1625,20 @@ export default function Home() {
                           value={form.siteVisitApproverName}
                           onChange={handleChange}
                           className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          placeholder="เช่น นาย/นาง ..."
+                          placeholder={t("เช่น นาย/นาง ...", "e.g., Mr./Ms. ...")}
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium">ตำแหน่ง</label>
+                        <label className="text-sm font-medium">
+                          {t("ตำแหน่ง", "Position")}
+                        </label>
                         <input
                           type="text"
                           name="siteVisitApproverPosition"
                           value={form.siteVisitApproverPosition}
                           onChange={handleChange}
                           className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          placeholder="เช่น Manager"
+                          placeholder={t("เช่น Manager", "e.g., Manager")}
                         />
                       </div>
                     </div>
@@ -1310,7 +1650,9 @@ export default function Home() {
                 <div className="space-y-3 md:col-span-2">
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium">จำนวนรถ</label>
+                      <label className="text-sm font-medium">
+                        {t("จำนวนรถ", "Number of cars")}
+                      </label>
                       <input
                         type="number"
                         min={1}
@@ -1318,7 +1660,7 @@ export default function Home() {
                         value={form.carCount}
                         onChange={handleChange}
                         className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                        placeholder="เช่น 2"
+                        placeholder={t("เช่น 2", "e.g., 2")}
                       />
                     </div>
                   </div>
@@ -1376,10 +1718,22 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5">
-            <h2 className="text-base font-semibold text-zinc-900">
-              อาหารและของที่ระลึก
-            </h2>
+            <section
+              id="section-3"
+              className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5"
+            >
+              <h2 className="flex items-center gap-3 text-base font-semibold text-[#1b2a18]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
+                  3
+                </span>
+                <span>{t("อาหารและของที่ระลึก", "Catering & Souvenirs")}</span>
+              </h2>
+              <div className="text-sm text-[#1b2a18]/75">
+                {t(
+                  "เลือกเฉพาะที่ต้องการ ระบบจะซ่อนช่องที่ไม่เกี่ยวข้อง",
+                  "Select what you need. Irrelevant fields will be hidden."
+                )}
+              </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
@@ -1816,12 +2170,26 @@ export default function Home() {
             )}
           </section>
 
-          <section className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5">
-            <h2 className="text-base font-semibold text-zinc-900">
-              ไฟล์สำหรับการประชุม
-            </h2>
+            <section
+              id="section-4"
+              className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5"
+            >
+              <h2 className="flex items-center gap-3 text-base font-semibold text-[#1b2a18]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
+                  4
+                </span>
+                <span>{t("ไฟล์สำหรับการประชุม", "Meeting File")}</span>
+              </h2>
+              <div className="text-sm text-[#1b2a18]/75">
+                {t(
+                  "แนบไฟล์ได้ไม่เกิน 10MB (ไม่บังคับ)",
+                  "Attach a file up to 10MB (optional)."
+                )}
+              </div>
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">แนบไฟล์นำเสนอ (ไม่บังคับ)</label>
+              <label className="text-sm font-medium">
+                {t("แนบไฟล์นำเสนอ (ไม่บังคับ)", "Attach presentation file (optional)")}
+              </label>
               <input
                 type="file"
                 name="presentationFile"
@@ -1834,7 +2202,7 @@ export default function Home() {
               {presentationFile && (
                 <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
                   <div>
-                    ไฟล์ที่เลือก: {presentationFile.name} (
+                    {t("ไฟล์ที่เลือก", "Selected file")}: {presentationFile.name} (
                     {Math.ceil(presentationFile.size / 1024)} KB)
                   </div>
                   <button
@@ -1843,28 +2211,42 @@ export default function Home() {
                     onClick={() => setPresentationFile(null)}
                     disabled={submitting}
                   >
-                    เอาออก
+                    {t("เอาออก", "Remove")}
                   </button>
                 </div>
               )}
             </div>
           </section>
 
-          <section className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5">
-            <h2 className="text-base font-semibold text-zinc-900">
-              ข้อมูลผู้ดูแลภายในองค์กร
-            </h2>
+            <section
+              id="section-5"
+              className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-5"
+            >
+              <h2 className="flex items-center gap-3 text-base font-semibold text-[#1b2a18]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
+                  5
+                </span>
+                <span>{t("ข้อมูลผู้ดูแลภายในองค์กร", "Internal Contacts")}</span>
+              </h2>
+              <div className="text-sm text-[#1b2a18]/75">
+                {t(
+                  "ผู้ถูกเข้าพบ ผู้บริหารดูแล หัวข้อ และผู้กรอกฟอร์ม",
+                  "Host, welcoming executive, topic, and submitter."
+                )}
+              </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">บุคคลที่เข้าพบ</label>
+                <label className="text-sm font-medium">
+                  {t("บุคคลที่เข้าพบ", "Host to visit")}
+                </label>
                 <select
                   name="hostName"
                   value={form.hostName}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                 >
-                  <option value="">เลือกผู้ที่จะเข้าพบ</option>
+                  <option value="">{t("เลือกผู้ที่จะเข้าพบ", "Select host")}</option>
                   {hostOptions.map((name) => (
                     <option key={name} value={name}>
                       {name}
@@ -1876,7 +2258,10 @@ export default function Home() {
               {form.hostName === "อื่นๆ" && (
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    ระบุบุคคลที่เข้าพบ (อื่นๆ)
+                    {t(
+                      "ระบุบุคคลที่เข้าพบ (อื่นๆ)",
+                      "Specify host (Other)"
+                    )}
                   </label>
                   <input
                     type="text"
@@ -1884,14 +2269,14 @@ export default function Home() {
                     value={form.hostNameOther}
                     onChange={handleChange}
                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    placeholder="เช่น นาย/นาง ..."
+                    placeholder={t("เช่น นาย/นาง ...", "e.g., Mr./Ms. ...")}
                   />
                 </div>
               )}
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  ผู้บริหารดูแลต้อนรับแขก
+                  {t("ผู้บริหารดูแลต้อนรับแขก", "Welcoming executive")}
                 </label>
                 <select
                   name="executiveHostChoice"
@@ -1899,7 +2284,7 @@ export default function Home() {
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                 >
-                  <option value="">เลือกผู้บริหาร</option>
+                  <option value="">{t("เลือกผู้บริหาร", "Select executive")}</option>
                   {executiveHostOptions.map((name) => (
                     <option key={name} value={name}>
                       {name}
@@ -1911,128 +2296,151 @@ export default function Home() {
               {form.executiveHostChoice === "อื่นๆ" && (
                 <div className="grid gap-4 md:col-span-2 md:grid-cols-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">ชื่อ</label>
+                    <label className="text-sm font-medium">
+                      {t("ชื่อ", "First name")}
+                    </label>
                     <input
                       type="text"
                       name="executiveHostFirstName"
                       value={form.executiveHostFirstName}
                       onChange={handleChange}
                       className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder="ชื่อ"
+                      placeholder={t("ชื่อ", "First name")}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">ชื่อกลาง</label>
+                    <label className="text-sm font-medium">
+                      {t("ชื่อกลาง", "Middle name")}
+                    </label>
                     <input
                       type="text"
                       name="executiveHostMiddleName"
                       value={form.executiveHostMiddleName}
                       onChange={handleChange}
                       className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder="(ถ้ามี)"
+                      placeholder={t("(ถ้ามี)", "(optional)")}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">นามสกุล</label>
+                    <label className="text-sm font-medium">
+                      {t("นามสกุล", "Last name")}
+                    </label>
                     <input
                       type="text"
                       name="executiveHostLastName"
                       value={form.executiveHostLastName}
                       onChange={handleChange}
                       className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder="นามสกุล"
+                      placeholder={t("นามสกุล", "Last name")}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">ตำแหน่ง</label>
+                    <label className="text-sm font-medium">
+                      {t("ตำแหน่ง", "Position")}
+                    </label>
                     <input
                       type="text"
                       name="executiveHostPosition"
                       value={form.executiveHostPosition}
                       onChange={handleChange}
                       className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder="ตำแหน่ง"
+                      placeholder={t("ตำแหน่ง", "Position")}
                     />
                   </div>
                 </div>
               )}
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">หัวข้อที่เกี่ยวข้อง</label>
+                <label className="text-sm font-medium">
+                  {t("หัวข้อที่เกี่ยวข้อง", "Topic")}
+                </label>
                 <input
                   type="text"
                   name="visitTopic"
                   value={form.visitTopic}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder="เช่น ประชุม, เยี่ยมชม, นำเสนอ"
+                  placeholder={t(
+                    "เช่น ประชุม, เยี่ยมชม, นำเสนอ",
+                    "e.g., meeting, site visit, presentation"
+                  )}
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">รายละเอียดการเข้าพบ</label>
+              <label className="text-sm font-medium">
+                {t("รายละเอียดการเข้าพบ", "Visit details")}
+              </label>
               <textarea
                 name="visitDetail"
                 value={form.visitDetail}
                 onChange={handleChange}
                 rows={3}
                 className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                placeholder="ระบุรายละเอียดเพิ่มเติม เช่น จุดประสงค์"
+                placeholder={t(
+                  "ระบุรายละเอียดเพิ่มเติม เช่น จุดประสงค์",
+                  "Add details, e.g., objectives"
+                )}
               />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">ชื่อผู้กรอกฟอร์ม</label>
+                <label className="text-sm font-medium">
+                  {t("ชื่อผู้กรอกฟอร์ม", "Submitted by (name)")}
+                </label>
                 <input
                   type="text"
                   name="submittedByName"
                   value={form.submittedByName}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder="เช่น นาย/นาง ..."
+                  placeholder={t("เช่น นาย/นาง ...", "e.g., Mr./Ms. ...")}
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">ตำแหน่งผู้กรอกฟอร์ม</label>
+                <label className="text-sm font-medium">
+                  {t("ตำแหน่งผู้กรอกฟอร์ม", "Submitted by (position)")}
+                </label>
                 <input
                   type="text"
                   name="submittedByPosition"
                   value={form.submittedByPosition}
                   onChange={handleChange}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder="เช่น Officer"
+                  placeholder={t("เช่น Officer", "e.g., Officer")}
                 />
               </div>
             </div>
           </section>
 
-          <div className="flex items-center justify-end gap-3 border-t border-zinc-200 pt-4">
+            <div className="sticky bottom-4 z-10 flex items-center justify-end gap-3 rounded-2xl border border-[#E2CCA8] bg-[#FAEFCC]/95 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur">
             <button
               type="button"
-              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+              className="rounded-full border border-[#E2CCA8] bg-white/70 px-4 py-2 text-sm font-medium text-[#2F3B2B] hover:border-[#788B64] hover:bg-[#FAEFCC] disabled:cursor-not-allowed disabled:opacity-70"
               onClick={() => {
                 setForm(initialState);
                 setDialog({
                   open: false,
                   type: "error",
-                  message: "มีข้อผิดพลาดบางอย่างเกิดขึ้น กรุณาทำรายการใหม่อีกครั้ง",
+                  message: "",
                 });
               }}
               disabled={submitting}
             >
-              ล้างฟอร์ม
+              {t("ล้างฟอร์ม", "Clear")}
             </button>
             <button
               type="submit"
-              className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70"
+              className="rounded-full bg-[#788B64] px-5 py-2 text-sm font-semibold text-white hover:bg-[#6b7d58] focus:outline-none focus:ring-2 focus:ring-[#788B64]/35 disabled:cursor-not-allowed disabled:opacity-70"
               disabled={submitting}
             >
-              {submitting ? "กำลังส่งข้อมูล..." : "ส่งข้อมูล"}
+              {submitting ? t("กำลังส่งข้อมูล...", "Submitting...") : t("ส่งข้อมูล", "Submit")}
             </button>
           </div>
-        </form>
+          </form>
+        </div>
       </main>
     </div>
   );
