@@ -15,11 +15,11 @@ import {
     MapPin,
     Briefcase,
     ChevronRight,
-    MessageSquareText, 
+    MessageSquareText,
     AlertCircle
 } from "lucide-react";
 
-type Visit = {
+export type Visit = {
     id: string | number;
     visitDateTime?: string | null;
     created_at?: string | null;
@@ -45,7 +45,7 @@ type Visit = {
     meetingRoomSelection?: string | null;
     foodPreferences?: unknown | null;
     // ✨ เพิ่ม Type สำหรับของที่ระลึกแบบละเอียด (ตามหน้า page.tsx ของเพื่อน)
-    souvenirPreferences?: unknown | null; 
+    souvenirPreferences?: unknown | null;
 };
 
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
@@ -53,10 +53,10 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
     const sortedVisits = useMemo(() => {
         if (!visits) return [];
-        return [...visits].sort((b, a) => {
+        return [...visits].sort((a, b) => {
             const dateA = new Date(a.visitDateTime || a.created_at || 0).getTime();
             const dateB = new Date(b.visitDateTime || b.created_at || 0).getTime();
-            return dateB - dateA;
+            return dateA - dateB;
         });
     }, [visits]);
 
@@ -82,80 +82,109 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 const c = car as Record<string, unknown>;
                 const brand = typeof c.brand === "string" ? c.brand : "-";
                 const license = typeof c.license === "string" ? c.license : "-";
-                return `- คันที่ ${index + 1}: ${brand} / ${license}`;
+                return `- คันที่ ${index + 1}: ${brand} | ${license}`;
             })
             .join("\n");
     };
 
-    const foodMenuText = (value: unknown) => {
-        if (!value || typeof value !== "object") return "-";
-        const v = value as Record<string, unknown>;
-        const menus = (v.menus && typeof v.menus === "object") ? (v.menus as Record<string, unknown>) : null;
-        if (!menus) return "-";
+    const foodMenuText = (value: any) => {
+        // ดึง data จาก foodPreferences ตามโครงสร้าง Table ที่คุณมี
+        const data = value?.foodPreferences || value;
+        if (!data || typeof data !== "object") return "-";
 
         const lines: string[] = [];
-        const breakfast = typeof menus.breakfast === "string" ? menus.breakfast.trim() : "";
-        if (breakfast) lines.push(`เช้า: ${breakfast}`);
 
-        const lunch = menus.lunch && typeof menus.lunch === "object" ? (menus.lunch as Record<string, unknown>) : null;
-        if (lunch) {
-            const main = typeof lunch.main === "string" ? lunch.main.trim() : "";
-            const dessert = typeof lunch.dessert === "string" ? lunch.dessert.trim() : "";
-            if (main || dessert) lines.push(`กลางวัน: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
+        // 1. มื้ออาหาร (Meals)
+        if (Array.isArray(data.meals) && data.meals.length > 0) {
+            lines.push(`🍴 มื้อที่รับ: ${data.meals.join(", ")}`);
         }
 
-        const dinner = menus.dinner && typeof menus.dinner === "object" ? (menus.dinner as Record<string, unknown>) : null;
-        if (dinner) {
-            const main = typeof dinner.main === "string" ? dinner.main.trim() : "";
-            const dessert = typeof dinner.dessert === "string" ? dinner.dessert.trim() : "";
-            if (main || dessert) lines.push(`เย็น: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
-        }
+        // 2. รายละเอียดเมนู (Menus)
+        if (data.menus) {
+            lines.push("📋 รายละเอียดเมนู:");
+            const m = data.menus;
 
+            if (m.breakfast) {
+                lines.push(`   • เช้า: ${m.breakfast}`);
+            }
+            if (m.lunch) {
+                lines.push(`   • กลางวัน: ${m.lunch.main} (ของหวาน: ${m.lunch.dessert})`);
+            }
+            if (m.dinner) {
+                lines.push(`   • เย็น: ${m.dinner.main} (ของหวาน: ${m.dinner.dessert})`);
+            }
+        }
         return lines.length > 0 ? lines.join("\n") : "-";
     };
 
-    const specialDietText = (value: unknown) => {
-        if (!value || typeof value !== "object") return "-";
-        const v = value as Record<string, unknown>;
-        const d = (v.specialDiet && typeof v.specialDiet === "object") ? (v.specialDiet as Record<string, unknown>) : null;
-        if (!d) return "-";
-        const halal = Number(d.halalSets ?? 0);
-        const vegan = Number(d.veganSets ?? 0);
-        if ((halal || 0) <= 0 && (vegan || 0) <= 0) return "-";
-        return `ฮาลาล: ${halal > 0 ? halal : "-"} ชุด, วีแกน: ${vegan > 0 ? vegan : "-"} ชุด`;
+    const specialDietText = (value: any) => {
+        // เข้าถึงชั้น foodPreferences ก่อน
+        const data = value?.foodPreferences || value;
+        if (!data || typeof data !== "object") return "-";
+
+        const sd = data.specialDiet;
+        if (!sd || typeof sd !== "object") return "-";
+
+        const halal = Number(sd.halalSets || 0);
+        const vegan = Number(sd.veganSets || 0);
+
+        if (halal <= 0 && vegan <= 0) return "-";
+
+        const lines = [];
+        if (halal > 0) lines.push(`• ฮาลาล ${halal} ชุด`);
+        if (vegan > 0) lines.push(`• วีแกน ${vegan} ชุด`);
+
+        return lines.join("\n"); // แยกบรรทัดเพื่อให้โชว์ในช่องแยกได้ชัดเจน
     };
 
-    const allergyText = (value: unknown) => {
-        if (!value || typeof value !== "object") return "-";
-        const v = value as Record<string, unknown>;
-        const a = (v.allergies && typeof v.allergies === "object") ? (v.allergies as Record<string, unknown>) : null;
-        if (!a) return "-";
-        const items = Array.isArray(a.items) ? a.items.filter((x) => typeof x === "string" && x.trim()) as string[] : [];
+    const allergyText = (value: any) => {
+        const data = value?.foodPreferences || value;
+        if (!data || typeof data !== "object") return "-";
+
+        const a = data.allergies;
+        if (!a || typeof a !== "object") return "-";
+
+        const items = Array.isArray(a.items)
+            ? a.items.filter((x: any) => typeof x === "string" && x.trim() && x !== "อื่นๆ")
+            : [];
         const other = typeof a.other === "string" ? a.other.trim() : "";
+
         const parts: string[] = [];
-        if (items.length > 0) parts.push(items.join(", "));
-        if (other) parts.push(`อื่นๆ: ${other}`);
-        return parts.length > 0 ? parts.join(" | ") : "-";
+        if (items.length > 0) parts.push(`• ${items.join(", ")}`);
+        if (other) parts.push(`• อื่นๆ: ${other}`);
+
+        return parts.length > 0 ? parts.join("\n") : "-";
     };
 
     // ✨ ฟังก์ชันใหม่สำหรับจัดการข้อมูลของที่ระลึก
-    const souvenirText = (value: unknown) => {
-        if (!value || typeof value !== "object") return "-";
-        const v = value as Record<string, unknown>;
-        const giftSet = typeof v.giftSet === "string" && v.giftSet ? v.giftSet : "-";
-        const count = typeof v.count === "number" ? v.count : 0;
-        const extra = typeof v.extra === "string" && v.extra.trim() ? v.extra : "-";
-        
+    const souvenirText = (value: any) => {
+        // ตรวจสอบว่ามีข้อมูลส่งมาไหม
+        if (!value) return "-";
+
+        // ดึง data ออกมาจาก souvenirPreferences (ตามที่เห็นในรูป Debug)
+        // หากไม่มี ให้ลองใช้ค่า value ตรงๆ (เผื่อกรณีอื่น)
+        const data = value.souvenirPreferences || value;
+
+        // ตรวจสอบว่า data เป็น object ที่ดึงค่าต่อได้หรือไม่
+        if (typeof data !== "object") return "-";
+
+        const giftSet = typeof data.giftSet === "string" && data.giftSet ? data.giftSet : "-";
+        const count = typeof data.count === "number" ? data.count : 0;
+        const extra = typeof data.extra === "string" && data.extra.trim() ? data.extra : "-";
+
+        // ถ้าไม่มีข้อมูลสำคัญเลย ให้ส่งคืนขีด
+        if (giftSet === "-" && count === 0) return "-";
+
         const lines = [];
         lines.push(`• ประเภท: ${giftSet}`);
         lines.push(`• จำนวน: ${count} ชุด`);
         if (extra !== "-") lines.push(`• เพิ่มเติม: ${extra}`);
-        
+
         return lines.join("\n");
     };
 
     return (
-        <div className="p-2 md:p-4 space-y-6 bg-gray-50/50 min-h-screen rounded-3xl">
+        <div className="p-2 md:p-4 space-y-6 bg-gray-50/50 min-h-screen rounded-3xl ">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
                 <div>
                     <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600">
@@ -163,7 +192,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                     </h2>
                     <p className="text-gray-500 text-sm mt-1">รายการแขกคนสำคัญและผู้มาเยือน</p>
                 </div>
-                 <div className="flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50">
+                <div className="flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50">
                     <Users className="w-4 h-4 text-blue-500" />
                     <span className="text-sm font-medium text-gray-600">
                         ทั้งหมด: <span className="text-gray-900 font-bold">{sortedVisits.length}</span> รายการ
@@ -171,7 +200,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-xl rounded-[4xl] shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden relative z-0">
+            <div className="bg-white/80 backdrop-blur-xl rounded-lg shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden relative z-0">
                 <div className="absolute top-0 right-0 -z-10 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
 
                 <div className="overflow-x-auto p-2">
@@ -181,7 +210,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                 <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[28%]">วันและเวลา</th>
                                 <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[35%]">องค์กร / ผู้มาเยือน</th>
                                 <th className="hidden md:table-cell px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[22%]">ผู้ติดต่อ (Host)</th>
-                                <th className="hidden sm:table-cell px-6 py-5 text-center text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[15%]">ผู้ติดตาม</th>
+                                <th className="hidden sm:table-cell px-6 py-5 text-center text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[15%]">จำนวนผู้เข้าพบ</th>
                                 <th className="w-[5%]"></th>
                             </tr>
                         </thead>
@@ -196,18 +225,18 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10"
                                     >
                                         <td className="px-6 py-5 align-top">
-                                           <div className="flex items-start gap-3">
-                                               <div className="shrink-0 w-12 h-12 bg-blue-50/80 text-blue-600 rounded-xl flex flex-col items-center justify-center shadow-sm border border-blue-100/50 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                            <div className="flex items-start gap-3">
+                                                <div className="shrink-0 w-12 h-12 bg-blue-50/80 text-blue-600 rounded-xl flex flex-col items-center justify-center shadow-sm border border-blue-100/50 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                                     <span className="text-xs font-bold uppercase leading-none">{visitDate.toLocaleDateString("en-US", { month: "short" })}</span>
                                                     <span className="text-lg font-extrabold leading-none mt-0.5">{visitDate.getDate()}</span>
-                                               </div>
+                                                </div>
                                                 <div className="flex flex-col pt-1">
-                                                    <span className="text-sm font-bold text-gray-900">
-                                                        {visitDate.toLocaleDateString("th-TH", { weekday: 'long' })}
-                                                    </span>
-                                                    <div className="flex items-center text-xs font-medium text-gray-500 gap-1.5 mt-1 bg-gray-100/70 px-2 py-0.5 rounded-md w-fit group-hover:bg-blue-50/80 group-hover:text-blue-600 transition-colors">
-                                                        <CalendarClock className="w-3.5 h-3.5" />
+                                                    <span className="gap-x-[5] flex text-sm font-bold text-gray-900 group-hover:bg-blue-50/80 group-hover:text-blue-600 transition-colors rounded-md w-fit">
+                                                        <CalendarClock className="w-3.5 h-5" />
                                                         {visitDate.toLocaleTimeString("th-TH", { hour: '2-digit', minute: '2-digit' })} น.
+                                                    </span>
+                                                    <div className="flex items-center text-xs font-medium text-gray-500 gap-1.5 mt-1 bg-gray-100/70 px-2 py-0.5 rounded-md w-fit">
+                                                        {visitDate.toLocaleDateString("th-TH", { weekday: 'long' })}
                                                     </div>
                                                 </div>
                                             </div>
@@ -222,12 +251,12 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                                     </span>
                                                     <span className="text-sm text-gray-500 flex items-center gap-1.5 mt-1">
                                                         <Briefcase className="w-3.5 h-3.5 text-gray-400" />
-                                                        <span className="line-clamp-1">{visit.vipPosition || "-"}</span>
+                                                        <span className="line-clamp-1">{visit.visitTopic || "-"}</span>
                                                     </span>
                                                     <div className="sm:hidden mt-3">
                                                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100/50">
                                                             <Users className="w-3 h-3" />
-                                                            {visit.totalGuests || 1} ท่าน
+                                                            {visit.guests?.length || 1}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -245,16 +274,16 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
                                         <td className="hidden sm:table-cell px-6 py-5 align-middle text-center">
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all
-                                                ${(visit.totalGuests || 0) > 1
+                                                ${(visit.guests?.length || 0) >= 1
                                                     ? 'bg-indigo-50 text-indigo-600 border-indigo-100/50 group-hover:bg-indigo-100'
                                                     : 'bg-gray-50 text-gray-500 border-gray-100/50 group-hover:bg-gray-100'
                                                 }`}>
                                                 <Users className="w-3.5 h-3.5" />
-                                                {visit.totalGuests || 1}
+                                                {visit.guests?.length || 1} คน
                                             </span>
                                         </td>
 
-                                         <td className="px-4 py-5 align-middle text-right opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                        <td className="px-4 py-5 align-middle text-right opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                             <ChevronRight className="w-5 h-5 text-blue-500" />
                                         </td>
                                     </tr>
@@ -269,22 +298,32 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-white w-full max-w-3xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
 
-                        <div className="relative px-6 py-5 border-b border-gray-100 overflow-hidden bg-linear-to-br from-blue-50 via-white to-white">
-                             <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-100/50 rounded-full blur-2xl pointer-events-none"></div>
-                             <div className="absolute top-5 left-5 w-16 h-16 bg-indigo-50/60 rounded-full blur-xl pointer-events-none"></div>
+                        <div className="relative px-6 pt-5 pb-10 border-b border-gray-100 overflow-hidden bg-linear-to-br from-blue-50 via-white to-white">
+                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-100/50 rounded-full blur-2xl pointer-events-none"></div>
+                            <div className="absolute top-5 left-5 w-16 h-16 bg-indigo-50/60 rounded-full blur-xl pointer-events-none"></div>
 
                             <div className="relative z-10 flex justify-between items-start">
                                 <div className="flex gap-4">
                                     <CompanyAvatar name={selectedVisit.vipCompany} size="lg" />
                                     <div>
                                         <h2 className="text-xl font-bold text-gray-900 line-clamp-1">{selectedVisit.vipCompany || "ไม่ระบุบริษัท"}</h2>
+                                        {/* ✨ เปลี่ยนจาก vipPosition เป็น วันและเวลาที่เข้าพบ */}
                                         <p className="text-sm text-blue-600 font-medium flex items-center gap-1.5 mt-1">
-                                            <Briefcase className="w-4 h-4" />
-                                            {selectedVisit.vipPosition || "ตำแหน่งไม่ระบุ"}
+                                            <CalendarClock className="w-4 h-4" />
+                                            {selectedVisit.visitDateTime || selectedVisit.created_at
+                                                ? new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0).toLocaleString('th-TH', {
+                                                    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                                                }) + ' น.'
+                                                : 'ไม่ระบุเวลาเข้าพบ'}
                                         </p>
+
                                     </div>
+
                                 </div>
-                                <button onClick={() => setSelectedVisit(null)} className="p-2 -mr-2 -mt-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100/50 rounded-full transition-colors">
+                                <button
+                                    onClick={() => setSelectedVisit(null)}
+                                    className="p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100/50 rounded-full transition-colors"
+                                >
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
@@ -298,15 +337,15 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         <MessageSquareText className="w-4 h-4 text-blue-500" /> ข้อมูลทั่วไปและการเข้าพบ
                                     </h3>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <PremiumDetailItem icon={<Building2 />} label="บริษัทลูกค้า" value={selectedVisit.clientCompany} />
+                                        {/* <PremiumDetailItem icon={<Building2 />} label="บริษัทลูกค้า" value={selectedVisit.clientCompany} /> */}
                                         <PremiumDetailItem icon={<Globe2 />} label="สัญชาติ" value={selectedVisit.nationality} />
                                         <PremiumDetailItem icon={<Phone />} label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} isPrimary />
-                                        <PremiumDetailItem icon={<UserCircle2 />} label="เข้ามาพบ (Host)" value={selectedVisit.hostName} />
-                                        
+                                        <PremiumDetailItem icon={<UserCircle2 />} label="บุคคลที่ลูกค้าต้องการเข้าพบ" value={selectedVisit.hostName} />
+
                                         <div className="sm:col-span-2 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
                                             <dt className="text-xs font-medium text-gray-400 mb-1">หัวข้อการเข้าพบ</dt>
                                             <dd className="text-sm font-bold text-gray-900 mb-3">{selectedVisit.visitTopic || "-"}</dd>
-                                            
+
                                             <dt className="text-xs font-medium text-gray-400 mb-1">รายละเอียด</dt>
                                             <dd className="text-sm text-gray-700 whitespace-pre-line leading-relaxed bg-gray-50/50 p-3 rounded-xl border border-gray-100/50">
                                                 {selectedVisit.visitDetail || "-"}
@@ -319,13 +358,13 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
                                 <div>
                                     <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                        <Users className="w-4 h-4 text-indigo-500" /> รายชื่อผู้เข้าร่วม ({selectedVisit.totalGuests || 0} ท่าน)
+                                        <Users className="w-4 h-4 text-indigo-500" /> รายชื่อผู้เข้าร่วม ({selectedVisit.guests?.length || 0} ท่าน)
                                     </h3>
                                     <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                                        <PremiumDetailItem 
-                                            label="รายละเอียดรายบุคคล" 
-                                            value={guestsText(selectedVisit.guests)} 
-                                            multiline 
+                                        <PremiumDetailItem
+                                            label="รายละเอียดรายบุคคล"
+                                            value={guestsText(selectedVisit.guests)}
+                                            multiline
                                         />
                                     </div>
                                 </div>
@@ -337,14 +376,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         <CarFront className="w-4 h-4 text-emerald-500" /> ข้อมูลการเดินทาง
                                     </h3>
                                     <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
                                             <PremiumDetailItem label="ประเภท" value={selectedVisit.transportType === "personal" ? "รถส่วนตัว" : "รถสาธารณะ"} simple />
-                                            <PremiumDetailItem label="จำนวนรถ" value={selectedVisit.transportType === "personal" ? (selectedVisit.carCount ?? "-") : "-"} simple />
-                                            
-                                            {selectedVisit.carLicense && <PremiumDetailItem label="ทะเบียนรถ" value={selectedVisit.carLicense} simple isPrimary />}
-                                            {selectedVisit.carBrand && !selectedVisit.carLicense && <PremiumDetailItem label="ยี่ห้อรถ" value={selectedVisit.carBrand} simple />}
+                                            <PremiumDetailItem label="จำนวนรถ" value={selectedVisit.transportType === "personal" ? (selectedVisit.cars?.length ?? "-") : "-"} simple />
                                         </div>
-                                        
+
                                         {selectedVisit.transportType === "personal" && selectedVisit.cars && (
                                             <div className="pt-4 border-t border-gray-50">
                                                 <PremiumDetailItem label="ข้อมูลรถเพิ่มเติม" value={carsText(selectedVisit.cars)} multiline />
@@ -360,31 +396,30 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {/* ห้องประชุม */}
-                                        <div className={`p-4 rounded-2xl border ${selectedVisit.meetingRoom ? 'bg-blue-50/50 border-blue-100' : 'bg-white border-gray-100'}`}>
+                                        <div className={`p-4 rounded-2xl border ${!!selectedVisit.meetingRoomSelection ? 'bg-blue-50/50 border-blue-100' : 'bg-white border-gray-100'}`}>
                                             <div className="flex items-center gap-2 mb-2">
-                                                <div className={`p-2 rounded-lg ${selectedVisit.meetingRoom ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                                                <div className={`p-2 rounded-lg ${!!selectedVisit.meetingRoomSelection ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
                                                     <Users className="w-5 h-5" />
                                                 </div>
                                                 <dt className="text-xs text-gray-500 font-bold">ห้องประชุม</dt>
                                             </div>
-                                            <dd className={`text-sm font-bold ${selectedVisit.meetingRoom ? 'text-blue-700' : 'text-gray-400'}`}>
-                                                {selectedVisit.meetingRoom ? (selectedVisit.meetingRoomSelection || "ต้องการใช้ห้องประชุม") : "ไม่ต้องการ"}
+                                            <dd className={`text-sm font-bold ${!!selectedVisit.meetingRoomSelection ? 'text-blue-700' : 'text-gray-400'}`}>
+                                                {!!selectedVisit.meetingRoomSelection ? selectedVisit.meetingRoomSelection : "ไม่ต้องการ"}
                                             </dd>
                                         </div>
 
                                         {/* ของที่ระลึก */}
-                                        <div className={`p-4 rounded-2xl border ${selectedVisit.souvenir ? 'bg-pink-50/50 border-pink-100' : 'bg-white border-gray-100'}`}>
+                                        <div className={`p-4 rounded-2xl border ${!!selectedVisit.souvenirPreferences ? 'bg-pink-50/50 border-pink-100' : 'bg-white border-gray-100'}`}>
                                             <div className="flex items-center gap-2 mb-2">
-                                                <div className={`p-2 rounded-lg ${selectedVisit.souvenir ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-400'}`}>
+                                                <div className={`p-2 rounded-lg ${!!selectedVisit.souvenirPreferences ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-400'}`}>
                                                     <Gift className="w-5 h-5" />
                                                 </div>
                                                 <dt className="text-xs text-gray-500 font-bold">ของที่ระลึก</dt>
                                             </div>
-                                            <dd className={`text-sm font-bold ${selectedVisit.souvenir ? 'text-pink-700' : 'text-gray-400'}`}>
-                                                {selectedVisit.souvenir ? "เตรียมของที่ระลึก" : "ไม่ต้องการ"}
+                                            <dd className={`text-sm font-bold ${!!selectedVisit.souvenirPreferences ? 'text-pink-700' : 'text-gray-400'}`}>
+                                                {!!selectedVisit.souvenirPreferences ? "เตรียมของที่ระลึก" : "ไม่ต้องการ"}
                                             </dd>
-                                            {/* ✨ ส่วนที่เพิ่มมาใหม่: โชว์ข้อมูลของที่ระลึกแบบละเอียด */}
-                                            {selectedVisit.souvenir && selectedVisit.souvenirPreferences ? (
+                                            {!!selectedVisit.souvenirPreferences ? (
                                                 <div className="mt-3 bg-white p-3 rounded-xl border border-pink-100/50 text-sm text-pink-800 whitespace-pre-line leading-relaxed">
                                                     {souvenirText(selectedVisit.souvenirPreferences)}
                                                 </div>
@@ -394,16 +429,17 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         {/* อาหาร */}
                                         <div className="sm:col-span-2 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
                                             <div className="flex items-start gap-3">
-                                                <div className={`p-2 rounded-lg ${selectedVisit.foodRequired ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-400'}`}>
+                                                <div className={`p-2 rounded-lg ${!!selectedVisit.foodPreferences ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-400'}`}>
                                                     <Utensils className="w-5 h-5" />
                                                 </div>
                                                 <div className="flex-1">
                                                     <dt className="text-xs text-gray-500 mb-1">อาหารและมื้อ</dt>
-                                                    <dd className={`text-sm font-bold ${selectedVisit.foodRequired ? 'text-gray-900' : 'text-gray-400'}`}>
-                                                         {selectedVisit.foodRequired ? `ต้องการ (${selectedVisit.meals || "ไม่ระบุมื้อ"})` : "ไม่ต้องการอาหาร"}
+                                                    <dd className={`text-sm font-bold ${!!selectedVisit.foodPreferences ? 'text-gray-900' : 'text-gray-400'}`}>
+                                                        {/* แก้ไขไม่ให้เรียกใช้ selectedVisit.meals ตรงๆ แล้ว */}
+                                                        {!!selectedVisit.foodPreferences ? "ต้องการจัดเตรียมอาหาร" : "ไม่ต้องการอาหาร"}
                                                     </dd>
-                                                    
-                                                    {selectedVisit.foodRequired && (
+
+                                                    {!!selectedVisit.foodPreferences && (
                                                         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                             <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-100/50">
                                                                 <span className="block text-xs text-orange-700 mb-2 font-bold">เมนูที่เลือก:</span>
@@ -412,13 +448,20 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                                             <div className="space-y-3">
                                                                 <div className="bg-green-50/50 p-3 rounded-xl border border-green-100/50">
                                                                     <span className="block text-xs text-green-700 mb-1 font-bold">อาหารพิเศษ:</span>
-                                                                    <div className="text-sm text-gray-700">{specialDietText(selectedVisit.foodPreferences)}</div>
+                                                                    {/* เพิ่ม whitespace-pre-line ตรงนี้ */}
+                                                                    <div className="text-sm text-gray-700 whitespace-pre-line">
+                                                                        {specialDietText(selectedVisit.foodPreferences)}
+                                                                    </div>
                                                                 </div>
+
                                                                 <div className="bg-red-50/50 p-3 rounded-xl border border-red-100/50 flex items-start gap-2">
                                                                     <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
                                                                     <div>
                                                                         <span className="block text-xs text-red-700 mb-1 font-bold">แพ้อาหาร:</span>
-                                                                        <div className="text-sm text-gray-700">{allergyText(selectedVisit.foodPreferences)}</div>
+                                                                        {/* เพิ่ม whitespace-pre-line ตรงนี้ */}
+                                                                        <div className="text-sm text-gray-700 whitespace-pre-line">
+                                                                            {allergyText(selectedVisit.foodPreferences)}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -463,25 +506,25 @@ function CompanyAvatar({ name, size = "md", idx = 0 }: { name?: string | null; s
     );
 }
 
-function PremiumDetailItem({ 
-    label, 
-    value, 
-    icon, 
-    simple = false, 
+function PremiumDetailItem({
+    label,
+    value,
+    icon,
+    simple = false,
     isPrimary = false,
-    multiline = false 
-}: { 
-    label: string; 
-    value: ReactNode; 
-    icon?: ReactNode; 
-    simple?: boolean; 
+    multiline = false
+}: {
+    label: string;
+    value: ReactNode;
+    icon?: ReactNode;
+    simple?: boolean;
     isPrimary?: boolean;
-    multiline?: boolean; 
+    multiline?: boolean;
 }) {
     const displayValue = value === null || value === undefined || value === "" ? "—" : value;
 
     if (simple) {
-         return (
+        return (
             <div>
                 <dt className="text-xs text-gray-400 mb-1">{label}</dt>
                 <dd className={`text-sm ${isPrimary ? 'font-bold text-gray-900' : 'font-medium text-gray-700'} ${multiline ? 'whitespace-pre-line leading-relaxed' : ''}`}>

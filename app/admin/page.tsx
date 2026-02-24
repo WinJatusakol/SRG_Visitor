@@ -8,9 +8,15 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: visits, error } = await supabase
+const { data: visits, error } = await supabase
     .from("vip_visitor")
-    .select("*")
+    .select(`
+      *,
+      guests:vip_visitor_guests(*),
+      cars:vip_visitor_cars(*),
+      foodPreferences:vip_visitor_food(foodPreferences),
+      souvenirPreferences:vip_visitor_souvenir(souvenirPreferences)
+    `)
     .order("id", { ascending: false });
 
   console.log("Data from Supabase:", visits);
@@ -19,7 +25,7 @@ export default async function AdminPage() {
   if (error) return <div>Error loading data</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-[#faefcc] via-[#e2cca8] to-[#788b64] p-4 md:p-8">
       <div className="mx-auto max-w-7xl">
         <div className="flex justify-between items-center mb-8">
           <div>
