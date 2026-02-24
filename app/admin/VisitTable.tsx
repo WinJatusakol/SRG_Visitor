@@ -1,7 +1,29 @@
-// components/VisitorTable.tsx
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useMemo, type ReactNode } from "react";
+import {
+    CalendarClock,
+    Building2,
+    Users,
+    CarFront,
+    Utensils,
+    Gift,
+    Phone,
+    Globe2,
+    UserCircle2,
+    X,
+    Briefcase,
+    ChevronRight,
+    MessageSquareText,
+    AlertCircle,
+    Info,
+    FileText,
+    Download,
+    Coffee,
+    Sun,
+    Moon,
+    CheckCircle2
+} from "lucide-react";
 
 export type Visit = {
     id: string | number;
@@ -13,266 +35,535 @@ export type Visit = {
     nationality?: string | null;
     contactPhone?: string | null;
     totalGuests?: number | null;
-    guests?: unknown[] | null;
-    visitTopic?: string | null;
-    visitDetail?: string | null;
     hostName?: string | null;
     transportType?: string | null;
-    carCount?: number | null;
-    cars?: unknown[] | null;
     carLicense?: string | null;
     carBrand?: string | null;
     meetingRoom?: boolean | null;
-    meetingRoomSelection?: string | null;
     foodRequired?: boolean | null;
     meals?: string | null;
-    foodPreferences?: unknown | null;
     souvenir?: boolean | null;
+    visitTopic?: string | null;
+    visitDetail?: string | null;
+    guests?: unknown[] | null;
+    carCount?: number | null;
+    cars?: unknown[] | null;
+    meetingRoomSelection?: string | null;
+    foodPreferences?: any | null;
+    souvenirPreferences?: any | null;
+    presentationFiles?: any | null;
 };
 
-export default function VisitorTable({ visits }: { visits: Visit[] }) {
+export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
 
-    const guestsText = (value: unknown[] | null | undefined) => {
-        if (!Array.isArray(value) || value.length === 0) return "-";
-        return value
-            .map((guest, index) => {
-                const g = guest as Record<string, unknown>;
-                const fullName = [g.firstName, g.middleName, g.lastName]
-                    .filter((part) => typeof part === "string" && part.trim())
-                    .join(" ");
-                const position = typeof g.position === "string" ? g.position : "-";
-                const nationality = typeof g.nationality === "string" ? g.nationality : "-";
-                return `- คนที่ ${index + 1}: ${fullName || "-"} / ${position} / ${nationality}`;
-            })
-            .join("\n");
+    const sortedVisits = useMemo(() => {
+        if (!visits) return [];
+        return [...visits].sort((a, b) => {
+            const dateA = new Date(a.visitDateTime || a.created_at || 0).getTime();
+            const dateB = new Date(b.visitDateTime || b.created_at || 0).getTime();
+            return dateA - dateB;
+        });
+    }, [visits]);
+
+    // Helpers สำหรับเช็คข้อมูลว่ามีอยู่จริงหรือไม่
+    const specialDietText = (value: any) => {
+        const data = value?.foodPreferences || value;
+        if (!data || typeof data !== "object") return "-";
+        const sd = data.specialDiet;
+        if (!sd || typeof sd !== "object") return "-";
+
+        const halal = Number(sd.halalSets || 0);
+        const vegan = Number(sd.veganSets || 0);
+
+        if (halal <= 0 && vegan <= 0) return "-";
+        const lines = [];
+        if (halal > 0) lines.push(`• ฮาลาล ${halal} ชุด`);
+        if (vegan > 0) lines.push(`• วีแกน ${vegan} ชุด`);
+        return lines.join("\n");
     };
 
-    const carsText = (value: unknown[] | null | undefined) => {
-        if (!Array.isArray(value) || value.length === 0) return "-";
-        return value
-            .map((car, index) => {
-                const c = car as Record<string, unknown>;
-                const brand = typeof c.brand === "string" ? c.brand : "-";
-                const license = typeof c.license === "string" ? c.license : "-";
-                return `- คันที่ ${index + 1}: ${brand} / ${license}`;
-            })
-            .join("\n");
-    };
+    const allergyText = (value: any) => {
+        const data = value?.foodPreferences || value;
+        if (!data || typeof data !== "object") return "-";
+        const a = data.allergies;
+        if (!a || typeof a !== "object") return "-";
 
-    const foodMenuText = (value: unknown) => {
-        if (!value || typeof value !== "object") return "-";
-        const v = value as Record<string, unknown>;
-        const menus = (v.menus && typeof v.menus === "object") ? (v.menus as Record<string, unknown>) : null;
-        if (!menus) return "-";
-
-        const lines: string[] = [];
-        const breakfast = typeof menus.breakfast === "string" ? menus.breakfast.trim() : "";
-        if (breakfast) lines.push(`เช้า: ${breakfast}`);
-
-        const lunch = menus.lunch && typeof menus.lunch === "object" ? (menus.lunch as Record<string, unknown>) : null;
-        if (lunch) {
-            const main = typeof lunch.main === "string" ? lunch.main.trim() : "";
-            const dessert = typeof lunch.dessert === "string" ? lunch.dessert.trim() : "";
-            if (main || dessert) lines.push(`กลางวัน: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
-        }
-
-        const dinner = menus.dinner && typeof menus.dinner === "object" ? (menus.dinner as Record<string, unknown>) : null;
-        if (dinner) {
-            const main = typeof dinner.main === "string" ? dinner.main.trim() : "";
-            const dessert = typeof dinner.dessert === "string" ? dinner.dessert.trim() : "";
-            if (main || dessert) lines.push(`เย็น: ${main || "-"} | ของหวาน: ${dessert || "-"}`);
-        }
-
-        return lines.length > 0 ? lines.join("\n") : "-";
-    };
-
-    const specialDietText = (value: unknown) => {
-        if (!value || typeof value !== "object") return "-";
-        const v = value as Record<string, unknown>;
-        const d = (v.specialDiet && typeof v.specialDiet === "object") ? (v.specialDiet as Record<string, unknown>) : null;
-        if (!d) return "-";
-        const halal = Number(d.halalSets ?? 0);
-        const vegan = Number(d.veganSets ?? 0);
-        if ((halal || 0) <= 0 && (vegan || 0) <= 0) return "-";
-        return `ฮาลาล: ${halal > 0 ? halal : "-"} ชุด, วีแกน: ${vegan > 0 ? vegan : "-"} ชุด`;
-    };
-
-    const allergyText = (value: unknown) => {
-        if (!value || typeof value !== "object") return "-";
-        const v = value as Record<string, unknown>;
-        const a = (v.allergies && typeof v.allergies === "object") ? (v.allergies as Record<string, unknown>) : null;
-        if (!a) return "-";
-        const items = Array.isArray(a.items) ? a.items.filter((x) => typeof x === "string" && x.trim()) as string[] : [];
+        const items = Array.isArray(a.items)
+            ? a.items.filter((x: any) => typeof x === "string" && x.trim() && x !== "อื่นๆ")
+            : [];
         const other = typeof a.other === "string" ? a.other.trim() : "";
+
         const parts: string[] = [];
-        if (items.length > 0) parts.push(items.join(", "));
-        if (other) parts.push(`อื่นๆ: ${other}`);
-        return parts.length > 0 ? parts.join(" | ") : "-";
+        if (items.length > 0) parts.push(`• ${items.join(", ")}`);
+        if (other) parts.push(`• อื่นๆ: ${other}`);
+        return parts.length > 0 ? parts.join("\n") : "-";
+    };
+
+    const souvenirData = (value: any) => {
+        if (!value) return null;
+        const data = value.souvenirPreferences || value;
+        if (typeof data !== "object") return null;
+
+        const giftSet = typeof data.giftSet === "string" && data.giftSet && data.giftSet !== "-" ? data.giftSet : null;
+        const count = typeof data.count === "number" && data.count > 0 ? data.count : 0;
+        const extra = typeof data.extra === "string" && data.extra.trim() && data.extra !== "-" ? data.extra : null;
+
+        if (!giftSet && count === 0 && !extra) return null;
+        return { giftSet, count, extra };
+    };
+
+    const renderPresentationFiles = (value: any) => {
+        let fileData = value;
+        if (Array.isArray(value) && value.length > 0 && value[0].presentationFile) {
+            fileData = value[0].presentationFile;
+        } else if (value?.presentationFile) {
+            fileData = value.presentationFile;
+        }
+
+        if (!fileData || (Array.isArray(fileData) && fileData.length === 0)) {
+            return <span className="text-sm font-bold text-gray-400">ไม่มีไฟล์แนบ</span>;
+        }
+
+        const filesArray = Array.isArray(fileData) ? fileData : [fileData];
+        return (
+            <div className="flex flex-wrap gap-2 mt-2">
+                {filesArray.map((file, idx) => {
+                    if (!file) return null;
+                    const url = typeof file === 'string' ? file : file.url || file.publicUrl || file.path;
+                    const name = file.name || file.fileName || `ไฟล์เอกสาร ${idx + 1}`;
+                    if (!url) return null;
+
+                    return (
+                        <a
+                            key={idx}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 shadow-sm rounded-lg text-sm text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all w-full sm:w-auto"
+                        >
+                            <FileText className="w-4 h-4 shrink-0" />
+                            <span className="font-semibold line-clamp-1 break-all">{name}</span>
+                            <Download className="w-3.5 h-3.5 ml-auto sm:ml-1 text-gray-400 shrink-0" />
+                        </a>
+                    );
+                })}
+            </div>
+        );
     };
 
     return (
-        <>
-            <div className="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
-                {/* ✅ เพิ่ม table-fixed : เพื่อบังคับให้ความกว้างเป็นไปตามที่เรากำหนดเป๊ะๆ ไม่ยืดตามใจชอบ 
-        */}
-                <table className="min-w-full divide-y divide-gray-200 table-fixed">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            {/* กำหนดความกว้างตรงนี้ (รวมกันต้องได้ 100% หรือใกล้เคียง) 
-              */}
-
-                            {/* 1. วันที่: เอาไป 30% พอ (ข้อความสั้น) */}
-                            <th className="w-[30%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                วันที่เข้าชม
-                            </th>
-
-                            {/* 2. บริษัท VIP: เป็นพระเอก เอาไปเยอะสุด 30% */}
-                            <th className="w-[30%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                บริษัท VIP
-                            </th>
-
-                            {/* 3. ผู้ติดต่อ: เอาไป 25% (ซ่อนในมือถือ) */}
-                            <th className="hidden md:table-cell w-[25%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                ผู้ติดต่อ (Host)
-                            </th>
-
-                            {/* 4. จำนวนคน: ตัวเลขสั้นๆ เอาไป 10% พอ (ซ่อนในมือถือ) */}
-                            <th className="hidden md:table-cell w-[10%] px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                จำนวนคน
-                            </th>
-                        </tr>
-                    </thead>
-
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {visits?.sort((a, b) => {
-                            // ดึงค่าวันที่ออกมาเทียบกัน โดยใช้ logic เดียวกับที่แสดงผล (มี ||)
-                            const dateA = new Date(a.visitDateTime || a.created_at || 0).getTime();
-                            const dateB = new Date(b.visitDateTime || b.created_at || 0).getTime();
-
-                            // เลือกรูปแบบการเรียง:
-                            // return dateB - dateA; // เรียงจาก "ล่าสุด" ไป "เก่าสุด" (Newest First)
-                            return dateA - dateB; // เรียงจาก "เก่าสุด" ไป "ล่าสุด" (Oldest First)
-                        }).map((visit) => (
-                            <tr
-                                key={visit.id}
-                                onClick={() => setSelectedVisit(visit)}
-                                className="hover:bg-gray-50 transition-colors cursor-pointer active:bg-gray-100"
-                            >
-                                {/* --- ส่วนเนื้อหา (Body) ไม่ต้องแก้ width แล้ว มันจะตาม Header เอง --- */}
-
-                                {/* วันที่ */}
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 align-top">
-                                    <div className="flex flex-col leading-tight">
-                                        <span className="font-semibold">
-                                            {new Date(visit.visitDateTime || visit.created_at || 0).toLocaleDateString("th-TH", {
-                                                day: "2-digit", month: "short", year: "2-digit"
-                                            })}
-                                        </span>
-                                        <span className="text-gray-400 text-xs">
-                                            {new Date(visit.visitDateTime || visit.created_at || 0).toLocaleTimeString("th-TH", {
-                                                hour: '2-digit', minute: '2-digit'
-                                            })} น.
-                                        </span>
-                                    </div>
-                                </td>
-
-                                {/* บริษัท */}
-                                <td className="px-4 py-3 text-sm align-top"> {/* ลบ whitespace-nowrap ออกเพื่อให้ชื่อยาวๆ ตัดบรรทัดได้ */}
-                                    <div className="font-medium text-gray-900 break-words">{visit.vipCompany}</div>
-                                    <div className="text-gray-500 text-xs">{visit.vipPosition}</div>
-
-                                    {/* Badge มือถือ */}
-                                    <div className="md:hidden mt-1">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                            {visit.totalGuests || 1} คน
-                                        </span>
-                                    </div>
-                                </td>
-
-                                {/* Host */}
-                                <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 align-top">
-                                    {visit.hostName}
-                                </td>
-
-                                {/* จำนวนคน */}
-                                <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap text-sm text-gray-500 align-top">
-                                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                                        {visit.totalGuests || "-"} คน
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+        <div className="p-2 md:p-4 space-y-6 bg-gray-50/50 min-h-screen rounded-3xl">
+            {/* Header Table (เหมือนเดิม) */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
+                <div>
+                    <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600">
+                        Visitor Log
+                    </h2>
+                    <p className="text-gray-500 text-sm mt-1">รายการแขกคนสำคัญและผู้มาเยือน</p>
+                </div>
+                <div className="flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50">
+                    <Users className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-medium text-gray-600">
+                        ทั้งหมด: <span className="text-gray-900 font-bold">{sortedVisits.length}</span> รายการ
+                    </span>
+                </div>
             </div>
 
-            {/* --- Modal (คงเดิม) --- */}
+            {/* Table Section (เหมือนเดิม) */}
+            <div className="bg-white/80 backdrop-blur-xl rounded-lg shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden relative z-0">
+                <div className="absolute top-0 right-0 -z-10 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+                <div className="overflow-x-auto p-2">
+                    <table className="min-w-full w-full">
+                        {/* โครงสร้าง Table เดิม */}
+                        <thead>
+                            <tr className="border-b border-gray-100/80">
+                                <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[28%]">วันและเวลา</th>
+                                <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[35%]">องค์กร / ผู้มาเยือน</th>
+                                <th className="hidden md:table-cell px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[22%]">ผู้ติดต่อ (Host)</th>
+                                <th className="hidden sm:table-cell px-6 py-5 text-center text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[15%]">จำนวนผู้เข้าพบ</th>
+                                <th className="w-[5%]"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50/50">
+                            {sortedVisits.map((visit, index) => {
+                                const visitDate = new Date(visit.visitDateTime || visit.created_at || 0);
+                                return (
+                                    <tr key={visit.id} onClick={() => setSelectedVisit(visit)} className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10">
+                                        <td className="px-6 py-5 align-top">
+                                            <div className="flex items-start gap-3">
+                                                <div className="shrink-0 w-12 h-12 bg-blue-50/80 text-blue-600 rounded-xl flex flex-col items-center justify-center shadow-sm border border-blue-100/50 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                    <span className="text-xs font-bold uppercase leading-none">{visitDate.toLocaleDateString("en-US", { month: "short" })}</span>
+                                                    <span className="text-lg font-extrabold leading-none mt-0.5">{visitDate.getDate()}</span>
+                                                </div>
+                                                <div className="flex flex-col pt-1">
+                                                    <span className="gap-x-1 flex text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors w-fit">
+                                                        <CalendarClock className="w-4 h-4 text-blue-500" />
+                                                        {visitDate.toLocaleTimeString("th-TH", { hour: '2-digit', minute: '2-digit' })} น.
+                                                    </span>
+                                                    <div className="flex items-center text-xs font-medium text-gray-500 gap-1.5 mt-1 bg-gray-100/70 px-2 py-0.5 rounded-md w-fit">
+                                                        {visitDate.toLocaleDateString("th-TH", { weekday: 'long' })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5 align-top">
+                                            <div className="flex items-start gap-3">
+                                                <CompanyAvatar name={visit.vipCompany} idx={index} />
+                                                <div className="flex flex-col">
+                                                    <span className="text-[0.95rem] font-bold text-gray-900 line-clamp-1 group-hover:text-blue-700 transition-colors">{visit.vipCompany || "ไม่ระบุบริษัท"}</span>
+                                                    <span className="text-sm text-gray-500 flex items-center gap-1.5 mt-1"><Briefcase className="w-3.5 h-3.5 text-gray-400" /><span className="line-clamp-1">{visit.visitTopic || "-"}</span></span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="hidden md:table-cell px-6 py-5 align-top text-sm">
+                                            <div className="flex items-center gap-2 pt-2"><div className="p-1.5 bg-gray-100 text-gray-400 rounded-full"><UserCircle2 className="w-4 h-4" /></div><span className="font-medium text-gray-700">{visit.hostName || "-"}</span></div>
+                                        </td>
+                                        <td className="hidden sm:table-cell px-6 py-5 align-middle text-center">
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${(visit.guests?.length || 0) >= 1 ? 'bg-indigo-50 text-indigo-600 border-indigo-100/50' : 'bg-gray-50 text-gray-500 border-gray-100/50'}`}><Users className="w-3.5 h-3.5" />{visit.guests?.length || 1} คน</span>
+                                        </td>
+                                        <td className="px-4 py-5 align-middle text-right opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                            <ChevronRight className="w-5 h-5 text-blue-500" />
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* ✨ Modal View ✨ */}
             {selectedVisit && (
-                // ... (โค้ด Modal ส่วนเดิม ไม่ต้องแก้)
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
-                            <h2 className="text-xl font-bold text-gray-900">รายละเอียด</h2>
-                            <button onClick={() => setSelectedVisit(null)} className="text-2xl">&times;</button>
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-gray-50 w-full max-w-5xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
+
+                        {/* Modal Header */}
+                        <div className="relative px-6 py-6 border-b border-gray-200/60 overflow-hidden bg-white shrink-0 sm:rounded-t-3xl rounded-t-3xl">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+                            <div className="relative z-10 flex justify-between items-start">
+                                <div className="flex items-center gap-4">
+                                    <CompanyAvatar name={selectedVisit.vipCompany} size="lg" />
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-gray-900 leading-tight">
+                                            {selectedVisit.vipCompany || "ไม่ระบุบริษัท"}
+                                        </h2>
+                                        <p className="text-sm text-blue-600 font-semibold flex items-center gap-1.5 mt-1.5">
+                                            <CalendarClock className="w-4 h-4" />
+                                            {selectedVisit.visitDateTime || selectedVisit.created_at
+                                                ? new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0).toLocaleString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' น.'
+                                                : 'ไม่ระบุเวลาเข้าพบ'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setSelectedVisit(null)} className="p-2 -mr-2 bg-gray-100 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-full transition-colors shadow-sm"><X className="w-5 h-5" /></button>
+                            </div>
                         </div>
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4"> {/* ลด gap-6 เป็น gap-4 */}
-                            <DetailItem label="บริษัทลูกค้า" value={selectedVisit.clientCompany} />
-                            <DetailItem label="ตำแหน่ง VIP" value={selectedVisit.vipPosition} />
-                            <DetailItem label="สัญชาติ" value={selectedVisit.nationality} />
-                            <DetailItem label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} />
-                            <DetailItem label="เข้ามาพบ" value={selectedVisit.hostName} />
-                            <DetailItem label="หัวข้อ" value={selectedVisit.visitTopic} />
-                            <div className="col-span-1 md:col-span-2">
-                                <DetailItem label="รายละเอียด" value={selectedVisit.visitDetail} />
-                            </div>
-                            <div className="col-span-1 md:col-span-2">
-                                <DetailItem
-                                    label="รายชื่อผู้เข้าร่วม"
-                                    value={<div className="whitespace-pre-line">{guestsText(selectedVisit.guests)}</div>}
-                                />
-                            </div>
-                            <DetailItem label="การเดินทาง" value={selectedVisit.transportType === "personal" ? "รถส่วนตัว" : "รถสาธารณะ"} />
-                            <DetailItem label="จำนวนรถ" value={selectedVisit.transportType === "personal" ? (selectedVisit.carCount ?? "-") : "-"} />
-                            <div className="col-span-1 md:col-span-2">
-                                <DetailItem
-                                    label="ข้อมูลรถ"
-                                    value={<div className="whitespace-pre-line">{carsText(selectedVisit.cars)}</div>}
-                                />
-                            </div>
-                            <DetailItem label="ทะเบียนรถ" value={selectedVisit.carLicense} />
-                            <DetailItem label="ยี่ห้อรถ" value={selectedVisit.carBrand} />
-                            <DetailItem label="ห้องประชุม" value={selectedVisit.meetingRoom ? "ต้องการ" : "ไม่ต้องการ"} />
-                            <DetailItem label="ห้องประชุมที่เลือก" value={selectedVisit.meetingRoom ? (selectedVisit.meetingRoomSelection ?? "-") : "-"} />
-                            <DetailItem label="อาหาร/มื้อ" value={`${selectedVisit.foodRequired ? "ต้องการ" : "ไม่ต้องการ"} / ${selectedVisit.meals || "-"}`} />
-                            <div className="col-span-1 md:col-span-2">
-                                <DetailItem
-                                    label="เมนูอาหาร"
-                                    value={<div className="whitespace-pre-line">{foodMenuText(selectedVisit.foodPreferences)}</div>}
-                                />
-                            </div>
-                            <DetailItem label="อาหารพิเศษ" value={specialDietText(selectedVisit.foodPreferences)} />
-                            <div className="col-span-1 md:col-span-2">
-                                <DetailItem label="แพ้อาหาร" value={allergyText(selectedVisit.foodPreferences)} />
+
+                        {/* Modal Body */}
+                        <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-6">
+
+                            {/* Section 1: ข้อมูลทั่วไป */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden">
+                                <div className="bg-blue-50/50 px-5 sm:px-6 py-4 border-b border-blue-100 flex items-center gap-2">
+                                    <MessageSquareText className="w-5 h-5 text-blue-600" />
+                                    <h3 className="text-base font-bold text-blue-900">ข้อมูลทั่วไปและการเข้าพบ</h3>
+                                </div>
+                                <div className="p-5 sm:p-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                                        <InfoCard icon={<Phone className="w-4 h-4 text-blue-500" />} label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} />
+                                        <InfoCard icon={<Globe2 className="w-4 h-4 text-blue-500" />} label="สัญชาติ" value={selectedVisit.nationality} />
+                                        <InfoCard icon={<UserCircle2 className="w-4 h-4 text-blue-500" />} label="ผู้ติดต่อ (Host)" value={selectedVisit.hostName} />
+                                    </div>
+
+                                    {(selectedVisit.visitTopic || selectedVisit.visitDetail) && (
+                                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
+                                            {selectedVisit.visitTopic && (
+                                                <div className="mb-4">
+                                                    <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5" /> หัวข้อการเข้าพบ</dt>
+                                                    <dd className="text-base font-bold text-gray-900">{selectedVisit.visitTopic}</dd>
+                                                </div>
+                                            )}
+                                            {selectedVisit.visitDetail && (
+                                                <div>
+                                                    <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Info className="w-3.5 h-3.5" /> รายละเอียดเพิ่มเติม</dt>
+                                                    <dd className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{selectedVisit.visitDetail}</dd>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
-                            <div className="col-span-1 md:col-span-2">
-                                <DetailItem label="ของที่ระลึก" value={selectedVisit.souvenir ? "ต้องการ" : "ไม่ต้องการ"} />
+                            {/* Section 2: ผู้เข้าร่วม & การเดินทาง */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* ผู้เข้าร่วม */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden h-full flex flex-col">
+                                    <div className="bg-indigo-50/50 px-5 sm:px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Users className="w-5 h-5 text-indigo-600" />
+                                            <h3 className="text-base font-bold text-indigo-900">รายชื่อผู้เข้าร่วม</h3>
+                                        </div>
+                                        <span className="text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-md">{selectedVisit.guests?.length || 0} ท่าน</span>
+                                    </div>
+                                    <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
+                                        {selectedVisit.guests && selectedVisit.guests.length > 0 ? (
+                                            <div className="grid grid-cols-1 gap-3">
+                                                {selectedVisit.guests.map((g: any, i) => (
+                                                    <div key={i} className="flex items-center gap-4 p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-colors">
+                                                        <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500 shrink-0">
+                                                            <UserCircle2 className="w-5 h-5" />
+                                                        </div>
+                                                        <div className="overflow-hidden">
+                                                            <div className="font-bold text-sm text-gray-900 truncate">
+                                                                {g.firstName || "-"} {g.middleName === "-" ? "" : g.middleName || ""}{" "} {g.lastName || ""}
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                                {g.position || "ไม่ระบุตำแหน่ง"} • {g.nationality || "ไม่ระบุสัญชาติ"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วม</div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* การเดินทาง */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden h-full flex flex-col">
+                                    <div className="bg-emerald-50/50 px-5 sm:px-6 py-4 border-b border-emerald-100 flex items-center gap-2">
+                                        <CarFront className="w-5 h-5 text-emerald-600" />
+                                        <h3 className="text-base font-bold text-emerald-900">ข้อมูลการเดินทาง</h3>
+                                    </div>
+                                    <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
+                                        <div className="flex items-center gap-4 mb-5">
+                                            <div className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${selectedVisit.transportType === "personal" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
+                                                {selectedVisit.transportType === "personal" ? "🚗 เดินทางด้วยรถส่วนตัว" : "🚌 เดินทางด้วยรถสาธารณะ"}
+                                            </div>
+                                            {selectedVisit.transportType === "personal" && (
+                                                <div className="text-sm font-semibold text-gray-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
+                                            )}
+                                        </div>
+
+                                        {selectedVisit.transportType === "personal" && selectedVisit.cars && selectedVisit.cars.length > 0 ? (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {selectedVisit.cars.map((c: any, i) => (
+                                                    <div key={i} className="p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-emerald-200 transition-colors">
+                                                        <div className="text-xs text-gray-400 font-semibold mb-1 truncate">{c.brand || "ไม่ระบุแบรนด์"}</div>
+                                                        <div className="font-bold text-sm text-gray-900 flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full bg-emerald-400"></div> {c.license || "ไม่ระบุทะเบียน"}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : selectedVisit.transportType === "personal" ? (
+                                            <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถยนต์</div>
+                                        ) : null}
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Section 3: การอำนวยความสะดวก */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-cyan-100 overflow-hidden">
+                                <div className="bg-cyan-50/50 px-5 sm:px-6 py-4 border-b border-cyan-100 flex items-center gap-2">
+                                    <Building2 className="w-5 h-5 text-cyan-600" />
+                                    <h3 className="text-base font-bold text-cyan-900">การอำนวยความสะดวก (Facilities & Extras)</h3>
+                                </div>
+                                <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-3 gap-5 bg-gray-50/30">
+
+                                    {/* ห้องประชุม */}
+                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                        <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Users className="w-4 h-4 text-cyan-500" /> ห้องประชุม</dt>
+                                        <dd className="text-sm font-bold text-gray-900">
+                                            {selectedVisit.meetingRoomSelection ? (
+                                                <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500" /> {selectedVisit.meetingRoomSelection}</span>
+                                            ) : (
+                                                <span className="text-gray-400 font-medium">ไม่ต้องการห้องประชุม</span>
+                                            )}
+                                        </dd>
+                                    </div>
+
+                                    {/* ของที่ระลึก */}
+                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                        <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Gift className="w-4 h-4 text-pink-500" /> ของที่ระลึก</dt>
+                                        {(() => {
+                                            const suv = souvenirData(selectedVisit.souvenirPreferences);
+                                            if (suv) {
+                                                return (
+                                                    <div className="space-y-1.5 text-sm">
+                                                        {suv.giftSet && <p className="font-bold text-gray-900 truncate">{suv.giftSet}</p>}
+                                                        <p className="text-gray-600 font-medium">จำนวน: <span className="text-pink-600 font-bold">{suv.count} ชุด</span></p>
+                                                        {suv.extra && <p className="text-xs text-gray-500 mt-1 bg-gray-50 p-1.5 rounded border border-gray-100 leading-relaxed">{suv.extra}</p>}
+                                                    </div>
+                                                )
+                                            }
+                                            return <span className="text-sm text-gray-400 font-medium">ไม่ต้องการของที่ระลึก</span>;
+                                        })()}
+                                    </div>
+
+                                    {/* ไฟล์นำเสนอ */}
+                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                        <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-purple-500" /> ไฟล์นำเสนอ</dt>
+                                        <dd>{renderPresentationFiles(selectedVisit.presentationFiles)}</dd>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section 4: การรับรองและจัดเลี้ยงอาหาร */}
+                            {selectedVisit.foodPreferences && (() => {
+                                const foodData = selectedVisit.foodPreferences?.foodPreferences || selectedVisit.foodPreferences;
+                                // เช็คว่ามีข้อมูลมื้อไหนบ้างเพื่อซ่อน/แสดง
+                                const hasBreakfast = foodData?.meals?.includes('เช้า') || (foodData?.menus?.breakfast && foodData.menus.breakfast.trim() !== "");
+                                const hasLunch = foodData?.meals?.includes('กลางวัน') || (foodData?.menus?.lunch?.main && foodData.menus.lunch.main.trim() !== "");
+                                const hasDinner = foodData?.meals?.includes('เย็น') || (foodData?.menus?.dinner?.main && foodData.menus.dinner.main.trim() !== "");
+
+                                // เช็คว่ามีข้อมูลแพ้อาหารหรืออาหารพิเศษไหม
+                                const sdText = specialDietText(foodData);
+                                const hasSpecialDiet = sdText !== "-";
+                                const alText = allergyText(foodData);
+                                const hasAllergies = alText !== "-";
+
+                                return (
+                                    <div className="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+                                        <div className="bg-orange-50/50 px-5 sm:px-6 py-4 border-b border-orange-100 flex items-center gap-2">
+                                            <Utensils className="w-5 h-5 text-orange-600" />
+                                            <h3 className="text-base font-bold text-orange-900">การรับรองและจัดเลี้ยงอาหาร</h3>
+                                        </div>
+                                        <div className="p-5 sm:p-6 flex flex-col gap-5 bg-gray-50/30">
+                                            {/* แถวบน: รายการมื้ออาหารหลัก (เต็มความกว้าง) - แสดงเฉพาะมื้อที่มี */}
+                                            {(hasBreakfast || hasLunch || hasDinner) ? (
+                                                <div className="w-full">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                                        <span className="flex items-center gap-1.5 text-sm font-bold text-gray-600 uppercase">
+                                                            <Info className="w-4 h-4 text-gray-400" /> รายการมื้ออาหารที่รับ
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-col md:flex-row gap-4">
+                                                        {hasBreakfast && (
+                                                            <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-orange-200 transition-all">
+                                                                <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
+                                                                    <div className="flex items-center gap-2 text-orange-600 font-bold"><Coffee className="w-4 h-4" /> มื้อเช้า</div>
+                                                                </div>
+                                                                <p className="text-sm text-gray-700 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
+                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.breakfast || "จัดเตรียมมื้อเช้าตามความเหมาะสม"}</span>
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                        {hasLunch && (
+                                                            <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-orange-200 transition-all">
+                                                                <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
+                                                                    <div className="flex items-center gap-2 text-orange-600 font-bold"><Sun className="w-4 h-4" /> มื้อกลางวัน</div>
+                                                                </div>
+                                                                <div className="space-y-3 text-sm text-gray-700">
+                                                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                                        <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
+                                                                        <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.main || "-"}</span>
+                                                                    </div>
+                                                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                                        <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
+                                                                        <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.dessert || "-"}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {hasDinner && (
+                                                            <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-orange-200 transition-all">
+                                                                <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
+                                                                    <div className="flex items-center gap-2 text-orange-600 font-bold"><Moon className="w-4 h-4" /> มื้อเย็น</div>
+                                                                </div>
+                                                                <div className="space-y-3 text-sm text-gray-700">
+                                                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                                        <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
+                                                                        <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.main || "-"}</span>
+                                                                    </div>
+                                                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                                        <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
+                                                                        <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.dessert || "-"}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="text-sm text-gray-400 font-medium italic py-4 text-center border-2 border-dashed border-gray-100 rounded-xl bg-white">
+                                                    ไม่ได้ระบุมื้ออาหารหลัก
+                                                </div>
+                                            )}
+                                            {/* แถวล่าง: อาหารพิเศษ และ แพ้อาหาร (ซ่อนถ้าไม่มีข้อมูลทั้งคู่) */}
+                                            {(hasSpecialDiet || hasAllergies) && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                                    {/* อาหารพิเศษ (ซ่อนถ้าไม่มี) */}
+                                                    {hasSpecialDiet && (
+                                                        <div className="p-4 bg-green-50/50 rounded-xl border border-green-200 shadow-sm">
+                                                            <span className="block text-xs font-extrabold text-green-700 uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
+                                                            <div className="text-sm text-gray-800 font-semibold whitespace-pre-line leading-relaxed">
+                                                                {sdText}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {/* แพ้อาหาร (ซ่อนถ้าไม่มี) */}
+                                                    {hasAllergies && (
+                                                        <div className="p-4 bg-red-50/50 rounded-xl border border-red-200 shadow-sm">
+                                                            <span className="flex items-center gap-1.5 text-xs font-extrabold text-red-700 uppercase mb-3">
+                                                                <AlertCircle className="w-4 h-4" /> ข้อมูลการแพ้อาหาร
+                                                            </span>
+                                                            <div className="text-sm text-red-900 font-semibold whitespace-pre-line leading-relaxed">
+                                                                {alText}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }
 
-function DetailItem({ label, value }: { label: string; value: ReactNode }) {
+// Component ย่อยสำหรับข้อมูลทั่วไป
+function InfoCard({ label, value, icon }: { label: string; value: ReactNode; icon: ReactNode }) {
     const displayValue = value === null || value === undefined || value === "" ? "-" : value;
     return (
-        <div className="mb-4">
-            <dt className="text-sm text-gray-500">{label}</dt>
-            <dd className="text-base text-gray-900 bg-gray-50 p-2 rounded">{displayValue}</dd>
+        <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
+            <div className="bg-gray-50 p-2 rounded-lg shrink-0">
+                {icon}
+            </div>
+            <div className="overflow-hidden">
+                <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">{label}</dt>
+                <dd className="text-sm font-bold text-gray-900 truncate">
+                    {displayValue}
+                </dd>
+            </div>
+        </div>
+    );
+}
+
+// Component โลโก้บริษัท
+function CompanyAvatar({ name, size = "md", idx = 0 }: { name?: string | null; size?: "md" | "lg"; idx?: number }) {
+    const initial = name && name.length > 0 ? name.charAt(0).toUpperCase() : <Building2 className={size === "lg" ? "w-6 h-6" : "w-4 h-4"} />;
+
+    const colorPalettes = [
+        'from-blue-500 to-indigo-600 shadow-blue-200/50',
+        'from-purple-500 to-pink-600 shadow-purple-200/50',
+        'from-emerald-400 to-teal-600 shadow-emerald-200/50',
+        'from-orange-400 to-red-500 shadow-orange-200/50',
+    ];
+    const colorClass = colorPalettes[(idx || (name?.length || 0)) % colorPalettes.length];
+    const sizeClass = size === "lg" ? "w-16 h-16 text-2xl rounded-2xl" : "w-10 h-10 text-sm rounded-xl";
+
+    return (
+        <div className={`shrink-0 ${sizeClass} text-white flex items-center justify-center font-extrabold bg-linear-to-br shadow-lg ${colorClass}`}>
+            {initial}
         </div>
     );
 }

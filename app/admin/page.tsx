@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import VisitorTable, { type Visit } from "./VisitTable"; // 👈 import component ที่เราเพิ่งสร้าง
+import VisitorTable, { type Visit } from "./VisitTable";
 
 type GuestRow = {
   sortIndex?: number | null;
@@ -28,6 +28,7 @@ export default async function AdminPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // ใช้ Query จากตัวที่ Pull มา เพื่อดึง Table เข้ามาทั้งหมด
   const joinedSelect = `
     *,
     vip_visitor_guests(*),
@@ -43,13 +44,14 @@ export default async function AdminPage() {
     .select(joinedSelect)
     .order("id", { ascending: false });
 
-  const fallbackResult =
-    joinedResult.error
-      ? await supabase
-          .from("vip_visitor")
-          .select("*")
-          .order("id", { ascending: false })
-      : null;
+  // จัดการ Fallback หาก Join Query มีปัญหา
+  let fallbackResult = null;
+  if (joinedResult.error) {
+    fallbackResult = await supabase
+      .from("vip_visitor")
+      .select("*")
+      .order("id", { ascending: false });
+  }
 
   const rawVisits = (joinedResult.data ?? fallbackResult?.data ?? []) as unknown[];
 
@@ -59,6 +61,7 @@ export default async function AdminPage() {
       typeof record.id === "number" || typeof record.id === "string"
         ? record.id
         : 0;
+    
     const guestRowsRaw = record.vip_visitor_guests;
     const carRowsRaw = record.vip_visitor_cars;
     const foodRowsRaw = record.vip_visitor_food;
@@ -66,22 +69,22 @@ export default async function AdminPage() {
     const souvenirRowsRaw = record.vip_visitor_souvenir;
     const presentationFileRowsRaw = record.vip_visitor_presentation_file;
 
+    // แขกและรถ เป็นความสัมพันธ์แบบ 1:Many (Supabase จะส่งมาเป็น Array แน่นอน)
     const guestRows = Array.isArray(guestRowsRaw) ? (guestRowsRaw as GuestRow[]) : null;
     const carRows = Array.isArray(carRowsRaw) ? (carRowsRaw as CarRow[]) : null;
-    const foodRow = Array.isArray(foodRowsRaw) ? (foodRowsRaw[0] as FoodRow) : null;
-    const siteVisitRow = Array.isArray(siteVisitRowsRaw)
-      ? (siteVisitRowsRaw[0] as SiteVisitRow)
-      : null;
-    const souvenirRow = Array.isArray(souvenirRowsRaw) ? (souvenirRowsRaw[0] as SouvenirRow) : null;
-    const presentationFileRow = Array.isArray(presentationFileRowsRaw)
-      ? (presentationFileRowsRaw[0] as PresentationFileRow)
-      : null;
 
+    // 🌟 ส่วนที่แก้ไข 🌟
+    // อาหาร, สถานที่, ของที่ระลึก, ไฟล์แนบ เป็น 1:1 (Supabase มักจะส่งมาเป็น Object) 
+    // เราจึงปรับให้ดึงค่าได้ถูกต้องไม่ว่ามันจะส่งมาเป็น Array หรือ Object
+    const foodRow = (Array.isArray(foodRowsRaw) ? foodRowsRaw[0] : foodRowsRaw) as FoodRow | null;
+    const siteVisitRow = (Array.isArray(siteVisitRowsRaw) ? siteVisitRowsRaw[0] : siteVisitRowsRaw) as SiteVisitRow | null;
+    const souvenirRow = (Array.isArray(souvenirRowsRaw) ? souvenirRowsRaw[0] : souvenirRowsRaw) as SouvenirRow | null;
+    const presentationFileRow = (Array.isArray(presentationFileRowsRaw) ? presentationFileRowsRaw[0] : presentationFileRowsRaw) as PresentationFileRow | null;
+
+    // ทำการจัดเรียง Guest ตาม sortIndex
     const normalizedGuests = guestRows
       ? [...guestRows]
-          .sort(
-            (a, b) => Number(a?.sortIndex ?? 0) - Number(b?.sortIndex ?? 0)
-          )
+          .sort((a, b) => Number(a?.sortIndex ?? 0) - Number(b?.sortIndex ?? 0))
           .map((g) => ({
             firstName: g?.firstName ?? "",
             middleName: g?.middleName ?? "",
@@ -91,17 +94,17 @@ export default async function AdminPage() {
           }))
       : record.guests;
 
+    // ทำการจัดเรียง Car ตาม sortIndex
     const normalizedCars = carRows
       ? [...carRows]
-          .sort(
-            (a, b) => Number(a?.sortIndex ?? 0) - Number(b?.sortIndex ?? 0)
-          )
+          .sort((a, b) => Number(a?.sortIndex ?? 0) - Number(b?.sortIndex ?? 0))
           .map((c) => ({
             brand: c?.brand ?? "",
             license: c?.license ?? "",
           }))
       : record.cars;
 
+    // รวบรวมข้อมูลให้อยู่ในรูปแบบที่ VisitTable ต้องการ
     const normalized: Record<string, unknown> = {
       ...record,
       id: normalizedId,
@@ -109,11 +112,11 @@ export default async function AdminPage() {
       cars: normalizedCars,
       foodPreferences: foodRow?.foodPreferences ?? record.foodPreferences,
       siteVisit: siteVisitRow?.siteVisit ?? record.siteVisit,
-      souvenirPreferences:
-        souvenirRow?.souvenirPreferences ?? record.souvenirPreferences,
-      presentationFile: presentationFileRow?.presentationFile ?? record.presentationFile,
+      souvenirPreferences: souvenirRow?.souvenirPreferences ?? record.souvenirPreferences,
+      presentationFiles: presentationFileRow?.presentationFile ?? record.presentationFile,
     };
 
+    // ลบ Key ที่เป็น Table เก่าทิ้ง
     delete normalized.vip_visitor_guests;
     delete normalized.vip_visitor_cars;
     delete normalized.vip_visitor_food;
@@ -124,16 +127,14 @@ export default async function AdminPage() {
     return normalized as unknown as Visit;
   });
 
-  const error =
-    joinedResult.error && !fallbackResult ? joinedResult.error : fallbackResult?.error;
+  const error = joinedResult.error && !fallbackResult ? joinedResult.error : fallbackResult?.error;
 
-  console.log("Data from Supabase:", visits);
   console.log("Error:", error);
 
   if (error) return <div>Error loading data</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-[#faefcc] via-[#e2cca8] to-[#788b64] p-4 md:p-8">
       <div className="mx-auto max-w-7xl">
         <div className="flex justify-between items-center mb-8">
           <div>
