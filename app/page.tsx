@@ -43,15 +43,10 @@ type VisitFormState = {
   foodRequired: YesNo | "";
   meals: string[];
   breakfastMenu: string;
-  breakfastMenuOther: string;
   lunchMenu: string;
-  lunchMenuOther: string;
   lunchDessert: string;
-  lunchDessertOther: string;
   dinnerMenu: string;
-  dinnerMenuOther: string;
   dinnerDessert: string;
-  dinnerDessertOther: string;
   halalEnabled: boolean;
   halalCount: string;
   veganEnabled: boolean;
@@ -122,6 +117,14 @@ const createEmptyCar = (): Car => ({
   license: "",
 });
 
+const THAI_OFFSET_MS = 7 * 60 * 60 * 1000;
+const buildVisitDateTimeIso = (date: string, time: string) => {
+  const safeDate = date.trim();
+  const safeTime = time.trim();
+  if (!safeDate || !safeTime) return "";
+  return `${safeDate}T${safeTime}:00.000Z`;
+};
+
 const initialState: VisitFormState = {
   clientCompany: "",
   vipCompany: "",
@@ -144,15 +147,10 @@ const initialState: VisitFormState = {
   foodRequired: "",
   meals: [],
   breakfastMenu: "",
-  breakfastMenuOther: "",
   lunchMenu: "",
-  lunchMenuOther: "",
   lunchDessert: "",
-  lunchDessertOther: "",
   dinnerMenu: "",
-  dinnerMenuOther: "",
   dinnerDessert: "",
-  dinnerDessertOther: "",
   halalEnabled: false,
   halalCount: "",
   veganEnabled: false,
@@ -364,39 +362,16 @@ export default function Home() {
       value = value.replace(/\D/g, "");
     }
 
-    if (name === "breakfastMenu" && value !== "อื่นๆ") {
+    if (
+      name === "breakfastMenu" ||
+      name === "lunchMenu" ||
+      name === "lunchDessert" ||
+      name === "dinnerMenu" ||
+      name === "dinnerDessert"
+    ) {
       return setForm((prev) => ({
         ...prev,
-        breakfastMenu: value,
-        breakfastMenuOther: "",
-      }));
-    }
-    if (name === "lunchMenu" && value !== "อื่นๆ") {
-      return setForm((prev) => ({
-        ...prev,
-        lunchMenu: value,
-        lunchMenuOther: "",
-      }));
-    }
-    if (name === "lunchDessert" && value !== "อื่นๆ") {
-      return setForm((prev) => ({
-        ...prev,
-        lunchDessert: value,
-        lunchDessertOther: "",
-      }));
-    }
-    if (name === "dinnerMenu" && value !== "อื่นๆ") {
-      return setForm((prev) => ({
-        ...prev,
-        dinnerMenu: value,
-        dinnerMenuOther: "",
-      }));
-    }
-    if (name === "dinnerDessert" && value !== "อื่นๆ") {
-      return setForm((prev) => ({
-        ...prev,
-        dinnerDessert: value,
-        dinnerDessertOther: "",
+        [name]: value,
       }));
     }
 
@@ -414,15 +389,10 @@ export default function Home() {
         foodRequired: value as YesNo,
         meals: value === "yes" ? prev.meals : [],
         breakfastMenu: value === "yes" ? prev.breakfastMenu : "",
-        breakfastMenuOther: value === "yes" ? prev.breakfastMenuOther : "",
         lunchMenu: value === "yes" ? prev.lunchMenu : "",
-        lunchMenuOther: value === "yes" ? prev.lunchMenuOther : "",
         lunchDessert: value === "yes" ? prev.lunchDessert : "",
-        lunchDessertOther: value === "yes" ? prev.lunchDessertOther : "",
         dinnerMenu: value === "yes" ? prev.dinnerMenu : "",
-        dinnerMenuOther: value === "yes" ? prev.dinnerMenuOther : "",
         dinnerDessert: value === "yes" ? prev.dinnerDessert : "",
-        dinnerDessertOther: value === "yes" ? prev.dinnerDessertOther : "",
         halalEnabled: value === "yes" ? prev.halalEnabled : false,
         halalCount: value === "yes" ? prev.halalCount : "",
         veganEnabled: value === "yes" ? prev.veganEnabled : false,
@@ -564,15 +534,10 @@ export default function Home() {
         ...prev,
         meals: nextMeals,
         breakfastMenu: nextMeals.includes("เช้า") ? prev.breakfastMenu : "",
-        breakfastMenuOther: nextMeals.includes("เช้า") ? prev.breakfastMenuOther : "",
         lunchMenu: nextMeals.includes("กลางวัน") ? prev.lunchMenu : "",
-        lunchMenuOther: nextMeals.includes("กลางวัน") ? prev.lunchMenuOther : "",
         lunchDessert: nextMeals.includes("กลางวัน") ? prev.lunchDessert : "",
-        lunchDessertOther: nextMeals.includes("กลางวัน") ? prev.lunchDessertOther : "",
         dinnerMenu: nextMeals.includes("เย็น") ? prev.dinnerMenu : "",
-        dinnerMenuOther: nextMeals.includes("เย็น") ? prev.dinnerMenuOther : "",
         dinnerDessert: nextMeals.includes("เย็น") ? prev.dinnerDessert : "",
-        dinnerDessertOther: nextMeals.includes("เย็น") ? prev.dinnerDessertOther : "",
       };
     });
   };
@@ -684,9 +649,10 @@ export default function Home() {
       );
     }
     if (form.visitDate && form.visitTime) {
-      const selected = new Date(`${form.visitDate}T${form.visitTime}`);
-      const now = new Date();
-      if (selected.getTime() < now.getTime()) {
+      const selectedIso = buildVisitDateTimeIso(form.visitDate, form.visitTime);
+      const selected = selectedIso ? new Date(selectedIso) : null;
+      const nowThaiMs = Date.now() + THAI_OFFSET_MS;
+      if (!selected || Number.isNaN(selected.getTime()) || selected.getTime() < nowThaiMs) {
         messages.push(
           t(
             "กรุณาเลือกวันและเวลาที่มาถึงให้เป็นเวลาหลังจากปัจจุบัน",
@@ -791,26 +757,10 @@ export default function Home() {
           )
         );
       }
-      if (form.meals.includes("เช้า") && form.breakfastMenu === "อื่นๆ" && !form.breakfastMenuOther.trim()) {
-        messages.push(
-          t(
-            "กรุณาระบุเมนูอาหารเช้า (อื่นๆ)",
-            "Please specify the breakfast menu (Other)."
-          )
-        );
-      }
       if (form.meals.includes("กลางวัน")) {
         if (!form.lunchMenu.trim()) {
           messages.push(
             t("กรุณาเลือกเมนูอาหารกลางวัน", "Please select the lunch menu.")
-          );
-        }
-        if (form.lunchMenu === "อื่นๆ" && !form.lunchMenuOther.trim()) {
-          messages.push(
-            t(
-              "กรุณาระบุเมนูอาหารกลางวัน (อื่นๆ)",
-              "Please specify the lunch menu (Other)."
-            )
           );
         }
         if (!form.lunchDessert.trim()) {
@@ -821,14 +771,6 @@ export default function Home() {
             )
           );
         }
-        if (form.lunchDessert === "อื่นๆ" && !form.lunchDessertOther.trim()) {
-          messages.push(
-            t(
-              "กรุณาระบุของหวาน (กลางวัน) (อื่นๆ)",
-              "Please specify the lunch dessert (Other)."
-            )
-          );
-        }
       }
       if (form.meals.includes("เย็น")) {
         if (!form.dinnerMenu.trim()) {
@@ -836,25 +778,9 @@ export default function Home() {
             t("กรุณาเลือกเมนูอาหารเย็น", "Please select the dinner menu.")
           );
         }
-        if (form.dinnerMenu === "อื่นๆ" && !form.dinnerMenuOther.trim()) {
-          messages.push(
-            t(
-              "กรุณาระบุเมนูอาหารเย็น (อื่นๆ)",
-              "Please specify the dinner menu (Other)."
-            )
-          );
-        }
         if (!form.dinnerDessert.trim()) {
           messages.push(
             t("กรุณาเลือกของหวาน (เย็น)", "Please select the dinner dessert.")
-          );
-        }
-        if (form.dinnerDessert === "อื่นๆ" && !form.dinnerDessertOther.trim()) {
-          messages.push(
-            t(
-              "กรุณาระบุของหวาน (เย็น) (อื่นๆ)",
-              "Please specify the dinner dessert (Other)."
-            )
           );
         }
       }
@@ -978,33 +904,21 @@ export default function Home() {
         ? {
           meals: form.meals,
           menus: {
-            breakfast: form.meals.includes("เช้า")
-              ? form.breakfastMenu === "อื่นๆ"
-                ? form.breakfastMenuOther
-                : form.breakfastMenu
-              : "",
+            breakfast: form.meals.includes("เช้า") ? form.breakfastMenu : "",
             lunch: form.meals.includes("กลางวัน")
               ? {
                 main:
-                  form.lunchMenu === "อื่นๆ"
-                    ? form.lunchMenuOther
-                    : form.lunchMenu,
+                  form.lunchMenu,
                 dessert:
-                  form.lunchDessert === "อื่นๆ"
-                    ? form.lunchDessertOther
-                    : form.lunchDessert,
+                  form.lunchDessert,
               }
               : { main: "", dessert: "" },
             dinner: form.meals.includes("เย็น")
               ? {
                 main:
-                  form.dinnerMenu === "อื่นๆ"
-                    ? form.dinnerMenuOther
-                    : form.dinnerMenu,
+                  form.dinnerMenu,
                 dessert:
-                  form.dinnerDessert === "อื่นๆ"
-                    ? form.dinnerDessertOther
-                    : form.dinnerDessert,
+                  form.dinnerDessert,
               }
               : { main: "", dessert: "" },
           },
@@ -1049,7 +963,7 @@ export default function Home() {
       visitDetail: form.visitDetail,
       visitDateTime:
         form.visitDate && form.visitTime
-          ? `${form.visitDate}T${form.visitTime}`
+          ? buildVisitDateTimeIso(form.visitDate, form.visitTime)
           : "",
       meetingRoomSelection: form.meetingRoomSelection || "",
       siteVisit,
@@ -1851,27 +1765,6 @@ export default function Home() {
                                 ))}
                               </select>
                             </div>
-                            {form.breakfastMenu === "อื่นๆ" && (
-                              <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium">
-                                  {t(
-                                    "ระบุอาหารเช้า (อื่นๆ)",
-                                    "Specify breakfast (Other)"
-                                  )}
-                                </label>
-                                <input
-                                  type="text"
-                                  name="breakfastMenuOther"
-                                  value={form.breakfastMenuOther}
-                                  onChange={handleChange}
-                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                                  placeholder={t(
-                                    "เช่น แซนด์วิชทูน่า",
-                                    "e.g., tuna sandwich"
-                                  )}
-                                />
-                              </div>
-                            )}
                           </div>
                         )}
 
@@ -1897,27 +1790,6 @@ export default function Home() {
                                 ))}
                               </select>
                             </div>
-                            {form.lunchMenu === "อื่นๆ" && (
-                              <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium">
-                                  {t(
-                                    "ระบุอาหารกลางวัน (อื่นๆ)",
-                                    "Specify lunch (Other)"
-                                  )}
-                                </label>
-                                <input
-                                  type="text"
-                                  name="lunchMenuOther"
-                                  value={form.lunchMenuOther}
-                                  onChange={handleChange}
-                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                                  placeholder={t(
-                                    "เช่น ข้าวมันไก่",
-                                    "e.g., chicken rice"
-                                  )}
-                                />
-                              </div>
-                            )}
                             <div className="flex flex-col gap-1">
                               <label className="text-sm font-medium">
                                 {t("ของหวาน (กลางวัน)", "Dessert (Lunch)")}
@@ -1936,27 +1808,6 @@ export default function Home() {
                                 ))}
                               </select>
                             </div>
-                            {form.lunchDessert === "อื่นๆ" && (
-                              <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium">
-                                  {t(
-                                    "ระบุของหวาน (กลางวัน) (อื่นๆ)",
-                                    "Specify dessert (Lunch) (Other)"
-                                  )}
-                                </label>
-                                <input
-                                  type="text"
-                                  name="lunchDessertOther"
-                                  value={form.lunchDessertOther}
-                                  onChange={handleChange}
-                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                                  placeholder={t(
-                                    "เช่น เค้กช็อกโกแลต",
-                                    "e.g., chocolate cake"
-                                  )}
-                                />
-                              </div>
-                            )}
                           </div>
                         )}
 
@@ -1982,27 +1833,6 @@ export default function Home() {
                                 ))}
                               </select>
                             </div>
-                            {form.dinnerMenu === "อื่นๆ" && (
-                              <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium">
-                                  {t(
-                                    "ระบุอาหารเย็น (อื่นๆ)",
-                                    "Specify dinner (Other)"
-                                  )}
-                                </label>
-                                <input
-                                  type="text"
-                                  name="dinnerMenuOther"
-                                  value={form.dinnerMenuOther}
-                                  onChange={handleChange}
-                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                                  placeholder={t(
-                                    "เช่น ข้าวผัดทะเล",
-                                    "e.g., seafood fried rice"
-                                  )}
-                                />
-                              </div>
-                            )}
                             <div className="flex flex-col gap-1">
                               <label className="text-sm font-medium">
                                 {t("ของหวาน (เย็น)", "Dessert (Dinner)")}
@@ -2021,24 +1851,6 @@ export default function Home() {
                                 ))}
                               </select>
                             </div>
-                            {form.dinnerDessert === "อื่นๆ" && (
-                              <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium">
-                                  {t(
-                                    "ระบุของหวาน (เย็น) (อื่นๆ)",
-                                    "Specify dessert (Dinner) (Other)"
-                                  )}
-                                </label>
-                                <input
-                                  type="text"
-                                  name="dinnerDessertOther"
-                                  value={form.dinnerDessertOther}
-                                  onChange={handleChange}
-                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                                  placeholder={t("เช่น เครปเค้ก", "e.g., crepe cake")}
-                                />
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>

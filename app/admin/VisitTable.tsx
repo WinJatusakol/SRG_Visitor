@@ -56,6 +56,7 @@ export type Visit = {
 
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+    const timeZone = "UTC";
 
     const sortedVisits = useMemo(() => {
         if (!visits) return [];
@@ -188,21 +189,25 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         <tbody className="divide-y divide-gray-50/50">
                             {sortedVisits.map((visit, index) => {
                                 const visitDate = new Date(visit.visitDateTime || visit.created_at || 0);
+                                const monthShort = new Intl.DateTimeFormat("en-US", { month: "short", timeZone }).format(visitDate);
+                                const dayNum = new Intl.DateTimeFormat("en-US", { day: "2-digit", timeZone }).format(visitDate);
+                                const timeText = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone }).format(visitDate);
+                                const weekdayText = new Intl.DateTimeFormat("th-TH", { weekday: "long", timeZone }).format(visitDate);
                                 return (
                                     <tr key={visit.id} onClick={() => setSelectedVisit(visit)} className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10">
                                         <td className="px-6 py-5 align-top">
                                             <div className="flex items-start gap-3">
                                                 <div className="shrink-0 w-12 h-12 bg-blue-50/80 text-blue-600 rounded-xl flex flex-col items-center justify-center shadow-sm border border-blue-100/50 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                                    <span className="text-xs font-bold uppercase leading-none">{visitDate.toLocaleDateString("en-US", { month: "short" })}</span>
-                                                    <span className="text-lg font-extrabold leading-none mt-0.5">{visitDate.getDate()}</span>
+                                                    <span className="text-xs font-bold uppercase leading-none">{monthShort}</span>
+                                                    <span className="text-lg font-extrabold leading-none mt-0.5">{dayNum}</span>
                                                 </div>
                                                 <div className="flex flex-col pt-1">
                                                     <span className="gap-x-1 flex text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors w-fit">
                                                         <CalendarClock className="w-4 h-4 text-blue-500" />
-                                                        {visitDate.toLocaleTimeString("th-TH", { hour: '2-digit', minute: '2-digit' })} น.
+                                                        {timeText} น.
                                                     </span>
                                                     <div className="flex items-center text-xs font-medium text-gray-500 gap-1.5 mt-1 bg-gray-100/70 px-2 py-0.5 rounded-md w-fit">
-                                                        {visitDate.toLocaleDateString("th-TH", { weekday: 'long' })}
+                                                        {weekdayText}
                                                     </div>
                                                 </div>
                                             </div>
@@ -251,7 +256,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         <p className="text-sm text-blue-600 font-semibold flex items-center gap-1.5 mt-1.5">
                                             <CalendarClock className="w-4 h-4" />
                                             {selectedVisit.visitDateTime || selectedVisit.created_at
-                                                ? new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0).toLocaleString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' น.'
+                                                ? new Intl.DateTimeFormat("th-TH", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone }).format(new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0)) + " น."
                                                 : 'ไม่ระบุเวลาเข้าพบ'}
                                         </p>
                                     </div>
