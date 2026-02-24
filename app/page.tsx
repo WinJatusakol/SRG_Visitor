@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type TransportType = "personal" | "public";
 type YesNo = "yes" | "no";
@@ -82,43 +83,83 @@ type DialogState = {
   message: string;
 };
 
+type RefOptionRow = {
+  value: string;
+  label_th: string | null;
+  label_en: string | null;
+  sort_index?: number | null;
+  active?: boolean | null;
+};
+
+type MeetingRoomRow = {
+  code: string;
+  name_th: string | null;
+  name_en: string | null;
+  location_th: string | null;
+  location_en: string | null;
+  capacity: number | null;
+  sort_index?: number | null;
+  active?: boolean | null;
+};
+
 const timeSlots: string[] = [];
 for (let hour = 6; hour <= 21; hour += 1) {
   timeSlots.push(`${hour.toString().padStart(2, "0")}:00`);
   timeSlots.push(`${hour.toString().padStart(2, "0")}:30`);
 }
 
-const hostOptions = ["Name1", "Name2", "อื่นๆ"];
-const executiveHostOptions = ["Name01", "Name02", "Name03", "อื่นๆ"];
+const fallbackHostOptions: RefOptionRow[] = [
+  { value: "Name1", label_th: "Name1", label_en: "Name1", sort_index: 1, active: true },
+  { value: "Name2", label_th: "Name2", label_en: "Name2", sort_index: 2, active: true },
+];
 
-const meetingRoomOptions = [
+const fallbackExecutiveHostOptions: RefOptionRow[] = [
+  { value: "Name01", label_th: "Name01", label_en: "Name01", sort_index: 1, active: true },
+  { value: "Name02", label_th: "Name02", label_en: "Name02", sort_index: 2, active: true },
+  { value: "Name03", label_th: "Name03", label_en: "Name03", sort_index: 3, active: true },
+];
+
+const fallbackMeetingRoomOptions: MeetingRoomRow[] = [
   {
     code: "001",
-    name: "ห้องประชุมใหญ่",
-    location: "อาคาร 1 ชั้น 3",
+    name_th: "ห้องประชุมใหญ่",
+    name_en: "Main meeting room",
+    location_th: "อาคาร 1 ชั้น 3",
+    location_en: "Building 1, Floor 3",
     capacity: 10,
   },
   {
     code: "002",
-    name: "ห้องประชุมเล็ก",
-    location: "อาคาร 1 ชั้น 2",
+    name_th: "ห้องประชุมเล็ก",
+    name_en: "Small meeting room",
+    location_th: "อาคาร 1 ชั้น 2",
+    location_en: "Building 1, Floor 2",
     capacity: 6,
   },
   {
     code: "003",
-    name: "ห้องประชุม A",
-    location: "อาคาร 2 ชั้น 4",
+    name_th: "ห้องประชุม A",
+    name_en: "Meeting room A",
+    location_th: "อาคาร 2 ชั้น 4",
+    location_en: "Building 2, Floor 4",
     capacity: 12,
   },
   {
     code: "004",
-    name: "ห้องประชุม B",
-    location: "อาคาร 2 ชั้น 4",
+    name_th: "ห้องประชุม B",
+    name_en: "Meeting room B",
+    location_th: "อาคาร 2 ชั้น 4",
+    location_en: "Building 2, Floor 4",
     capacity: 8,
   },
 ];
 
-const siteVisitAreaOptions = ["โรงงาน", "QC", "Warehouse", "Lab"];
+const fallbackSiteVisitAreaOptions: RefOptionRow[] = [
+  { value: "โรงงาน", label_th: "โรงงาน", label_en: "Factory", sort_index: 1, active: true },
+  { value: "QC", label_th: "QC", label_en: "QC", sort_index: 2, active: true },
+  { value: "Warehouse", label_th: "คลังสินค้า", label_en: "Warehouse", sort_index: 3, active: true },
+  { value: "Lab", label_th: "ห้องแล็บ", label_en: "Lab", sort_index: 4, active: true },
+];
 
 const breakfastMenuOptions = [
   "ขนมปังปิ้ง + เนย/แยม",
@@ -147,7 +188,11 @@ const dinnerDessertOptions = ["ไอศกรีมวานิลลา", "เ
 
 const allergyOptions = ["ทะเล", "ถั่ว", "นม", "ไข่", "กลูเตน", "งา", "อื่นๆ"];
 
-const souvenirGiftSetOptions = ["Giftset 01", "Giftset 02", "Giftset 03"];
+const fallbackSouvenirGiftSetOptions: RefOptionRow[] = [
+  { value: "Giftset 01", label_th: "Giftset 01", label_en: "Giftset 01", sort_index: 1, active: true },
+  { value: "Giftset 02", label_th: "Giftset 02", label_en: "Giftset 02", sort_index: 2, active: true },
+  { value: "Giftset 03", label_th: "Giftset 03", label_en: "Giftset 03", sort_index: 3, active: true },
+];
 
 const createEmptyGuest = (): Guest => ({
   firstName: "",
@@ -229,13 +274,37 @@ export default function Home() {
     new Date().toISOString().split("T")[0]
   );
 
+  const [hostOptions, setHostOptions] =
+    useState<RefOptionRow[]>(fallbackHostOptions);
+  const [executiveHostOptions, setExecutiveHostOptions] = useState<
+    RefOptionRow[]
+  >(fallbackExecutiveHostOptions);
+  const [meetingRoomOptions, setMeetingRoomOptions] = useState<MeetingRoomRow[]>(
+    fallbackMeetingRoomOptions
+  );
+  const [siteVisitAreaOptions, setSiteVisitAreaOptions] = useState<
+    RefOptionRow[]
+  >(fallbackSiteVisitAreaOptions);
+  const [souvenirGiftSetOptions, setSouvenirGiftSetOptions] = useState<
+    RefOptionRow[]
+  >(fallbackSouvenirGiftSetOptions);
+
   const t = (th: string, en: string) => (lang === "th" ? th : en);
-  const siteVisitAreaLabel = (value: string) => {
-    if (value === "โรงงาน") return t("โรงงาน", "Factory");
-    if (value === "QC") return "QC";
-    if (value === "Warehouse") return t("คลังสินค้า", "Warehouse");
-    if (value === "Lab") return t("ห้องแล็บ", "Lab");
-    return value;
+  const optionLabel = (option: RefOptionRow) =>
+    lang === "th"
+      ? (option.label_th ?? option.value)
+      : (option.label_en ?? option.value);
+  const meetingRoomLabel = (room: MeetingRoomRow, targetLang: Lang) => {
+    const capacity = Number(room.capacity ?? 0);
+    const name = targetLang === "th" ? room.name_th : room.name_en;
+    const location = targetLang === "th" ? room.location_th : room.location_en;
+    const displayName = (name ?? room.name_th ?? room.code ?? "").trim();
+    const displayLocation = (location ?? room.location_th ?? "").trim();
+    const parts = [room.code, displayName, displayLocation].filter(Boolean);
+    const base = parts.join(" ").trim();
+    return targetLang === "th"
+      ? `${base} (ความจุ ${capacity} คน)`
+      : `${base} (Capacity ${capacity})`;
   };
   const mealLabel = (value: string) => {
     if (value === "เช้า") return t("เช้า", "Breakfast");
@@ -243,6 +312,72 @@ export default function Home() {
     if (value === "เย็น") return t("เย็น", "Dinner");
     return value;
   };
+
+  useEffect(() => {
+    const supabase = createClient();
+    const load = async () => {
+      const [hosts, executives, rooms, areas, giftSets] = await Promise.all([
+        supabase
+          .from("ref_hosts")
+          .select("value,label_th,label_en,sort_index,active")
+          .eq("active", true)
+          .order("sort_index", { ascending: true })
+          .order("value", { ascending: true }),
+        supabase
+          .from("ref_executive_hosts")
+          .select("value,label_th,label_en,sort_index,active")
+          .eq("active", true)
+          .order("sort_index", { ascending: true })
+          .order("value", { ascending: true }),
+        supabase
+          .from("ref_meeting_rooms")
+          .select(
+            "code,name_th,name_en,location_th,location_en,capacity,sort_index,active"
+          )
+          .eq("active", true)
+          .order("sort_index", { ascending: true })
+          .order("code", { ascending: true }),
+        supabase
+          .from("ref_site_visit_areas")
+          .select("value,label_th,label_en,sort_index,active")
+          .eq("active", true)
+          .order("sort_index", { ascending: true })
+          .order("value", { ascending: true }),
+        supabase
+          .from("ref_souvenir_gift_sets")
+          .select("value,label_th,label_en,sort_index,active")
+          .eq("active", true)
+          .order("sort_index", { ascending: true })
+          .order("value", { ascending: true }),
+      ]);
+
+      if (!hosts.error && Array.isArray(hosts.data) && hosts.data.length > 0) {
+        setHostOptions(hosts.data as RefOptionRow[]);
+      }
+      if (
+        !executives.error &&
+        Array.isArray(executives.data) &&
+        executives.data.length > 0
+      ) {
+        setExecutiveHostOptions(executives.data as RefOptionRow[]);
+      }
+      if (!rooms.error && Array.isArray(rooms.data) && rooms.data.length > 0) {
+        setMeetingRoomOptions(rooms.data as MeetingRoomRow[]);
+      }
+      if (!areas.error && Array.isArray(areas.data) && areas.data.length > 0) {
+        setSiteVisitAreaOptions(areas.data as RefOptionRow[]);
+      }
+      if (
+        !giftSets.error &&
+        Array.isArray(giftSets.data) &&
+        giftSets.data.length > 0
+      ) {
+        setSouvenirGiftSetOptions(giftSets.data as RefOptionRow[]);
+      }
+    };
+
+    void load();
+  }, []);
 
   const handleChange = (
     event: ChangeEvent<
@@ -1551,12 +1686,10 @@ export default function Home() {
                         {t("เลือกห้องประชุม", "Select meeting room")}
                       </option>
                       {meetingRoomOptions.map((room) => {
-                        const label =
-                          lang === "th"
-                            ? `${room.code} ${room.name} ${room.location} (ความจุ ${room.capacity} คน)`
-                            : `${room.code} ${room.name} ${room.location} (Capacity ${room.capacity})`;
+                        const value = meetingRoomLabel(room, "th");
+                        const label = meetingRoomLabel(room, lang);
                         return (
-                          <option key={room.code} value={label}>
+                          <option key={room.code} value={value}>
                             {label}
                           </option>
                         );
@@ -1593,15 +1726,15 @@ export default function Home() {
                   </div>
                   <div className="mt-3 flex flex-wrap gap-4 text-sm">
                     {siteVisitAreaOptions.map((item) => (
-                      <label key={item} className="flex items-center gap-2">
+                      <label key={item.value} className="flex items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={form.siteVisitAreas.includes(item)}
+                          checked={form.siteVisitAreas.includes(item.value)}
                           onChange={(e) =>
-                            handleSiteVisitAreaChange(item, e.target.checked)
+                            handleSiteVisitAreaChange(item.value, e.target.checked)
                           }
                         />
-                        <span>{siteVisitAreaLabel(item)}</span>
+                        <span>{optionLabel(item)}</span>
                       </label>
                     ))}
                   </div>
@@ -2171,8 +2304,8 @@ export default function Home() {
                     >
                       <option value="">{t("เลือกประเภท", "Select type")}</option>
                       {souvenirGiftSetOptions.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
+                        <option key={item.value} value={item.value}>
+                          {optionLabel(item)}
                         </option>
                       ))}
                     </select>
@@ -2289,11 +2422,12 @@ export default function Home() {
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                 >
                   <option value="">{t("เลือกผู้ที่จะเข้าพบ", "Select host")}</option>
-                  {hostOptions.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
+                  {hostOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {optionLabel(option)}
                     </option>
                   ))}
+                  <option value="อื่นๆ">{t("อื่นๆ", "Other")}</option>
                 </select>
               </div>
 
@@ -2327,11 +2461,12 @@ export default function Home() {
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                 >
                   <option value="">{t("เลือกผู้บริหาร", "Select executive")}</option>
-                  {executiveHostOptions.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
+                  {executiveHostOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {optionLabel(option)}
                     </option>
                   ))}
+                  <option value="อื่นๆ">{t("อื่นๆ", "Other")}</option>
                 </select>
               </div>
 
