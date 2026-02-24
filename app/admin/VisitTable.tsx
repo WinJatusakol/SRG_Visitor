@@ -412,245 +412,116 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             </div>
 
                             {/* Section 4: การรับรองและจัดเลี้ยงอาหาร */}
-
                             {selectedVisit.foodPreferences && (() => {
-
                                 const foodData = selectedVisit.foodPreferences?.foodPreferences || selectedVisit.foodPreferences;
-
-
-
                                 // เช็คว่ามีข้อมูลมื้อไหนบ้างเพื่อซ่อน/แสดง
-
                                 const hasBreakfast = foodData?.meals?.includes('เช้า') || (foodData?.menus?.breakfast && foodData.menus.breakfast.trim() !== "");
-
                                 const hasLunch = foodData?.meals?.includes('กลางวัน') || (foodData?.menus?.lunch?.main && foodData.menus.lunch.main.trim() !== "");
-
                                 const hasDinner = foodData?.meals?.includes('เย็น') || (foodData?.menus?.dinner?.main && foodData.menus.dinner.main.trim() !== "");
 
-
-
                                 // เช็คว่ามีข้อมูลแพ้อาหารหรืออาหารพิเศษไหม
-
                                 const sdText = specialDietText(foodData);
-
                                 const hasSpecialDiet = sdText !== "-";
-
                                 const alText = allergyText(foodData);
-
                                 const hasAllergies = alText !== "-";
 
-
-
                                 return (
-
                                     <div className="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
-
                                         <div className="bg-orange-50/50 px-5 sm:px-6 py-4 border-b border-orange-100 flex items-center gap-2">
-
                                             <Utensils className="w-5 h-5 text-orange-600" />
-
                                             <h3 className="text-base font-bold text-orange-900">การรับรองและจัดเลี้ยงอาหาร</h3>
-
                                         </div>
-
-
-
                                         <div className="p-5 sm:p-6 flex flex-col gap-5 bg-gray-50/30">
-
-
-
                                             {/* แถวบน: รายการมื้ออาหารหลัก (เต็มความกว้าง) - แสดงเฉพาะมื้อที่มี */}
-
                                             {(hasBreakfast || hasLunch || hasDinner) ? (
-
                                                 <div className="w-full">
-
                                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-
                                                         <span className="flex items-center gap-1.5 text-sm font-bold text-gray-600 uppercase">
-
                                                             <Info className="w-4 h-4 text-gray-400" /> รายการมื้ออาหารที่รับ
-
                                                         </span>
-
                                                     </div>
-
-
-
                                                     <div className="flex flex-col md:flex-row gap-4">
-
                                                         {hasBreakfast && (
-
                                                             <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-orange-200 transition-all">
-
                                                                 <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
-
                                                                     <div className="flex items-center gap-2 text-orange-600 font-bold"><Coffee className="w-4 h-4" /> มื้อเช้า</div>
-
                                                                 </div>
-
                                                                 <p className="text-sm text-gray-700 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-
                                                                     <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-
                                                                     <span className="font-semibold text-gray-900">{foodData?.menus?.breakfast || "จัดเตรียมมื้อเช้าตามความเหมาะสม"}</span>
-
                                                                 </p>
-
                                                             </div>
-
                                                         )}
-
-
-
                                                         {hasLunch && (
-
                                                             <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-orange-200 transition-all">
-
                                                                 <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
-
                                                                     <div className="flex items-center gap-2 text-orange-600 font-bold"><Sun className="w-4 h-4" /> มื้อกลางวัน</div>
-
                                                                 </div>
-
                                                                 <div className="space-y-3 text-sm text-gray-700">
-
                                                                     <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-
                                                                         <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-
                                                                         <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.main || "-"}</span>
-
                                                                     </div>
-
                                                                     <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-
                                                                         <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-
                                                                         <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.dessert || "-"}</span>
-
                                                                     </div>
-
                                                                 </div>
-
                                                             </div>
-
                                                         )}
-
-
-
                                                         {hasDinner && (
-
                                                             <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-orange-200 transition-all">
-
                                                                 <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
-
                                                                     <div className="flex items-center gap-2 text-orange-600 font-bold"><Moon className="w-4 h-4" /> มื้อเย็น</div>
-
                                                                 </div>
-
                                                                 <div className="space-y-3 text-sm text-gray-700">
-
                                                                     <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-
                                                                         <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-
                                                                         <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.main || "-"}</span>
-
                                                                     </div>
-
                                                                     <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-
                                                                         <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-
                                                                         <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.dessert || "-"}</span>
-
                                                                     </div>
-
                                                                 </div>
-
                                                             </div>
-
                                                         )}
-
                                                     </div>
-
                                                 </div>
-
                                             ) : (
-
                                                 <div className="text-sm text-gray-400 font-medium italic py-4 text-center border-2 border-dashed border-gray-100 rounded-xl bg-white">
-
                                                     ไม่ได้ระบุมื้ออาหารหลัก
-
                                                 </div>
-
                                             )}
-
-
-
                                             {/* แถวล่าง: อาหารพิเศษ และ แพ้อาหาร (ซ่อนถ้าไม่มีข้อมูลทั้งคู่) */}
-
                                             {(hasSpecialDiet || hasAllergies) && (
-
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-
                                                     {/* อาหารพิเศษ (ซ่อนถ้าไม่มี) */}
-
                                                     {hasSpecialDiet && (
-
                                                         <div className="p-4 bg-green-50/50 rounded-xl border border-green-200 shadow-sm">
-
                                                             <span className="block text-xs font-extrabold text-green-700 uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
-
                                                             <div className="text-sm text-gray-800 font-semibold whitespace-pre-line leading-relaxed">
-
                                                                 {sdText}
-
                                                             </div>
-
                                                         </div>
-
                                                     )}
-
-
-
                                                     {/* แพ้อาหาร (ซ่อนถ้าไม่มี) */}
-
                                                     {hasAllergies && (
-
                                                         <div className="p-4 bg-red-50/50 rounded-xl border border-red-200 shadow-sm">
-
                                                             <span className="flex items-center gap-1.5 text-xs font-extrabold text-red-700 uppercase mb-3">
-
                                                                 <AlertCircle className="w-4 h-4" /> ข้อมูลการแพ้อาหาร
-
                                                             </span>
-
                                                             <div className="text-sm text-red-900 font-semibold whitespace-pre-line leading-relaxed">
-
                                                                 {alText}
-
                                                             </div>
-
                                                         </div>
-
                                                     )}
-
                                                 </div>
-
                                             )}
-
-
-
                                         </div>
-
                                     </div>
-
                                 );
-
                             })()}
-
                         </div>
                     </div>
                 </div>
