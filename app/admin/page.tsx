@@ -15,7 +15,8 @@ const { data: visits, error } = await supabase
       guests:vip_visitor_guests(*),
       cars:vip_visitor_cars(*),
       foodPreferences:vip_visitor_food(foodPreferences),
-      souvenirPreferences:vip_visitor_souvenir(souvenirPreferences)
+      souvenirPreferences:vip_visitor_souvenir(souvenirPreferences),
+      presentationFiles:vip_visitor_presentation_file(presentationFile)
     `)
     .order("id", { ascending: false });
 
