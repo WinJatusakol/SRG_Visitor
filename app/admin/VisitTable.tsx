@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
     CalendarClock,
     Building2,
@@ -29,6 +30,7 @@ export type Visit = {
     id: string | number;
     visitDateTime?: string | null;
     created_at?: string | null;
+    status?: number | null;
     clientCompany?: string | null;
     vipCompany?: string | null;
     vipPosition?: string | null;
@@ -56,6 +58,9 @@ export type Visit = {
 
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+    const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+    const router = useRouter();
     const timeZone = "UTC";
 
     const sortedVisits = useMemo(() => {
@@ -66,6 +71,38 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             return dateA - dateB;
         });
     }, [visits]);
+
+    const cancelBooking = async () => {
+        if (!selectedVisit) return;
+        if (selectedVisit.status !== 1 && selectedVisit.status != null) return;
+        setCancelConfirmOpen(false);
+
+        setUpdatingStatus(true);
+        try {
+            const response = await fetch("/api/admin/visitor-status", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: selectedVisit.id, status: 0 }),
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result?.success === false) {
+                throw new Error(result?.error ?? `Request failed: ${response.status}`);
+            }
+            setSelectedVisit(null);
+            router.refresh();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unknown error";
+            window.alert(message);
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
+    const openCancelConfirm = () => {
+        if (!selectedVisit) return;
+        if (selectedVisit.status !== 1 && selectedVisit.status != null) return;
+        setCancelConfirmOpen(true);
+    };
 
     // Helpers สำหรับเช็คข้อมูลว่ามีอยู่จริงหรือไม่
     const specialDietText = (value: any) => {
@@ -527,6 +564,55 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     </div>
                                 );
                             })()}
+                        </div>
+
+                        <div className="shrink-0 border-t border-gray-200/60 bg-white px-6 py-4 sm:rounded-b-3xl">
+                            <div className="flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={openCancelConfirm}
+                                    disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                                >
+                                    ยกเลิกการจอง
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedVisit && cancelConfirmOpen && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onMouseDown={(e) => {
+                        if (e.currentTarget === e.target && !updatingStatus) setCancelConfirmOpen(false);
+                    }}
+                >
+                    <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200">
+                        <div className="px-6 py-5">
+                            <div className="text-lg font-bold text-gray-900">Cancel booking?</div>
+                            <div className="mt-2 text-sm text-gray-600">
+                                ระบบจะเปลี่ยนสถานะเป็น “ยกเลิกแล้ว” และรายการจะหายจากหน้า Dashboard
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-6 py-4">
+                            <button
+                                type="button"
+                                onClick={() => setCancelConfirmOpen(false)}
+                                disabled={updatingStatus}
+                                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={cancelBooking}
+                                disabled={updatingStatus}
+                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                            >
+                                {updatingStatus ? "Cancelling..." : "Confirm"}
+                            </button>
                         </div>
                     </div>
                 </div>
