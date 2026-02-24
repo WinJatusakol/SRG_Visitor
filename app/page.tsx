@@ -65,12 +65,7 @@ type VisitFormState = {
   submittedByName: string;
   submittedByPosition: string;
   hostName: string;
-  hostNameOther: string;
   executiveHostChoice: string;
-  executiveHostFirstName: string;
-  executiveHostMiddleName: string;
-  executiveHostLastName: string;
-  executiveHostPosition: string;
 };
 
 type DialogType = "success" | "error";
@@ -102,97 +97,16 @@ type MeetingRoomRow = {
   active?: boolean | null;
 };
 
+type FoodMenuOptionRow = RefOptionRow & {
+  group_key: string;
+};
+
 const timeSlots: string[] = [];
 for (let hour = 6; hour <= 21; hour += 1) {
   timeSlots.push(`${hour.toString().padStart(2, "0")}:00`);
   timeSlots.push(`${hour.toString().padStart(2, "0")}:30`);
 }
 
-const fallbackHostOptions: RefOptionRow[] = [
-  { value: "Name1", label_th: "Name1", label_en: "Name1", sort_index: 1, active: true },
-  { value: "Name2", label_th: "Name2", label_en: "Name2", sort_index: 2, active: true },
-];
-
-const fallbackExecutiveHostOptions: RefOptionRow[] = [
-  { value: "Name01", label_th: "Name01", label_en: "Name01", sort_index: 1, active: true },
-  { value: "Name02", label_th: "Name02", label_en: "Name02", sort_index: 2, active: true },
-  { value: "Name03", label_th: "Name03", label_en: "Name03", sort_index: 3, active: true },
-];
-
-const fallbackMeetingRoomOptions: MeetingRoomRow[] = [
-  {
-    code: "001",
-    name_th: "ห้องประชุมใหญ่",
-    name_en: "Main meeting room",
-    location_th: "อาคาร 1 ชั้น 3",
-    location_en: "Building 1, Floor 3",
-    capacity: 10,
-  },
-  {
-    code: "002",
-    name_th: "ห้องประชุมเล็ก",
-    name_en: "Small meeting room",
-    location_th: "อาคาร 1 ชั้น 2",
-    location_en: "Building 1, Floor 2",
-    capacity: 6,
-  },
-  {
-    code: "003",
-    name_th: "ห้องประชุม A",
-    name_en: "Meeting room A",
-    location_th: "อาคาร 2 ชั้น 4",
-    location_en: "Building 2, Floor 4",
-    capacity: 12,
-  },
-  {
-    code: "004",
-    name_th: "ห้องประชุม B",
-    name_en: "Meeting room B",
-    location_th: "อาคาร 2 ชั้น 4",
-    location_en: "Building 2, Floor 4",
-    capacity: 8,
-  },
-];
-
-const fallbackSiteVisitAreaOptions: RefOptionRow[] = [
-  { value: "โรงงาน", label_th: "โรงงาน", label_en: "Factory", sort_index: 1, active: true },
-  { value: "QC", label_th: "QC", label_en: "QC", sort_index: 2, active: true },
-  { value: "Warehouse", label_th: "คลังสินค้า", label_en: "Warehouse", sort_index: 3, active: true },
-  { value: "Lab", label_th: "ห้องแล็บ", label_en: "Lab", sort_index: 4, active: true },
-];
-
-const breakfastMenuOptions = [
-  "ขนมปังปิ้ง + เนย/แยม",
-  "โจ๊กหมู + ไข่ลวก",
-  "ข้าวต้มไก่ + เครื่องเคียง",
-  "อื่นๆ",
-];
-
-const lunchMenuOptions = [
-  "ข้าวกะเพราไก่ + ไข่ดาว",
-  "ข้าวผัดอเมริกัน",
-  "ผัดไทยกุ้งสด",
-  "อื่นๆ",
-];
-
-const lunchDessertOptions = ["ผลไม้รวม", "พุดดิ้งนมสด", "บราวนี่ช็อกโกแลต", "อื่นๆ"];
-
-const dinnerMenuOptions = [
-  "ข้าวหน้าไก่เทอริยากิ",
-  "สเต๊กปลาแซลมอน + สลัด",
-  "สปาเก็ตตี้ซอสเห็ดครีม",
-  "อื่นๆ",
-];
-
-const dinnerDessertOptions = ["ไอศกรีมวานิลลา", "เค้กมะพร้าวอ่อน", "บัวลอยน้ำขิง", "อื่นๆ"];
-
-const allergyOptions = ["ทะเล", "ถั่ว", "นม", "ไข่", "กลูเตน", "งา", "อื่นๆ"];
-
-const fallbackSouvenirGiftSetOptions: RefOptionRow[] = [
-  { value: "Giftset 01", label_th: "Giftset 01", label_en: "Giftset 01", sort_index: 1, active: true },
-  { value: "Giftset 02", label_th: "Giftset 02", label_en: "Giftset 02", sort_index: 2, active: true },
-  { value: "Giftset 03", label_th: "Giftset 03", label_en: "Giftset 03", sort_index: 3, active: true },
-];
 
 const createEmptyGuest = (): Guest => ({
   firstName: "",
@@ -252,12 +166,7 @@ const initialState: VisitFormState = {
   submittedByName: "",
   submittedByPosition: "",
   hostName: "",
-  hostNameOther: "",
   executiveHostChoice: "",
-  executiveHostFirstName: "",
-  executiveHostMiddleName: "",
-  executiveHostLastName: "",
-  executiveHostPosition: "",
 };
 
 export default function Home() {
@@ -270,24 +179,19 @@ export default function Home() {
     type: "error",
     message: "",
   });
-  const [minVisitDate] = useState<string>(() =>
-    new Date().toISOString().split("T")[0]
-  );
+  const minVisitDate = new Date().toISOString().split("T")[0];
 
-  const [hostOptions, setHostOptions] =
-    useState<RefOptionRow[]>(fallbackHostOptions);
-  const [executiveHostOptions, setExecutiveHostOptions] = useState<
-    RefOptionRow[]
-  >(fallbackExecutiveHostOptions);
-  const [meetingRoomOptions, setMeetingRoomOptions] = useState<MeetingRoomRow[]>(
-    fallbackMeetingRoomOptions
-  );
-  const [siteVisitAreaOptions, setSiteVisitAreaOptions] = useState<
-    RefOptionRow[]
-  >(fallbackSiteVisitAreaOptions);
-  const [souvenirGiftSetOptions, setSouvenirGiftSetOptions] = useState<
-    RefOptionRow[]
-  >(fallbackSouvenirGiftSetOptions);
+  const [hostOptions, setHostOptions] = useState<RefOptionRow[]>([]);
+  const [executiveHostOptions, setExecutiveHostOptions] = useState<RefOptionRow[]>([]);
+  const [meetingRoomOptions, setMeetingRoomOptions] = useState<MeetingRoomRow[]>([]);
+  const [siteVisitAreaOptions, setSiteVisitAreaOptions] = useState<RefOptionRow[]>([]);
+  const [souvenirGiftSetOptions, setSouvenirGiftSetOptions] = useState<RefOptionRow[]>([]);
+  const [breakfastMenuOptions, setBreakfastMenuOptions] = useState<RefOptionRow[]>([]);
+  const [lunchMenuOptions, setLunchMenuOptions] = useState<RefOptionRow[]>([]);
+  const [lunchDessertOptions, setLunchDessertOptions] = useState<RefOptionRow[]>([]);
+  const [dinnerMenuOptions, setDinnerMenuOptions] = useState<RefOptionRow[]>([]);
+  const [dinnerDessertOptions, setDinnerDessertOptions] = useState<RefOptionRow[]>([]);
+  const [allergyOptions, setAllergyOptions] = useState<RefOptionRow[]>([]);
 
   const t = (th: string, en: string) => (lang === "th" ? th : en);
   const optionLabel = (option: RefOptionRow) =>
@@ -316,64 +220,110 @@ export default function Home() {
   useEffect(() => {
     const supabase = createClient();
     const load = async () => {
-      const [hosts, executives, rooms, areas, giftSets] = await Promise.all([
-        supabase
-          .from("ref_hosts")
-          .select("value,label_th,label_en,sort_index,active")
-          .eq("active", true)
-          .order("sort_index", { ascending: true })
-          .order("value", { ascending: true }),
-        supabase
-          .from("ref_executive_hosts")
-          .select("value,label_th,label_en,sort_index,active")
-          .eq("active", true)
-          .order("sort_index", { ascending: true })
-          .order("value", { ascending: true }),
-        supabase
-          .from("ref_meeting_rooms")
-          .select(
-            "code,name_th,name_en,location_th,location_en,capacity,sort_index,active"
-          )
-          .eq("active", true)
-          .order("sort_index", { ascending: true })
-          .order("code", { ascending: true }),
-        supabase
-          .from("ref_site_visit_areas")
-          .select("value,label_th,label_en,sort_index,active")
-          .eq("active", true)
-          .order("sort_index", { ascending: true })
-          .order("value", { ascending: true }),
-        supabase
-          .from("ref_souvenir_gift_sets")
-          .select("value,label_th,label_en,sort_index,active")
-          .eq("active", true)
-          .order("sort_index", { ascending: true })
-          .order("value", { ascending: true }),
-      ]);
+      const [hosts, executives, rooms, areas, giftSets, foodMenus, allergies] =
+        await Promise.all([
+          supabase
+            .from("hosts")
+            .select("value,label_th,label_en,sort_index,active")
+            .eq("active", true)
+            .order("sort_index", { ascending: true })
+            .order("value", { ascending: true }),
+          supabase
+            .from("executive_hosts")
+            .select("value,label_th,label_en,sort_index,active")
+            .eq("active", true)
+            .order("sort_index", { ascending: true })
+            .order("value", { ascending: true }),
+          supabase
+            .from("meeting_rooms")
+            .select(
+              "code,name_th,name_en,location_th,location_en,capacity,sort_index,active"
+            )
+            .eq("active", true)
+            .order("sort_index", { ascending: true })
+            .order("code", { ascending: true }),
+          supabase
+            .from("site_visit_areas")
+            .select("value,label_th,label_en,sort_index,active")
+            .eq("active", true)
+            .order("sort_index", { ascending: true })
+            .order("value", { ascending: true }),
+          supabase
+            .from("souvenir_gift_sets")
+            .select("value,label_th,label_en,sort_index,active")
+            .eq("active", true)
+            .order("sort_index", { ascending: true })
+            .order("value", { ascending: true }),
+          supabase
+            .from("food_menu_options")
+            .select("group_key,value,label_th,label_en,sort_index,active")
+            .eq("active", true)
+            .order("group_key", { ascending: true })
+            .order("sort_index", { ascending: true })
+            .order("value", { ascending: true }),
+          supabase
+            .from("allergy_options")
+            .select("value,label_th,label_en,sort_index,active")
+            .eq("active", true)
+            .order("sort_index", { ascending: true })
+            .order("value", { ascending: true }),
+        ]);
 
-      if (!hosts.error && Array.isArray(hosts.data) && hosts.data.length > 0) {
-        setHostOptions(hosts.data as RefOptionRow[]);
-      }
-      if (
-        !executives.error &&
-        Array.isArray(executives.data) &&
-        executives.data.length > 0
-      ) {
-        setExecutiveHostOptions(executives.data as RefOptionRow[]);
-      }
-      if (!rooms.error && Array.isArray(rooms.data) && rooms.data.length > 0) {
-        setMeetingRoomOptions(rooms.data as MeetingRoomRow[]);
-      }
-      if (!areas.error && Array.isArray(areas.data) && areas.data.length > 0) {
-        setSiteVisitAreaOptions(areas.data as RefOptionRow[]);
-      }
-      if (
-        !giftSets.error &&
-        Array.isArray(giftSets.data) &&
-        giftSets.data.length > 0
-      ) {
-        setSouvenirGiftSetOptions(giftSets.data as RefOptionRow[]);
-      }
+      setHostOptions(
+        !hosts.error && Array.isArray(hosts.data) ? (hosts.data as RefOptionRow[]) : []
+      );
+      setExecutiveHostOptions(
+        !executives.error && Array.isArray(executives.data)
+          ? (executives.data as RefOptionRow[])
+          : []
+      );
+      setMeetingRoomOptions(
+        !rooms.error && Array.isArray(rooms.data) ? (rooms.data as MeetingRoomRow[]) : []
+      );
+      setSiteVisitAreaOptions(
+        !areas.error && Array.isArray(areas.data) ? (areas.data as RefOptionRow[]) : []
+      );
+      setSouvenirGiftSetOptions(
+        !giftSets.error && Array.isArray(giftSets.data)
+          ? (giftSets.data as RefOptionRow[])
+          : []
+      );
+
+      const foodMenuRows =
+        !foodMenus.error && Array.isArray(foodMenus.data)
+          ? (foodMenus.data as FoodMenuOptionRow[])
+          : [];
+      const readFoodGroup = (key: string) =>
+        foodMenuRows
+          .filter((row) => String(row.group_key ?? "") === key)
+          .map((row) => ({
+            value: String(row.value ?? "").trim(),
+            label_th: row.label_th ?? null,
+            label_en: row.label_en ?? null,
+            sort_index: row.sort_index ?? null,
+            active: row.active ?? null,
+          }))
+          .filter((row) => row.value);
+
+      setBreakfastMenuOptions(readFoodGroup("breakfast"));
+      setLunchMenuOptions(readFoodGroup("lunch_main"));
+      setLunchDessertOptions(readFoodGroup("lunch_dessert"));
+      setDinnerMenuOptions(readFoodGroup("dinner_main"));
+      setDinnerDessertOptions(readFoodGroup("dinner_dessert"));
+
+      setAllergyOptions(
+        !allergies.error && Array.isArray(allergies.data)
+          ? (allergies.data as RefOptionRow[])
+              .map((row) => ({
+                value: String(row.value ?? "").trim(),
+                label_th: row.label_th ?? null,
+                label_en: row.label_en ?? null,
+                sort_index: row.sort_index ?? null,
+                active: row.active ?? null,
+              }))
+              .filter((row) => row.value)
+          : []
+      );
     };
 
     void load();
@@ -489,25 +439,6 @@ export default function Home() {
         souvenirGiftSet: value === "yes" ? prev.souvenirGiftSet : "",
         souvenirGiftSetCount: value === "yes" ? prev.souvenirGiftSetCount : "",
         souvenirExtra: value === "yes" ? prev.souvenirExtra : "",
-      }));
-    }
-
-    if (name === "executiveHostChoice") {
-      return setForm((prev) => ({
-        ...prev,
-        executiveHostChoice: value,
-        executiveHostFirstName: value === "อื่นๆ" ? prev.executiveHostFirstName : "",
-        executiveHostMiddleName: value === "อื่นๆ" ? prev.executiveHostMiddleName : "",
-        executiveHostLastName: value === "อื่นๆ" ? prev.executiveHostLastName : "",
-        executiveHostPosition: value === "อื่นๆ" ? prev.executiveHostPosition : "",
-      }));
-    }
-
-    if (name === "hostName" && value !== "อื่นๆ") {
-      return setForm((prev) => ({
-        ...prev,
-        hostName: value,
-        hostNameOther: "",
       }));
     }
 
@@ -981,14 +912,6 @@ export default function Home() {
         t("กรุณาเลือกผู้ที่จะเข้ามาพบ", "Please select the person to visit.")
       );
     }
-    if (form.hostName === "อื่นๆ" && !form.hostNameOther.trim()) {
-      messages.push(
-        t(
-          "กรุณาระบุบุคคลที่เข้าพบ (อื่นๆ)",
-          "Please specify the person to visit (Other)."
-        )
-      );
-    }
     if (!form.executiveHostChoice.trim()) {
       messages.push(
         t(
@@ -996,32 +919,6 @@ export default function Home() {
           "Please select the welcoming executive."
         )
       );
-    }
-    if (form.executiveHostChoice === "อื่นๆ") {
-      if (!form.executiveHostFirstName.trim()) {
-        messages.push(
-          t(
-            "กรุณากรอกชื่อผู้บริหาร (อื่นๆ)",
-            "Please enter executive first name (Other)."
-          )
-        );
-      }
-      if (!form.executiveHostLastName.trim()) {
-        messages.push(
-          t(
-            "กรุณากรอกนามสกุลผู้บริหาร (อื่นๆ)",
-            "Please enter executive last name (Other)."
-          )
-        );
-      }
-      if (!form.executiveHostPosition.trim()) {
-        messages.push(
-          t(
-            "กรุณากรอกตำแหน่งผู้บริหาร (อื่นๆ)",
-            "Please enter executive position (Other)."
-          )
-        );
-      }
     }
     if (!form.submittedByName.trim()) {
       messages.push(
@@ -1070,80 +967,71 @@ export default function Home() {
     const siteVisit =
       form.siteVisitAreas.length > 0
         ? {
-            areas: form.siteVisitAreas,
-            approverName: form.siteVisitApproverName,
-            approverPosition: form.siteVisitApproverPosition,
-          }
+          areas: form.siteVisitAreas,
+          approverName: form.siteVisitApproverName,
+          approverPosition: form.siteVisitApproverPosition,
+        }
         : null;
 
     const foodPreferences =
       form.foodRequired === "yes"
         ? {
-            meals: form.meals,
-            menus: {
-              breakfast: form.meals.includes("เช้า")
-                ? form.breakfastMenu === "อื่นๆ"
-                  ? form.breakfastMenuOther
-                  : form.breakfastMenu
-                : "",
-              lunch: form.meals.includes("กลางวัน")
-                ? {
-                    main:
-                      form.lunchMenu === "อื่นๆ"
-                        ? form.lunchMenuOther
-                        : form.lunchMenu,
-                    dessert:
-                      form.lunchDessert === "อื่นๆ"
-                        ? form.lunchDessertOther
-                        : form.lunchDessert,
-                  }
-                : { main: "", dessert: "" },
-              dinner: form.meals.includes("เย็น")
-                ? {
-                    main:
-                      form.dinnerMenu === "อื่นๆ"
-                        ? form.dinnerMenuOther
-                        : form.dinnerMenu,
-                    dessert:
-                      form.dinnerDessert === "อื่นๆ"
-                        ? form.dinnerDessertOther
-                        : form.dinnerDessert,
-                  }
-                : { main: "", dessert: "" },
-            },
-            specialDiet: {
-              halalSets: form.halalEnabled ? Number(form.halalCount || 0) : 0,
-              veganSets: form.veganEnabled ? Number(form.veganCount || 0) : 0,
-            },
-            allergies: {
-              items: form.allergies,
-              other: form.allergyOther,
-            },
-          }
+          meals: form.meals,
+          menus: {
+            breakfast: form.meals.includes("เช้า")
+              ? form.breakfastMenu === "อื่นๆ"
+                ? form.breakfastMenuOther
+                : form.breakfastMenu
+              : "",
+            lunch: form.meals.includes("กลางวัน")
+              ? {
+                main:
+                  form.lunchMenu === "อื่นๆ"
+                    ? form.lunchMenuOther
+                    : form.lunchMenu,
+                dessert:
+                  form.lunchDessert === "อื่นๆ"
+                    ? form.lunchDessertOther
+                    : form.lunchDessert,
+              }
+              : { main: "", dessert: "" },
+            dinner: form.meals.includes("เย็น")
+              ? {
+                main:
+                  form.dinnerMenu === "อื่นๆ"
+                    ? form.dinnerMenuOther
+                    : form.dinnerMenu,
+                dessert:
+                  form.dinnerDessert === "อื่นๆ"
+                    ? form.dinnerDessertOther
+                    : form.dinnerDessert,
+              }
+              : { main: "", dessert: "" },
+          },
+          specialDiet: {
+            halalSets: form.halalEnabled ? Number(form.halalCount || 0) : 0,
+            veganSets: form.veganEnabled ? Number(form.veganCount || 0) : 0,
+          },
+          allergies: {
+            items: form.allergies,
+            other: form.allergyOther,
+          },
+        }
         : null;
 
     const souvenirPreferences =
       form.souvenir === "yes"
         ? {
-            giftSet: form.souvenirGiftSet,
-            count: Number(form.souvenirGiftSetCount || 0),
-            extra: form.souvenirExtra,
-          }
+          giftSet: form.souvenirGiftSet,
+          count: Number(form.souvenirGiftSetCount || 0),
+          extra: form.souvenirExtra,
+        }
         : null;
 
-    const executiveHost =
-      form.executiveHostChoice === "อื่นๆ"
-        ? {
-            type: "other",
-            firstName: form.executiveHostFirstName,
-            middleName: form.executiveHostMiddleName,
-            lastName: form.executiveHostLastName,
-            position: form.executiveHostPosition,
-          }
-        : {
-            type: "preset",
-            name: form.executiveHostChoice,
-          };
+    const executiveHost = {
+      type: "preset",
+      name: form.executiveHostChoice,
+    };
 
     const submittedBy = {
       name: form.submittedByName,
@@ -1170,7 +1058,7 @@ export default function Home() {
       foodPreferences,
       souvenirPreferences,
       executiveHost,
-      hostName: form.hostName === "อื่นๆ" ? form.hostNameOther : form.hostName,
+      hostName: form.hostName,
       submittedBy,
     };
 
@@ -1215,9 +1103,9 @@ export default function Home() {
         type: "success",
         message: result.warning
           ? `${result.warning}\n${t(
-              "ส่งข้อมูลสำเร็จ ขอบคุณค่ะ",
-              "Submitted successfully. Thank you."
-            )}`
+            "ส่งข้อมูลสำเร็จ ขอบคุณค่ะ",
+            "Submitted successfully. Thank you."
+          )}`
           : t("ส่งข้อมูลสำเร็จ ขอบคุณค่ะ", "Submitted successfully. Thank you."),
       });
     } catch (error) {
@@ -1225,9 +1113,9 @@ export default function Home() {
         error instanceof Error
           ? error.message
           : t(
-              "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
-              "An error occurred. Please try again."
-            );
+            "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
+            "An error occurred. Please try again."
+          );
       setDialog({
         open: true,
         type: "error",
@@ -1250,11 +1138,10 @@ export default function Home() {
           <div className="w-full max-w-md rounded-2xl border border-[#E2CCA8] bg-[#FAEFCC] px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
             <div className="flex items-start gap-3">
               <div
-                className={`flex h-10 w-10 items-center justify-center rounded-full text-base font-semibold ${
-                  dialog.type === "success"
-                    ? "bg-[#788B64]/15 text-[#2F3B2B]"
-                    : "bg-[#E2CCA8] text-[#2F3B2B]"
-                }`}
+                className={`flex h-10 w-10 items-center justify-center rounded-full text-base font-semibold ${dialog.type === "success"
+                  ? "bg-[#788B64]/15 text-[#2F3B2B]"
+                  : "bg-[#E2CCA8] text-[#2F3B2B]"
+                  }`}
               >
                 {dialog.type === "success" ? "✓" : "!"}
               </div>
@@ -1310,28 +1197,26 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setLang("th")}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                lang === "th"
-                  ? "border-[#788B64] bg-[#788B64] text-white"
-                  : "border-[#E2CCA8] bg-white/70 text-[#1b2a18] hover:border-[#788B64]"
-              }`}
+              className={`rounded-full border px-3 py-1 text-xm font-semibold transition ${lang === "th"
+                ? "border-[#788B64] bg-[#788B64] text-white"
+                : "border-[#E2CCA8] bg-white/70 text-[#1b2a18] hover:border-[#788B64]"
+                }`}
             >
               ไทย
             </button>
             <button
               type="button"
               onClick={() => setLang("en")}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                lang === "en"
-                  ? "border-[#788B64] bg-[#788B64] text-white"
-                  : "border-[#E2CCA8] bg-white/70 text-[#1b2a18] hover:border-[#788B64]"
-              }`}
+              className={`rounded-full border px-3 py-1 text-xm font-semibold transition ${lang === "en"
+                ? "border-[#788B64] bg-[#788B64] text-white"
+                : "border-[#E2CCA8] bg-white/70 text-[#1b2a18] hover:border-[#788B64]"
+                }`}
             >
               EN
             </button>
           </div>
         </div>
-        <h1 className="text-center text-2xl font-semibold tracking-tight text-[#2F3B2B] md:text-3xl">
+        <h1 className="text-center text-2xl font-semibold tracking-tight text-[#2F3B2B] md:text-2xl">
           {t("แบบฟอร์มแจ้งเข้าพบแขก VIP", "VIP Visitor Notification Form")}
         </h1>
         <p className="mt-3 text-center text-sm text-[#2F3B2B]/80">
@@ -1407,189 +1292,189 @@ export default function Home() {
                 )}
               </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t(
-                    "บริษัทของคุณ",
-                    "Your company (bringing VIP guest)"
-                  )}
-                </label>
-                <input
-                  type="text"
-                  name="clientCompany"
-                  value={form.clientCompany}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t("เช่น บริษัท ABC จำกัด", "e.g., ABC Co., Ltd.")}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("แขก VIP มาจากบริษัท", "VIP guest company")}
-                </label>
-                <input
-                  type="text"
-                  name="vipCompany"
-                  value={form.vipCompany}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t("เช่น บริษัท XYZ จำกัด", "e.g., XYZ Co., Ltd.")}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("สัญชาติ", "Nationality")}
-                </label>
-                <input
-                  type="text"
-                  name="nationality"
-                  value={form.nationality}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t("เช่น Thai, Japanese", "e.g., Thai, Japanese")}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("เบอร์ผู้ประสานงาน", "Contact phone")}
-                </label>
-                <input
-                  type="tel"
-                  name="contactPhone"
-                  value={form.contactPhone}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t("เช่น 08x-xxx-xxxx", "e.g., +66 xx xxx xxxx")}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("จำนวนผู้เข้าร่วมทั้งหมด", "Total attendees")}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  name="totalGuests"
-                  value={form.totalGuests}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t("เช่น 5", "e.g., 5")}
-                />
-              </div>
-            </div>
-
-            {guestsCount > 0 && (
-              <div className="space-y-3">
-                <div className="text-sm font-medium text-zinc-900">
-                  {t("รายชื่อผู้เข้าร่วม", "Attendees")}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t(
+                      "บริษัทของคุณ",
+                      "Your company (bringing VIP guest)"
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    name="clientCompany"
+                    value={form.clientCompany}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t("เช่น บริษัท ABC จำกัด", "e.g., ABC Co., Ltd.")}
+                  />
                 </div>
-                <div className="space-y-4">
-                  {Array.from({ length: guestsCount }, (_, index) => {
-                    const guest = form.guests[index] ?? createEmptyGuest();
-                    return (
-                      <div
-                        key={String(index)}
-                        className="rounded-lg border border-zinc-200 bg-white p-5"
-                      >
-                        <div className="text-sm font-semibold text-zinc-900">
-                          {t("ผู้เข้าร่วมคนที่", "Attendee")} {index + 1}
-                        </div>
-                        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                          <input
-                            type="text"
-                            value={guest.firstName}
-                            onChange={(e) =>
-                              handleGuestChange(
-                                index,
-                                "firstName",
-                                e.target.value
-                              )
-                            }
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder={t("ชื่อ", "First name")}
-                          />
-                          <input
-                            type="text"
-                            value={guest.middleName}
-                            onChange={(e) =>
-                              handleGuestChange(
-                                index,
-                                "middleName",
-                                e.target.value
-                              )
-                            }
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder={t("ชื่อกลาง (ถ้ามี)", "Middle name (optional)")}
-                          />
-                          <input
-                            type="text"
-                            value={guest.lastName}
-                            onChange={(e) =>
-                              handleGuestChange(
-                                index,
-                                "lastName",
-                                e.target.value
-                              )
-                            }
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder={t("นามสกุล", "Last name")}
-                          />
-                          <input
-                            type="text"
-                            value={guest.company}
-                            onChange={(e) =>
-                              handleGuestChange(
-                                index,
-                                "company",
-                                e.target.value
-                              )
-                            }
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder={t("บริษัท", "Company")}
-                          />
-                          <input
-                            type="text"
-                            value={guest.position}
-                            onChange={(e) =>
-                              handleGuestChange(
-                                index,
-                                "position",
-                                e.target.value
-                              )
-                            }
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder={t("ตำแหน่ง", "Position")}
-                          />
-                          <input
-                            type="text"
-                            value={guest.nationality}
-                            onChange={(e) =>
-                              handleGuestChange(
-                                index,
-                                "nationality",
-                                e.target.value
-                              )
-                            }
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder={t("สัญชาติ", "Nationality")}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("แขก VIP มาจากบริษัท", "VIP guest company")}
+                  </label>
+                  <input
+                    type="text"
+                    name="vipCompany"
+                    value={form.vipCompany}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t("เช่น บริษัท XYZ จำกัด", "e.g., XYZ Co., Ltd.")}
+                  />
                 </div>
               </div>
-            )}
-          </section>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("สัญชาติ", "Nationality")}
+                  </label>
+                  <input
+                    type="text"
+                    name="nationality"
+                    value={form.nationality}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t("เช่น Thai, Japanese", "e.g., Thai, Japanese")}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("เบอร์ผู้ประสานงาน", "Contact phone")}
+                  </label>
+                  <input
+                    type="tel"
+                    name="contactPhone"
+                    value={form.contactPhone}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t("เช่น 08x-xxx-xxxx", "e.g., +66 xx xxx xxxx")}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("จำนวนผู้เข้าร่วมทั้งหมด", "Total attendees")}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    name="totalGuests"
+                    value={form.totalGuests}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t("เช่น 5", "e.g., 5")}
+                  />
+                </div>
+              </div>
+
+              {guestsCount > 0 && (
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-zinc-900">
+                    {t("รายชื่อผู้เข้าร่วม", "Attendees")}
+                  </div>
+                  <div className="space-y-4">
+                    {Array.from({ length: guestsCount }, (_, index) => {
+                      const guest = form.guests[index] ?? createEmptyGuest();
+                      return (
+                        <div
+                          key={String(index)}
+                          className="rounded-lg border border-zinc-200 bg-white p-5"
+                        >
+                          <div className="text-sm font-semibold text-zinc-900">
+                            {t("ผู้เข้าร่วมคนที่", "Attendee")} {index + 1}
+                          </div>
+                          <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                            <input
+                              type="text"
+                              value={guest.firstName}
+                              onChange={(e) =>
+                                handleGuestChange(
+                                  index,
+                                  "firstName",
+                                  e.target.value
+                                )
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("ชื่อ", "First name")}
+                            />
+                            <input
+                              type="text"
+                              value={guest.middleName}
+                              onChange={(e) =>
+                                handleGuestChange(
+                                  index,
+                                  "middleName",
+                                  e.target.value
+                                )
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("ชื่อกลาง (ถ้ามี)", "Middle name (optional)")}
+                            />
+                            <input
+                              type="text"
+                              value={guest.lastName}
+                              onChange={(e) =>
+                                handleGuestChange(
+                                  index,
+                                  "lastName",
+                                  e.target.value
+                                )
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("นามสกุล", "Last name")}
+                            />
+                            <input
+                              type="text"
+                              value={guest.company}
+                              onChange={(e) =>
+                                handleGuestChange(
+                                  index,
+                                  "company",
+                                  e.target.value
+                                )
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("บริษัท", "Company")}
+                            />
+                            <input
+                              type="text"
+                              value={guest.position}
+                              onChange={(e) =>
+                                handleGuestChange(
+                                  index,
+                                  "position",
+                                  e.target.value
+                                )
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("ตำแหน่ง", "Position")}
+                            />
+                            <input
+                              type="text"
+                              value={guest.nationality}
+                              onChange={(e) =>
+                                handleGuestChange(
+                                  index,
+                                  "nationality",
+                                  e.target.value
+                                )
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("สัญชาติ", "Nationality")}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </section>
 
             <section
               id="section-2"
@@ -1608,247 +1493,247 @@ export default function Home() {
                 )}
               </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("วันที่มาถึง", "Arrival date")}
-                </label>
-                <input
-                  type="date"
-                  name="visitDate"
-                  value={form.visitDate}
-                  onChange={handleChange}
-                  min={minVisitDate}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("เวลาที่มาถึง", "Arrival time")}
-                </label>
-                <select
-                  name="visitTime"
-                  value={form.visitTime}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                >
-                  <option value="">{t("เลือกเวลาที่มาถึง", "Select arrival time")}</option>
-                  {timeSlots.map((slot) => (
-                    <option key={slot} value={slot}>
-                      {slot}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("ต้องการห้องประชุมหรือไม่", "Meeting room needed?")}
-                </label>
-                <div className="mt-1 flex gap-4 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="meetingRoom"
-                      value="yes"
-                      checked={meetingRoomYes}
-                      onChange={handleChange}
-                    />
-                    <span>{t("ต้องการ", "Yes")}</span>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("วันที่มาถึง", "Arrival date")}
                   </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="meetingRoom"
-                      value="no"
-                      checked={form.meetingRoom === "no"}
-                      onChange={handleChange}
-                    />
-                    <span>{t("ไม่ต้องการ", "No")}</span>
-                  </label>
+                  <input
+                    type="date"
+                    name="visitDate"
+                    value={form.visitDate}
+                    onChange={handleChange}
+                    min={minVisitDate}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  />
                 </div>
 
-                {meetingRoomYes && (
-                  <div className="mt-3 flex flex-col gap-1">
-                    <label className="text-sm font-medium">
-                      {t("เลือกห้องประชุม", "Select meeting room")}
-                    </label>
-                    <select
-                      name="meetingRoomSelection"
-                      value={form.meetingRoomSelection}
-                      onChange={handleChange}
-                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    >
-                      <option value="">
-                        {t("เลือกห้องประชุม", "Select meeting room")}
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("เวลาที่มาถึง", "Arrival time")}
+                  </label>
+                  <select
+                    name="visitTime"
+                    value={form.visitTime}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  >
+                    <option value="">{t("เลือกเวลาที่มาถึง", "Select arrival time")}</option>
+                    {timeSlots.map((slot) => (
+                      <option key={slot} value={slot}>
+                        {slot}
                       </option>
-                      {meetingRoomOptions.map((room) => {
-                        const value = meetingRoomLabel(room, "th");
-                        const label = meetingRoomLabel(room, lang);
-                        return (
-                          <option key={room.code} value={value}>
-                            {label}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("ต้องการห้องประชุมหรือไม่", "Meeting room needed?")}
+                  </label>
+                  <div className="mt-1 flex gap-4 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="meetingRoom"
+                        value="yes"
+                        checked={meetingRoomYes}
+                        onChange={handleChange}
+                      />
+                      <span>{t("ต้องการ", "Yes")}</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="meetingRoom"
+                        value="no"
+                        checked={form.meetingRoom === "no"}
+                        onChange={handleChange}
+                      />
+                      <span>{t("ไม่ต้องการ", "No")}</span>
+                    </label>
+                  </div>
+
+                  {meetingRoomYes && (
+                    <div className="mt-3 flex flex-col gap-1">
+                      <label className="text-sm font-medium">
+                        {t("เลือกห้องประชุม", "Select meeting room")}
+                      </label>
+                      <select
+                        name="meetingRoomSelection"
+                        value={form.meetingRoomSelection}
+                        onChange={handleChange}
+                        className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      >
+                        <option value="">
+                          {t("เลือกห้องประชุม", "Select meeting room")}
+                        </option>
+                        {meetingRoomOptions.map((room) => {
+                          const value = meetingRoomLabel(room, "th");
+                          const label = meetingRoomLabel(room, lang);
+                          return (
+                            <option key={room.code} value={value}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("ประเภทรถ", "Transport type")}
+                  </label>
+                  <select
+                    name="transportType"
+                    value={form.transportType}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  >
+                    <option value="">
+                      {t("เลือกประเภทรถ", "Select transport type")}
+                    </option>
+                    <option value="personal">{t("รถส่วนตัว", "Private car")}</option>
+                    <option value="public">
+                      {t("รถสาธารณะ", "Public transport")}
+                    </option>
+                  </select>
+                </div>
+
+                <div className="space-y-3 md:col-span-2">
+                  <div className="rounded-lg border border-zinc-200 bg-white p-4">
+                    <div className="text-sm font-semibold text-zinc-900">
+                      {t("การเข้าชม", "Site visit")}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                      {siteVisitAreaOptions.map((item) => (
+                        <label key={item.value} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={form.siteVisitAreas.includes(item.value)}
+                            onChange={(e) =>
+                              handleSiteVisitAreaChange(item.value, e.target.checked)
+                            }
+                          />
+                          <span>{optionLabel(item)}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {form.siteVisitAreas.length > 0 && (
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-sm font-medium">
+                            {t("ชื่อผู้อนุญาตให้เข้าชม", "Site visit approver")}
+                          </label>
+                          <input
+                            type="text"
+                            name="siteVisitApproverName"
+                            value={form.siteVisitApproverName}
+                            onChange={handleChange}
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("เช่น นาย/นาง ...", "e.g., Mr./Ms. ...")}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-sm font-medium">
+                            {t("ตำแหน่ง", "Position")}
+                          </label>
+                          <input
+                            type="text"
+                            name="siteVisitApproverPosition"
+                            value={form.siteVisitApproverPosition}
+                            onChange={handleChange}
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("เช่น Manager", "e.g., Manager")}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {transportPersonal && (
+                  <div className="space-y-3 md:col-span-2">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium">
+                          {t("จำนวนรถ", "Number of cars")}
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          name="carCount"
+                          value={form.carCount}
+                          onChange={handleChange}
+                          className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                          placeholder={t("เช่น 2", "e.g., 2")}
+                        />
+                      </div>
+                    </div>
+
+                    {Number(form.carCount || 0) > 0 && (
+                      <div className="space-y-4">
+                        {Array.from(
+                          { length: Number(form.carCount || 0) },
+                          (_, index) => {
+                            const car = form.cars[index] ?? createEmptyCar();
+                            return (
+                              <div
+                                key={String(index)}
+                                className="rounded-lg border border-zinc-200 bg-white p-4"
+                              >
+                                <div className="text-sm font-semibold text-zinc-900">
+                                  รถคันที่ {index + 1}
+                                </div>
+                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                  <input
+                                    type="text"
+                                    value={car.brand}
+                                    onChange={(e) =>
+                                      handleCarChange(
+                                        index,
+                                        "brand",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                    placeholder={t(
+                                      "ยี่ห้อรถ เช่น Toyota, Honda",
+                                      "Car brand e.g., Toyota, Honda"
+                                    )}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={car.license}
+                                    onChange={(e) =>
+                                      handleCarChange(
+                                        index,
+                                        "license",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                    placeholder={t(
+                                      "ทะเบียนรถ เช่น 1กก 1234",
+                                      "Car license e.g., 1กก 1234"
+                                    )}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          }
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("ประเภทรถ", "Transport type")}
-                </label>
-                <select
-                  name="transportType"
-                  value={form.transportType}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                >
-                  <option value="">
-                    {t("เลือกประเภทรถ", "Select transport type")}
-                  </option>
-                  <option value="personal">{t("รถส่วนตัว", "Private car")}</option>
-                  <option value="public">
-                    {t("รถสาธารณะ", "Public transport")}
-                  </option>
-                </select>
-              </div>
-
-              <div className="space-y-3 md:col-span-2">
-                <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                  <div className="text-sm font-semibold text-zinc-900">
-                    {t("การเข้าชม", "Site visit")}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-4 text-sm">
-                    {siteVisitAreaOptions.map((item) => (
-                      <label key={item.value} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={form.siteVisitAreas.includes(item.value)}
-                          onChange={(e) =>
-                            handleSiteVisitAreaChange(item.value, e.target.checked)
-                          }
-                        />
-                        <span>{optionLabel(item)}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  {form.siteVisitAreas.length > 0 && (
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium">
-                          {t("ชื่อผู้อนุญาตให้เข้าชม", "Site visit approver")}
-                        </label>
-                        <input
-                          type="text"
-                          name="siteVisitApproverName"
-                          value={form.siteVisitApproverName}
-                          onChange={handleChange}
-                          className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          placeholder={t("เช่น นาย/นาง ...", "e.g., Mr./Ms. ...")}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium">
-                          {t("ตำแหน่ง", "Position")}
-                        </label>
-                        <input
-                          type="text"
-                          name="siteVisitApproverPosition"
-                          value={form.siteVisitApproverPosition}
-                          onChange={handleChange}
-                          className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          placeholder={t("เช่น Manager", "e.g., Manager")}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {transportPersonal && (
-                <div className="space-y-3 md:col-span-2">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium">
-                        {t("จำนวนรถ", "Number of cars")}
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        name="carCount"
-                        value={form.carCount}
-                        onChange={handleChange}
-                        className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                        placeholder={t("เช่น 2", "e.g., 2")}
-                      />
-                    </div>
-                  </div>
-
-                  {Number(form.carCount || 0) > 0 && (
-                    <div className="space-y-4">
-                      {Array.from(
-                        { length: Number(form.carCount || 0) },
-                        (_, index) => {
-                          const car = form.cars[index] ?? createEmptyCar();
-                          return (
-                            <div
-                              key={String(index)}
-                              className="rounded-lg border border-zinc-200 bg-white p-4"
-                            >
-                              <div className="text-sm font-semibold text-zinc-900">
-                                รถคันที่ {index + 1}
-                              </div>
-                              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                                <input
-                                  type="text"
-                                  value={car.brand}
-                                  onChange={(e) =>
-                                    handleCarChange(
-                                      index,
-                                      "brand",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                                  placeholder={t(
-                                    "ยี่ห้อรถ เช่น Toyota, Honda",
-                                    "Car brand e.g., Toyota, Honda"
-                                  )}
-                                />
-                                <input
-                                  type="text"
-                                  value={car.license}
-                                  onChange={(e) =>
-                                    handleCarChange(
-                                      index,
-                                      "license",
-                                      e.target.value
-                                    )
-                                  }
-                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                                  placeholder={t(
-                                    "ทะเบียนรถ เช่น 1กก 1234",
-                                    "Car license e.g., 1กก 1234"
-                                  )}
-                                />
-                              </div>
-                            </div>
-                          );
-                        }
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
+            </section>
 
             <section
               id="section-3"
@@ -1867,18 +1752,406 @@ export default function Home() {
                 )}
               </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("ต้องการจัดอาหารหรือไม่", "Food required?")}
+                  </label>
+                  <div className="mt-1 flex gap-4 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="foodRequired"
+                        value="yes"
+                        checked={foodRequiredYes}
+                        onChange={handleChange}
+                      />
+                      <span>{t("ต้องการ", "Yes")}</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="foodRequired"
+                        value="no"
+                        checked={form.foodRequired === "no"}
+                        onChange={handleChange}
+                      />
+                      <span>{t("ไม่ต้องการ", "No")}</span>
+                    </label>
+                  </div>
+                </div>
+
+                {foodRequiredYes && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">
+                      {t("มื้ออาหารที่ต้องการ", "Meals")}
+                    </label>
+                    <div className="mt-1 flex flex-wrap gap-4 text-sm">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          value="เช้า"
+                          checked={form.meals.includes("เช้า")}
+                          onChange={handleMealsChange}
+                        />
+                        <span>{mealLabel("เช้า")}</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          value="กลางวัน"
+                          checked={form.meals.includes("กลางวัน")}
+                          onChange={handleMealsChange}
+                        />
+                        <span>{mealLabel("กลางวัน")}</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          value="เย็น"
+                          checked={form.meals.includes("เย็น")}
+                          onChange={handleMealsChange}
+                        />
+                        <span>{mealLabel("เย็น")}</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {foodRequiredYes && (
+                <div className="space-y-4">
+                  {(form.meals.includes("เช้า") ||
+                    form.meals.includes("กลางวัน") ||
+                    form.meals.includes("เย็น")) && (
+                      <div className="rounded-lg border border-zinc-200 bg-white p-4">
+                        <div className="text-sm font-semibold text-zinc-900">
+                          {t("เลือกเมนูอาหาร", "Select menu")}
+                        </div>
+
+                        {form.meals.includes("เช้า") && (
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-sm font-medium">
+                                {t("อาหารเช้า", "Breakfast")}
+                              </label>
+                              <select
+                                name="breakfastMenu"
+                                value={form.breakfastMenu}
+                                onChange={handleChange}
+                                className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              >
+                                <option value="">
+                                  {t("เลือกเมนูอาหารเช้า", "Select breakfast menu")}
+                                </option>
+                                {breakfastMenuOptions.map((item) => (
+                                  <option key={item.value} value={item.value}>
+                                    {optionLabel(item)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {form.breakfastMenu === "อื่นๆ" && (
+                              <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">
+                                  {t(
+                                    "ระบุอาหารเช้า (อื่นๆ)",
+                                    "Specify breakfast (Other)"
+                                  )}
+                                </label>
+                                <input
+                                  type="text"
+                                  name="breakfastMenuOther"
+                                  value={form.breakfastMenuOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t(
+                                    "เช่น แซนด์วิชทูน่า",
+                                    "e.g., tuna sandwich"
+                                  )}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {form.meals.includes("กลางวัน") && (
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-sm font-medium">
+                                {t("อาหารกลางวัน", "Lunch")}
+                              </label>
+                              <select
+                                name="lunchMenu"
+                                value={form.lunchMenu}
+                                onChange={handleChange}
+                                className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              >
+                                <option value="">
+                                  {t("เลือกเมนูอาหารกลางวัน", "Select lunch menu")}
+                                </option>
+                                {lunchMenuOptions.map((item) => (
+                                  <option key={item.value} value={item.value}>
+                                    {optionLabel(item)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {form.lunchMenu === "อื่นๆ" && (
+                              <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">
+                                  {t(
+                                    "ระบุอาหารกลางวัน (อื่นๆ)",
+                                    "Specify lunch (Other)"
+                                  )}
+                                </label>
+                                <input
+                                  type="text"
+                                  name="lunchMenuOther"
+                                  value={form.lunchMenuOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t(
+                                    "เช่น ข้าวมันไก่",
+                                    "e.g., chicken rice"
+                                  )}
+                                />
+                              </div>
+                            )}
+                            <div className="flex flex-col gap-1">
+                              <label className="text-sm font-medium">
+                                {t("ของหวาน (กลางวัน)", "Dessert (Lunch)")}
+                              </label>
+                              <select
+                                name="lunchDessert"
+                                value={form.lunchDessert}
+                                onChange={handleChange}
+                                className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              >
+                                <option value="">{t("เลือกของหวาน", "Select dessert")}</option>
+                                {lunchDessertOptions.map((item) => (
+                                  <option key={item.value} value={item.value}>
+                                    {optionLabel(item)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {form.lunchDessert === "อื่นๆ" && (
+                              <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">
+                                  {t(
+                                    "ระบุของหวาน (กลางวัน) (อื่นๆ)",
+                                    "Specify dessert (Lunch) (Other)"
+                                  )}
+                                </label>
+                                <input
+                                  type="text"
+                                  name="lunchDessertOther"
+                                  value={form.lunchDessertOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t(
+                                    "เช่น เค้กช็อกโกแลต",
+                                    "e.g., chocolate cake"
+                                  )}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {form.meals.includes("เย็น") && (
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-sm font-medium">
+                                {t("อาหารเย็น", "Dinner")}
+                              </label>
+                              <select
+                                name="dinnerMenu"
+                                value={form.dinnerMenu}
+                                onChange={handleChange}
+                                className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              >
+                                <option value="">
+                                  {t("เลือกเมนูอาหารเย็น", "Select dinner menu")}
+                                </option>
+                                {dinnerMenuOptions.map((item) => (
+                                  <option key={item.value} value={item.value}>
+                                    {optionLabel(item)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {form.dinnerMenu === "อื่นๆ" && (
+                              <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">
+                                  {t(
+                                    "ระบุอาหารเย็น (อื่นๆ)",
+                                    "Specify dinner (Other)"
+                                  )}
+                                </label>
+                                <input
+                                  type="text"
+                                  name="dinnerMenuOther"
+                                  value={form.dinnerMenuOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t(
+                                    "เช่น ข้าวผัดทะเล",
+                                    "e.g., seafood fried rice"
+                                  )}
+                                />
+                              </div>
+                            )}
+                            <div className="flex flex-col gap-1">
+                              <label className="text-sm font-medium">
+                                {t("ของหวาน (เย็น)", "Dessert (Dinner)")}
+                              </label>
+                              <select
+                                name="dinnerDessert"
+                                value={form.dinnerDessert}
+                                onChange={handleChange}
+                                className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              >
+                                <option value="">{t("เลือกของหวาน", "Select dessert")}</option>
+                                {dinnerDessertOptions.map((item) => (
+                                  <option key={item.value} value={item.value}>
+                                    {optionLabel(item)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {form.dinnerDessert === "อื่นๆ" && (
+                              <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium">
+                                  {t(
+                                    "ระบุของหวาน (เย็น) (อื่นๆ)",
+                                    "Specify dessert (Dinner) (Other)"
+                                  )}
+                                </label>
+                                <input
+                                  type="text"
+                                  name="dinnerDessertOther"
+                                  value={form.dinnerDessertOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t("เช่น เครปเค้ก", "e.g., crepe cake")}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-lg border border-zinc-200 bg-white p-4">
+                      <div className="text-sm font-semibold text-zinc-900">
+                        {t("อาหารพิเศษ", "Special diet")}
+                      </div>
+                      <div className="mt-3 space-y-3 text-sm">
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={form.halalEnabled}
+                              onChange={() => handleDietToggle("halal")}
+                            />
+                            <span>{t("ฮาลาล", "Halal")}</span>
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            name="halalCount"
+                            value={form.halalCount}
+                            onChange={handleChange}
+                            disabled={!form.halalEnabled}
+                            className={`w-28 rounded-md border px-3 py-2 text-sm outline-none ${form.halalEnabled
+                              ? "border-zinc-300 bg-white focus:border-zinc-900"
+                              : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                              }`}
+                            placeholder={t("จำนวนชุด", "Sets")}
+                          />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={form.veganEnabled}
+                              onChange={() => handleDietToggle("vegan")}
+                            />
+                            <span>{t("วีแกน", "Vegan")}</span>
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            name="veganCount"
+                            value={form.veganCount}
+                            onChange={handleChange}
+                            disabled={!form.veganEnabled}
+                            className={`w-28 rounded-md border px-3 py-2 text-sm outline-none ${form.veganEnabled
+                              ? "border-zinc-300 bg-white focus:border-zinc-900"
+                              : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                              }`}
+                            placeholder={t("จำนวนชุด", "Sets")}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-zinc-200 bg-white p-4">
+                      <div className="text-sm font-semibold text-zinc-900">
+                        {t("แพ้อาหาร", "Allergies")}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                        {allergyOptions.map((item) => (
+                          <label key={item.value} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={form.allergies.includes(item.value)}
+                              onChange={(e) =>
+                                handleAllergyChange(item.value, e.target.checked)
+                              }
+                            />
+                            <span>{optionLabel(item)}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      {form.allergies.includes("อื่นๆ") && (
+                        <div className="mt-3 flex flex-col gap-1">
+                          <label className="text-sm font-medium">
+                            {t("ระบุ (อื่นๆ)", "Specify (Other)")}
+                          </label>
+                          <input
+                            type="text"
+                            name="allergyOther"
+                            value={form.allergyOther}
+                            onChange={handleChange}
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t(
+                              "เช่น กล้วย, กาแฟ, ถั่วเหลือง",
+                              "e.g., banana, coffee, soy"
+                            )}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("ต้องการจัดอาหารหรือไม่", "Food required?")}
+                  {t("ของที่ระลึก", "Souvenir")}
                 </label>
                 <div className="mt-1 flex gap-4 text-sm">
                   <label className="flex items-center gap-2">
                     <input
                       type="radio"
-                      name="foodRequired"
+                      name="souvenir"
                       value="yes"
-                      checked={foodRequiredYes}
+                      checked={form.souvenir === "yes"}
                       onChange={handleChange}
                     />
                     <span>{t("ต้องการ", "Yes")}</span>
@@ -1886,9 +2159,9 @@ export default function Home() {
                   <label className="flex items-center gap-2">
                     <input
                       type="radio"
-                      name="foodRequired"
+                      name="souvenir"
                       value="no"
-                      checked={form.foodRequired === "no"}
+                      checked={form.souvenir === "no"}
                       onChange={handleChange}
                     />
                     <span>{t("ไม่ต้องการ", "No")}</span>
@@ -1896,454 +2169,64 @@ export default function Home() {
                 </div>
               </div>
 
-              {foodRequiredYes && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium">
-                    {t("มื้ออาหารที่ต้องการ", "Meals")}
-                  </label>
-                  <div className="mt-1 flex flex-wrap gap-4 text-sm">
-                    <label className="flex items-center gap-2">
+              {form.souvenir === "yes" && (
+                <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-zinc-900">
+                    {t("รายละเอียดของที่ระลึก", "Souvenir details")}
+                  </div>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium">
+                        {t("ประเภทของที่ระลึก", "Souvenir type")}
+                      </label>
+                      <select
+                        name="souvenirGiftSet"
+                        value={form.souvenirGiftSet}
+                        onChange={handleChange}
+                        className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      >
+                        <option value="">{t("เลือกประเภท", "Select type")}</option>
+                        {souvenirGiftSetOptions.map((item) => (
+                          <option key={item.value} value={item.value}>
+                            {optionLabel(item)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium">
+                        {t("จำนวนชุด", "Quantity")}
+                      </label>
                       <input
-                        type="checkbox"
-                        value="เช้า"
-                        checked={form.meals.includes("เช้า")}
-                        onChange={handleMealsChange}
+                        type="number"
+                        min={1}
+                        name="souvenirGiftSetCount"
+                        value={form.souvenirGiftSetCount}
+                        onChange={handleChange}
+                        className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                        placeholder={t("เช่น 5", "e.g., 5")}
                       />
-                      <span>{mealLabel("เช้า")}</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        value="กลางวัน"
-                        checked={form.meals.includes("กลางวัน")}
-                        onChange={handleMealsChange}
+                    </div>
+                    <div className="flex flex-col gap-1 md:col-span-2">
+                      <label className="text-sm font-medium">
+                        {t("เพิ่มของพิเศษ (ถ้ามี)", "Add extras (optional)")}
+                      </label>
+                      <textarea
+                        name="souvenirExtra"
+                        value={form.souvenirExtra}
+                        onChange={handleChange}
+                        rows={3}
+                        className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                        placeholder={t(
+                          "ระบุของพิเศษเพิ่มเติม เช่น ใส่โลโก้, การ์ดข้อความ, ของเพิ่มอื่นๆ",
+                          "Describe extras, e.g., logo, message card, additional items"
+                        )}
                       />
-                      <span>{mealLabel("กลางวัน")}</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        value="เย็น"
-                        checked={form.meals.includes("เย็น")}
-                        onChange={handleMealsChange}
-                      />
-                      <span>{mealLabel("เย็น")}</span>
-                    </label>
+                    </div>
                   </div>
                 </div>
               )}
-            </div>
-
-            {foodRequiredYes && (
-              <div className="space-y-4">
-                {(form.meals.includes("เช้า") ||
-                  form.meals.includes("กลางวัน") ||
-                  form.meals.includes("เย็น")) && (
-                  <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-zinc-900">
-                      {t("เลือกเมนูอาหาร", "Select menu")}
-                    </div>
-
-                    {form.meals.includes("เช้า") && (
-                      <div className="mt-3 grid gap-3 md:grid-cols-2">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-sm font-medium">
-                            {t("อาหารเช้า", "Breakfast")}
-                          </label>
-                          <select
-                            name="breakfastMenu"
-                            value={form.breakfastMenu}
-                            onChange={handleChange}
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          >
-                            <option value="">
-                              {t("เลือกเมนูอาหารเช้า", "Select breakfast menu")}
-                            </option>
-                            {breakfastMenuOptions.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {form.breakfastMenu === "อื่นๆ" && (
-                          <div className="flex flex-col gap-1">
-                            <label className="text-sm font-medium">
-                              {t(
-                                "ระบุอาหารเช้า (อื่นๆ)",
-                                "Specify breakfast (Other)"
-                              )}
-                            </label>
-                            <input
-                              type="text"
-                              name="breakfastMenuOther"
-                              value={form.breakfastMenuOther}
-                              onChange={handleChange}
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t(
-                                "เช่น แซนด์วิชทูน่า",
-                                "e.g., tuna sandwich"
-                              )}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {form.meals.includes("กลางวัน") && (
-                      <div className="mt-3 grid gap-3 md:grid-cols-2">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-sm font-medium">
-                            {t("อาหารกลางวัน", "Lunch")}
-                          </label>
-                          <select
-                            name="lunchMenu"
-                            value={form.lunchMenu}
-                            onChange={handleChange}
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          >
-                            <option value="">
-                              {t("เลือกเมนูอาหารกลางวัน", "Select lunch menu")}
-                            </option>
-                            {lunchMenuOptions.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {form.lunchMenu === "อื่นๆ" && (
-                          <div className="flex flex-col gap-1">
-                            <label className="text-sm font-medium">
-                              {t(
-                                "ระบุอาหารกลางวัน (อื่นๆ)",
-                                "Specify lunch (Other)"
-                              )}
-                            </label>
-                            <input
-                              type="text"
-                              name="lunchMenuOther"
-                              value={form.lunchMenuOther}
-                              onChange={handleChange}
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t(
-                                "เช่น ข้าวมันไก่",
-                                "e.g., chicken rice"
-                              )}
-                            />
-                          </div>
-                        )}
-                        <div className="flex flex-col gap-1">
-                          <label className="text-sm font-medium">
-                            {t("ของหวาน (กลางวัน)", "Dessert (Lunch)")}
-                          </label>
-                          <select
-                            name="lunchDessert"
-                            value={form.lunchDessert}
-                            onChange={handleChange}
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          >
-                            <option value="">{t("เลือกของหวาน", "Select dessert")}</option>
-                            {lunchDessertOptions.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {form.lunchDessert === "อื่นๆ" && (
-                          <div className="flex flex-col gap-1">
-                            <label className="text-sm font-medium">
-                              {t(
-                                "ระบุของหวาน (กลางวัน) (อื่นๆ)",
-                                "Specify dessert (Lunch) (Other)"
-                              )}
-                            </label>
-                            <input
-                              type="text"
-                              name="lunchDessertOther"
-                              value={form.lunchDessertOther}
-                              onChange={handleChange}
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t(
-                                "เช่น เค้กช็อกโกแลต",
-                                "e.g., chocolate cake"
-                              )}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {form.meals.includes("เย็น") && (
-                      <div className="mt-3 grid gap-3 md:grid-cols-2">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-sm font-medium">
-                            {t("อาหารเย็น", "Dinner")}
-                          </label>
-                          <select
-                            name="dinnerMenu"
-                            value={form.dinnerMenu}
-                            onChange={handleChange}
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          >
-                            <option value="">
-                              {t("เลือกเมนูอาหารเย็น", "Select dinner menu")}
-                            </option>
-                            {dinnerMenuOptions.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {form.dinnerMenu === "อื่นๆ" && (
-                          <div className="flex flex-col gap-1">
-                            <label className="text-sm font-medium">
-                              {t(
-                                "ระบุอาหารเย็น (อื่นๆ)",
-                                "Specify dinner (Other)"
-                              )}
-                            </label>
-                            <input
-                              type="text"
-                              name="dinnerMenuOther"
-                              value={form.dinnerMenuOther}
-                              onChange={handleChange}
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t(
-                                "เช่น ข้าวผัดทะเล",
-                                "e.g., seafood fried rice"
-                              )}
-                            />
-                          </div>
-                        )}
-                        <div className="flex flex-col gap-1">
-                          <label className="text-sm font-medium">
-                            {t("ของหวาน (เย็น)", "Dessert (Dinner)")}
-                          </label>
-                          <select
-                            name="dinnerDessert"
-                            value={form.dinnerDessert}
-                            onChange={handleChange}
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          >
-                            <option value="">{t("เลือกของหวาน", "Select dessert")}</option>
-                            {dinnerDessertOptions.map((item) => (
-                              <option key={item} value={item}>
-                                {item}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {form.dinnerDessert === "อื่นๆ" && (
-                          <div className="flex flex-col gap-1">
-                            <label className="text-sm font-medium">
-                              {t(
-                                "ระบุของหวาน (เย็น) (อื่นๆ)",
-                                "Specify dessert (Dinner) (Other)"
-                              )}
-                            </label>
-                            <input
-                              type="text"
-                              name="dinnerDessertOther"
-                              value={form.dinnerDessertOther}
-                              onChange={handleChange}
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("เช่น เครปเค้ก", "e.g., crepe cake")}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-zinc-900">
-                      {t("อาหารพิเศษ", "Special diet")}
-                    </div>
-                    <div className="mt-3 space-y-3 text-sm">
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={form.halalEnabled}
-                            onChange={() => handleDietToggle("halal")}
-                          />
-                          <span>{t("ฮาลาล", "Halal")}</span>
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          name="halalCount"
-                          value={form.halalCount}
-                          onChange={handleChange}
-                          disabled={!form.halalEnabled}
-                          className={`w-28 rounded-md border px-3 py-2 text-sm outline-none ${
-                            form.halalEnabled
-                              ? "border-zinc-300 bg-white focus:border-zinc-900"
-                              : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                          }`}
-                          placeholder={t("จำนวนชุด", "Sets")}
-                        />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={form.veganEnabled}
-                            onChange={() => handleDietToggle("vegan")}
-                          />
-                          <span>{t("วีแกน", "Vegan")}</span>
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          name="veganCount"
-                          value={form.veganCount}
-                          onChange={handleChange}
-                          disabled={!form.veganEnabled}
-                          className={`w-28 rounded-md border px-3 py-2 text-sm outline-none ${
-                            form.veganEnabled
-                              ? "border-zinc-300 bg-white focus:border-zinc-900"
-                              : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                          }`}
-                          placeholder={t("จำนวนชุด", "Sets")}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-zinc-900">
-                      {t("แพ้อาหาร", "Allergies")}
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-4 text-sm">
-                      {allergyOptions.map((item) => (
-                        <label key={item} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={form.allergies.includes(item)}
-                            onChange={(e) =>
-                              handleAllergyChange(item, e.target.checked)
-                            }
-                          />
-                          <span>{item}</span>
-                        </label>
-                      ))}
-                    </div>
-
-                    {form.allergies.includes("อื่นๆ") && (
-                      <div className="mt-3 flex flex-col gap-1">
-                        <label className="text-sm font-medium">
-                          {t("ระบุ (อื่นๆ)", "Specify (Other)")}
-                        </label>
-                        <input
-                          type="text"
-                          name="allergyOther"
-                          value={form.allergyOther}
-                          onChange={handleChange}
-                          className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          placeholder={t(
-                            "เช่น กล้วย, กาแฟ, ถั่วเหลือง",
-                            "e.g., banana, coffee, soy"
-                          )}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">
-                {t("ของที่ระลึก", "Souvenir")}
-              </label>
-              <div className="mt-1 flex gap-4 text-sm">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="souvenir"
-                    value="yes"
-                    checked={form.souvenir === "yes"}
-                    onChange={handleChange}
-                  />
-                  <span>{t("ต้องการ", "Yes")}</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="souvenir"
-                    value="no"
-                    checked={form.souvenir === "no"}
-                    onChange={handleChange}
-                  />
-                  <span>{t("ไม่ต้องการ", "No")}</span>
-                </label>
-              </div>
-            </div>
-
-            {form.souvenir === "yes" && (
-              <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-4">
-                <div className="text-sm font-semibold text-zinc-900">
-                  {t("รายละเอียดของที่ระลึก", "Souvenir details")}
-                </div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">
-                      {t("ประเภทของที่ระลึก", "Souvenir type")}
-                    </label>
-                    <select
-                      name="souvenirGiftSet"
-                      value={form.souvenirGiftSet}
-                      onChange={handleChange}
-                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    >
-                      <option value="">{t("เลือกประเภท", "Select type")}</option>
-                      {souvenirGiftSetOptions.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {optionLabel(item)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">
-                      {t("จำนวนชุด", "Quantity")}
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      name="souvenirGiftSetCount"
-                      value={form.souvenirGiftSetCount}
-                      onChange={handleChange}
-                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder={t("เช่น 5", "e.g., 5")}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-sm font-medium">
-                      {t("เพิ่มของพิเศษ (ถ้ามี)", "Add extras (optional)")}
-                    </label>
-                    <textarea
-                      name="souvenirExtra"
-                      value={form.souvenirExtra}
-                      onChange={handleChange}
-                      rows={3}
-                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder={t(
-                        "ระบุของพิเศษเพิ่มเติม เช่น ใส่โลโก้, การ์ดข้อความ, ของเพิ่มอื่นๆ",
-                        "Describe extras, e.g., logo, message card, additional items"
-                      )}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </section>
+            </section>
 
             <section
               id="section-4"
@@ -2361,37 +2244,37 @@ export default function Home() {
                   "Attach a file up to 10MB (optional)."
                 )}
               </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">
-                {t("แนบไฟล์นำเสนอ (ไม่บังคับ)", "Attach presentation file (optional)")}
-              </label>
-              <input
-                type="file"
-                name="presentationFile"
-                onChange={(event) => {
-                  const file = event.target.files?.[0] ?? null;
-                  setPresentationFile(file);
-                }}
-                className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
-              />
-              {presentationFile && (
-                <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
-                  <div>
-                    {t("ไฟล์ที่เลือก", "Selected file")}: {presentationFile.name} (
-                    {Math.ceil(presentationFile.size / 1024)} KB)
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">
+                  {t("แนบไฟล์นำเสนอ (ไม่บังคับ)", "Attach presentation file (optional)")}
+                </label>
+                <input
+                  type="file"
+                  name="presentationFile"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    setPresentationFile(file);
+                  }}
+                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                />
+                {presentationFile && (
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
+                    <div>
+                      {t("ไฟล์ที่เลือก", "Selected file")}: {presentationFile.name} (
+                      {Math.ceil(presentationFile.size / 1024)} KB)
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                      onClick={() => setPresentationFile(null)}
+                      disabled={submitting}
+                    >
+                      {t("เอาออก", "Remove")}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
-                    onClick={() => setPresentationFile(null)}
-                    disabled={submitting}
-                  >
-                    {t("เอาออก", "Remove")}
-                  </button>
-                </div>
-              )}
-            </div>
-          </section>
+                )}
+              </div>
+            </section>
 
             <section
               id="section-5"
@@ -2410,212 +2293,134 @@ export default function Home() {
                 )}
               </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("บุคคลที่ลูกค้าต้องการเข้าพบ", "Host to visit")}
-                </label>
-                <select
-                  name="hostName"
-                  value={form.hostName}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                >
-                  <option value="">{t("เลือกผู้ที่จะเข้าพบ", "Select host")}</option>
-                  {hostOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {optionLabel(option)}
-                    </option>
-                  ))}
-                  <option value="อื่นๆ">{t("อื่นๆ", "Other")}</option>
-                </select>
-              </div>
-
-              {form.hostName === "อื่นๆ" && (
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t(
-                      "ระบุบุคคลที่เข้าพบ (อื่นๆ)",
-                      "Specify host (Other)"
-                    )}
+                    {t("บุคคลที่ลูกค้าต้องการเข้าพบ", "Host to visit")}
+                  </label>
+                  <select
+                    name="hostName"
+                    value={form.hostName}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  >
+                    <option value="">{t("เลือกผู้ที่จะเข้าพบ", "Select host")}</option>
+                    {hostOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {optionLabel(option)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("ผู้บริหารดูแลต้อนรับแขก", "Welcoming executive")}
+                  </label>
+                  <select
+                    name="executiveHostChoice"
+                    value={form.executiveHostChoice}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  >
+                    <option value="">{t("เลือกผู้บริหาร", "Select executive")}</option>
+                    {executiveHostOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {optionLabel(option)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("หัวข้อที่เกี่ยวข้อง", "Topic")}
                   </label>
                   <input
                     type="text"
-                    name="hostNameOther"
-                    value={form.hostNameOther}
+                    name="visitTopic"
+                    value={form.visitTopic}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t(
+                      "เช่น ประชุม, เยี่ยมชม, นำเสนอ",
+                      "e.g., meeting, site visit, presentation"
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">
+                  {t("รายละเอียดการเข้าพบ", "Visit details")}
+                </label>
+                <textarea
+                  name="visitDetail"
+                  value={form.visitDetail}
+                  onChange={handleChange}
+                  rows={3}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  placeholder={t(
+                    "ระบุรายละเอียดเพิ่มเติม เช่น จุดประสงค์",
+                    "Add details, e.g., objectives"
+                  )}
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("ชื่อผู้กรอกฟอร์ม", "Submitted by (name)")}
+                  </label>
+                  <input
+                    type="text"
+                    name="submittedByName"
+                    value={form.submittedByName}
                     onChange={handleChange}
                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                     placeholder={t("เช่น นาย/นาง ...", "e.g., Mr./Ms. ...")}
                   />
                 </div>
-              )}
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("ผู้บริหารดูแลต้อนรับแขก", "Welcoming executive")}
-                </label>
-                <select
-                  name="executiveHostChoice"
-                  value={form.executiveHostChoice}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                >
-                  <option value="">{t("เลือกผู้บริหาร", "Select executive")}</option>
-                  {executiveHostOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {optionLabel(option)}
-                    </option>
-                  ))}
-                  <option value="อื่นๆ">{t("อื่นๆ", "Other")}</option>
-                </select>
-              </div>
-
-              {form.executiveHostChoice === "อื่นๆ" && (
-                <div className="grid gap-4 md:col-span-2 md:grid-cols-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">
-                      {t("ชื่อ", "First name")}
-                    </label>
-                    <input
-                      type="text"
-                      name="executiveHostFirstName"
-                      value={form.executiveHostFirstName}
-                      onChange={handleChange}
-                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder={t("ชื่อ", "First name")}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">
-                      {t("ชื่อกลาง", "Middle name")}
-                    </label>
-                    <input
-                      type="text"
-                      name="executiveHostMiddleName"
-                      value={form.executiveHostMiddleName}
-                      onChange={handleChange}
-                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder={t("(ถ้ามี)", "(optional)")}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">
-                      {t("นามสกุล", "Last name")}
-                    </label>
-                    <input
-                      type="text"
-                      name="executiveHostLastName"
-                      value={form.executiveHostLastName}
-                      onChange={handleChange}
-                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder={t("นามสกุล", "Last name")}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">
-                      {t("ตำแหน่ง", "Position")}
-                    </label>
-                    <input
-                      type="text"
-                      name="executiveHostPosition"
-                      value={form.executiveHostPosition}
-                      onChange={handleChange}
-                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder={t("ตำแหน่ง", "Position")}
-                    />
-                  </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("ตำแหน่งผู้กรอกฟอร์ม", "Submitted by (position)")}
+                  </label>
+                  <input
+                    type="text"
+                    name="submittedByPosition"
+                    value={form.submittedByPosition}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t("เช่น Officer", "e.g., Officer")}
+                  />
                 </div>
-              )}
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("หัวข้อที่เกี่ยวข้อง", "Topic")}
-                </label>
-                <input
-                  type="text"
-                  name="visitTopic"
-                  value={form.visitTopic}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t(
-                    "เช่น ประชุม, เยี่ยมชม, นำเสนอ",
-                    "e.g., meeting, site visit, presentation"
-                  )}
-                />
               </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">
-                {t("รายละเอียดการเข้าพบ", "Visit details")}
-              </label>
-              <textarea
-                name="visitDetail"
-                value={form.visitDetail}
-                onChange={handleChange}
-                rows={3}
-                className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                placeholder={t(
-                  "ระบุรายละเอียดเพิ่มเติม เช่น จุดประสงค์",
-                  "Add details, e.g., objectives"
-                )}
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("ชื่อผู้กรอกฟอร์ม", "Submitted by (name)")}
-                </label>
-                <input
-                  type="text"
-                  name="submittedByName"
-                  value={form.submittedByName}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t("เช่น นาย/นาง ...", "e.g., Mr./Ms. ...")}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("ตำแหน่งผู้กรอกฟอร์ม", "Submitted by (position)")}
-                </label>
-                <input
-                  type="text"
-                  name="submittedByPosition"
-                  value={form.submittedByPosition}
-                  onChange={handleChange}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t("เช่น Officer", "e.g., Officer")}
-                />
-              </div>
-            </div>
-          </section>
+            </section>
 
             <div className="sticky bottom-4 z-10 flex items-center justify-end gap-3 rounded-2xl border border-[#E2CCA8] bg-[#FAEFCC]/95 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur">
-            <button
-              type="button"
-              className="rounded-full border border-[#E2CCA8] bg-white/70 px-4 py-2 text-sm font-medium text-[#2F3B2B] hover:border-[#788B64] hover:bg-[#FAEFCC] disabled:cursor-not-allowed disabled:opacity-70"
-              onClick={() => {
-                setForm(initialState);
-                setDialog({
-                  open: false,
-                  type: "error",
-                  message: "",
-                });
-              }}
-              disabled={submitting}
-            >
-              {t("ล้างฟอร์ม", "Clear")}
-            </button>
-            <button
-              type="submit"
-              className="rounded-full bg-[#788B64] px-5 py-2 text-sm font-semibold text-white hover:bg-[#6b7d58] focus:outline-none focus:ring-2 focus:ring-[#788B64]/35 disabled:cursor-not-allowed disabled:opacity-70"
-              disabled={submitting}
-            >
-              {submitting ? t("กำลังส่งข้อมูล...", "Submitting...") : t("ส่งข้อมูล", "Submit")}
-            </button>
-          </div>
+              <button
+                type="button"
+                className="rounded-full border border-[#E2CCA8] bg-white/70 px-4 py-2 text-sm font-medium text-[#2F3B2B] hover:border-[#788B64] hover:bg-[#FAEFCC] disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={() => {
+                  setForm(initialState);
+                  setDialog({
+                    open: false,
+                    type: "error",
+                    message: "",
+                  });
+                }}
+                disabled={submitting}
+              >
+                {t("ล้างฟอร์ม", "Clear")}
+              </button>
+              <button
+                type="submit"
+                className="rounded-full bg-[#788B64] px-5 py-2 text-sm font-semibold text-white hover:bg-[#6b7d58] focus:outline-none focus:ring-2 focus:ring-[#788B64]/35 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={submitting}
+              >
+                {submitting ? t("กำลังส่งข้อมูล...", "Submitting...") : t("ส่งข้อมูล", "Submit")}
+              </button>
+            </div>
           </form>
         </div>
       </main>
