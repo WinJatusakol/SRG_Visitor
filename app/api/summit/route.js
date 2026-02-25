@@ -175,6 +175,7 @@ export async function POST(request) {
       visitTopic: data.visitTopic ?? "",
       visitDetail: data.visitDetail ?? "",
       visitDateTime: data.visitDateTime ?? null,
+      status: 1,
       meetingRoomSelection,
       executiveHost,
       transportType,
@@ -193,13 +194,14 @@ export async function POST(request) {
       if (
         msg.includes('column "meetingRoomSelection"') ||
         msg.includes('column "executiveHost"') ||
-        msg.includes('column "submittedBy"')
+        msg.includes('column "submittedBy"') ||
+        msg.includes('column "status"')
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb) ในตาราง vip_visitor ก่อน',
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb), status (int2) ในตาราง vip_visitor ก่อน',
           },
           { status: 500 }
         );
@@ -359,7 +361,7 @@ export async function POST(request) {
       return new Intl.DateTimeFormat("th-TH", {
         dateStyle: "medium",
         timeStyle: "short",
-        timeZone: "Asia/Bangkok",
+        timeZone: "UTC",
       }).format(parsed);
     };
 

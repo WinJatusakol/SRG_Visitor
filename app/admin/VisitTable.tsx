@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import EditBookingModal from "./EditBookingModal";
+import type { Visit } from "./visitTypes";
 import {
     CalendarClock,
     Building2,
@@ -25,37 +28,13 @@ import {
     CheckCircle2
 } from "lucide-react";
 
-export type Visit = {
-    id: string | number;
-    visitDateTime?: string | null;
-    created_at?: string | null;
-    clientCompany?: string | null;
-    vipCompany?: string | null;
-    vipPosition?: string | null;
-    nationality?: string | null;
-    contactPhone?: string | null;
-    totalGuests?: number | null;
-    hostName?: string | null;
-    transportType?: string | null;
-    carLicense?: string | null;
-    carBrand?: string | null;
-    meetingRoom?: boolean | null;
-    foodRequired?: boolean | null;
-    meals?: string | null;
-    souvenir?: boolean | null;
-    visitTopic?: string | null;
-    visitDetail?: string | null;
-    guests?: unknown[] | null;
-    carCount?: number | null;
-    cars?: unknown[] | null;
-    meetingRoomSelection?: string | null;
-    foodPreferences?: any | null;
-    souvenirPreferences?: any | null;
-    presentationFiles?: any | null;
-};
-
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+    const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+    const router = useRouter();
+    const timeZone = "UTC";
+    const [editVisit, setEditVisit] = useState<Visit | null>(null);
 
     const sortedVisits = useMemo(() => {
         if (!visits) return [];
@@ -65,6 +44,44 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             return dateA - dateB;
         });
     }, [visits]);
+
+    const cancelBooking = async () => {
+        if (!selectedVisit) return;
+        if (selectedVisit.status !== 1 && selectedVisit.status != null) return;
+        setCancelConfirmOpen(false);
+
+        setUpdatingStatus(true);
+        try {
+            const response = await fetch("/api/admin/visitor-status", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: selectedVisit.id, status: 0 }),
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result?.success === false) {
+                throw new Error(result?.error ?? `Request failed: ${response.status}`);
+            }
+            setSelectedVisit(null);
+            router.refresh();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unknown error";
+            window.alert(message);
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
+    const openCancelConfirm = () => {
+        if (!selectedVisit) return;
+        if (selectedVisit.status !== 1 && selectedVisit.status != null) return;
+        setCancelConfirmOpen(true);
+    };
+
+    const openEdit = () => {
+        if (!selectedVisit) return;
+        if (selectedVisit.status !== 1 && selectedVisit.status != null) return;
+        setEditVisit(selectedVisit);
+    };
 
     // Helpers สำหรับเช็คข้อมูลว่ามีอยู่จริงหรือไม่
     const specialDietText = (value: any) => {
@@ -188,21 +205,25 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         <tbody className="divide-y divide-gray-50/50">
                             {sortedVisits.map((visit, index) => {
                                 const visitDate = new Date(visit.visitDateTime || visit.created_at || 0);
+                                const monthShort = new Intl.DateTimeFormat("en-US", { month: "short", timeZone }).format(visitDate);
+                                const dayNum = new Intl.DateTimeFormat("en-US", { day: "2-digit", timeZone }).format(visitDate);
+                                const timeText = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone }).format(visitDate);
+                                const weekdayText = new Intl.DateTimeFormat("th-TH", { weekday: "long", timeZone }).format(visitDate);
                                 return (
                                     <tr key={visit.id} onClick={() => setSelectedVisit(visit)} className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10">
                                         <td className="px-6 py-5 align-top">
                                             <div className="flex items-start gap-3">
                                                 <div className="shrink-0 w-12 h-12 bg-blue-50/80 text-blue-600 rounded-xl flex flex-col items-center justify-center shadow-sm border border-blue-100/50 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                                    <span className="text-xs font-bold uppercase leading-none">{visitDate.toLocaleDateString("en-US", { month: "short" })}</span>
-                                                    <span className="text-lg font-extrabold leading-none mt-0.5">{visitDate.getDate()}</span>
+                                                    <span className="text-xs font-bold uppercase leading-none">{monthShort}</span>
+                                                    <span className="text-lg font-extrabold leading-none mt-0.5">{dayNum}</span>
                                                 </div>
                                                 <div className="flex flex-col pt-1">
                                                     <span className="gap-x-1 flex text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors w-fit">
                                                         <CalendarClock className="w-4 h-4 text-blue-500" />
-                                                        {visitDate.toLocaleTimeString("th-TH", { hour: '2-digit', minute: '2-digit' })} น.
+                                                        {timeText} น.
                                                     </span>
                                                     <div className="flex items-center text-xs font-medium text-gray-500 gap-1.5 mt-1 bg-gray-100/70 px-2 py-0.5 rounded-md w-fit">
-                                                        {visitDate.toLocaleDateString("th-TH", { weekday: 'long' })}
+                                                        {weekdayText}
                                                     </div>
                                                 </div>
                                             </div>
@@ -234,7 +255,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             </div>
 
             {/* ✨ Modal View ✨ */}
-            {selectedVisit && (
+            {selectedVisit ? (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-gray-50 w-full max-w-5xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
 
@@ -251,7 +272,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         <p className="text-sm text-blue-600 font-semibold flex items-center gap-1.5 mt-1.5">
                                             <CalendarClock className="w-4 h-4" />
                                             {selectedVisit.visitDateTime || selectedVisit.created_at
-                                                ? new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0).toLocaleString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' น.'
+                                                ? new Intl.DateTimeFormat("th-TH", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone }).format(new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0)) + " น."
                                                 : 'ไม่ระบุเวลาเข้าพบ'}
                                         </p>
                                     </div>
@@ -412,8 +433,8 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             </div>
 
                             {/* Section 4: การรับรองและจัดเลี้ยงอาหาร */}
-                            {selectedVisit.foodPreferences && (() => {
-                                const foodData = selectedVisit.foodPreferences?.foodPreferences || selectedVisit.foodPreferences;
+                            {selectedVisit.foodPreferences ? (() => {
+                                const foodData = (selectedVisit.foodPreferences as any)?.foodPreferences || selectedVisit.foodPreferences;
                                 // เช็คว่ามีข้อมูลมื้อไหนบ้างเพื่อซ่อน/แสดง
                                 const hasBreakfast = foodData?.meals?.includes('เช้า') || (foodData?.menus?.breakfast && foodData.menus.breakfast.trim() !== "");
                                 const hasLunch = foodData?.meals?.includes('กลางวัน') || (foodData?.menus?.lunch?.main && foodData.menus.lunch.main.trim() !== "");
@@ -521,11 +542,78 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         </div>
                                     </div>
                                 );
-                            })()}
+                            })() : null}
+                        </div>
+
+                        <div className="shrink-0 border-t border-gray-200/60 bg-white px-6 py-4 sm:rounded-b-3xl">
+                            <div className="flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={openEdit}
+                                    disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
+                                    className="px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                >
+                                    แก้ไข
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={openCancelConfirm}
+                                    disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                                >
+                                    ยกเลิกการจอง
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {selectedVisit && cancelConfirmOpen && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onMouseDown={(e) => {
+                        if (e.currentTarget === e.target && !updatingStatus) setCancelConfirmOpen(false);
+                    }}
+                >
+                    <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200">
+                        <div className="px-6 py-5">
+                            <div className="text-lg font-bold text-gray-900">Cancel booking?</div>
+                            <div className="mt-2 text-sm text-gray-600">
+                                ระบบจะเปลี่ยนสถานะเป็น “ยกเลิกแล้ว” และรายการจะหายจากหน้า Dashboard
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-6 py-4">
+                            <button
+                                type="button"
+                                onClick={() => setCancelConfirmOpen(false)}
+                                disabled={updatingStatus}
+                                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={cancelBooking}
+                                disabled={updatingStatus}
+                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                            >
+                                {updatingStatus ? "Cancelling..." : "Confirm"}
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
+
+            <EditBookingModal
+                visit={editVisit}
+                onClose={() => setEditVisit(null)}
+                onSaved={() => {
+                    setEditVisit(null);
+                    setSelectedVisit(null);
+                    router.refresh();
+                }}
+            />
         </div>
     );
 }

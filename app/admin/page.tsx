@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import VisitorTable, { type Visit } from "./VisitTable";
+import VisitorTable from "./VisitTable";
+import type { Visit } from "./visitTypes";
+import RefDataManager from "./RefDataManager";
+import BookingHistoryModal from "./BookingHistoryModal";
 
 type GuestRow = {
   sortIndex?: number | null;
@@ -27,6 +30,23 @@ export default async function AdminPage() {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const nowThai = new Date();
+  nowThai.setHours(nowThai.getHours() + 7);
+  const todayThai = nowThai.toISOString().slice(0, 10);
+  const midnightThaiIso = `${todayThai}T00:00:00.000Z`;
+  try {
+    await supabase
+      .from("vip_visitor")
+      .update({ status: 2 })
+      .eq("status", 1)
+      .lt("visitDateTime", midnightThaiIso);
+    await supabase
+      .from("vip_visitor")
+      .update({ status: 2 })
+      .is("status", null)
+      .lt("visitDateTime", midnightThaiIso);
+  } catch {}
 
   // ใช้ Query จากตัวที่ Pull มา เพื่อดึง Table เข้ามาทั้งหมด
   const joinedSelect = `
@@ -127,6 +147,11 @@ export default async function AdminPage() {
     return normalized as unknown as Visit;
   });
 
+  const activeVisits = visits.filter((visit) => {
+    const v = visit as unknown as Record<string, unknown>;
+    return v.status === 1;
+  });
+
   const error = joinedResult.error && !fallbackResult ? joinedResult.error : fallbackResult?.error;
 
   console.log("Error:", error);
@@ -142,20 +167,24 @@ export default async function AdminPage() {
             <p className="text-gray-500 mt-1">รายการแขก VIP และผู้เข้าเยี่ยมชมทั้งหมด</p>
           </div>
           
-          <form action={async () => {
-            "use server";
-            const sb = await createClient();
-            await sb.auth.signOut();
-            redirect("/login");
-          }}>
-            <button className="px-4 py-2 bg-white border border-gray-300 shadow-sm text-sm font-medium text-red-600 rounded-md hover:bg-red-50 focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">
-              Sign Out
-            </button>
-          </form>
+          <div className="flex items-center gap-3">
+            <RefDataManager />
+            <BookingHistoryModal visits={visits as unknown as Array<Visit & { status?: number | null }>} />
+            <form action={async () => {
+              "use server";
+              const sb = await createClient();
+              await sb.auth.signOut();
+              redirect("/login");
+            }}>
+              <button className="px-4 py-2 bg-white border border-gray-300 shadow-sm text-sm font-medium text-red-600 rounded-md hover:bg-red-50 focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">
+                Sign Out
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* เรียกใช้ Client Component */}
-        <VisitorTable visits={visits} />
+        <VisitorTable visits={activeVisits} />
       </div>
     </div>
   );
