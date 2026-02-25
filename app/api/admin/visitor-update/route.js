@@ -60,6 +60,49 @@ export async function POST(request) {
 
     const supabase = createServiceClient();
 
+    if ("visitDateTime" in updatePayload) {
+      const nextVisitDateTime = String(updatePayload.visitDateTime ?? "").trim();
+      if (nextVisitDateTime) {
+        const { data: currentRow, error: currentError } = await supabase
+          .from("vip_visitor")
+          .select("status")
+          .eq("id", id)
+          .single();
+        if (currentError) {
+          return NextResponse.json({ success: false, error: currentError.message }, { status: 500 });
+        }
+
+        const nextStatusValue =
+          "status" in updatePayload ? Number(updatePayload.status) : Number(currentRow?.status);
+        const nextStatus = Number.isFinite(nextStatusValue) ? nextStatusValue : null;
+
+        if (nextStatus !== 0 && nextStatus !== 2) {
+          const { data: conflicts, error: conflictError } = await supabase
+            .from("vip_visitor")
+            .select("id,status")
+            .eq("visitDateTime", nextVisitDateTime)
+            .neq("id", id)
+            .or("status.eq.1,status.is.null")
+            .limit(1);
+
+          if (conflictError) {
+            return NextResponse.json({ success: false, error: conflictError.message }, { status: 500 });
+          }
+
+          if (Array.isArray(conflicts) && conflicts.length > 0) {
+            return NextResponse.json(
+              { success: false, error: "วันและเวลานี้มีการจองแล้ว กรุณาเลือกเวลาอื่น" },
+              { status: 409 }
+            );
+          }
+        }
+
+        updatePayload.visitDateTime = nextVisitDateTime;
+      } else {
+        updatePayload.visitDateTime = null;
+      }
+    }
+
     const { data: updated, error: updateError } = await supabase
       .from("vip_visitor")
       .update(updatePayload)

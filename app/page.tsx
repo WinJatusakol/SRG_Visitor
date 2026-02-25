@@ -977,6 +977,26 @@ export default function Home() {
     };
 
     try {
+      const selectedVisitDateTime = String(payload.visitDateTime ?? "").trim();
+      if (selectedVisitDateTime) {
+        const supabase = createClient();
+        const { data: existing, error } = await supabase
+          .from("vip_visitor")
+          .select("id,status")
+          .eq("visitDateTime", selectedVisitDateTime)
+          .or("status.eq.1,status.is.null")
+          .limit(1);
+
+        if (!error && Array.isArray(existing) && existing.length > 0) {
+          setDialog({
+            open: true,
+            type: "error",
+            message: t("วันและเวลานี้มีการจองแล้ว กรุณาเลือกเวลาอื่น", "This date/time is already booked. Please choose another slot."),
+          });
+          return;
+        }
+      }
+
       setSubmitting(true);
       const response = await (async () => {
         if (!presentationFile) {

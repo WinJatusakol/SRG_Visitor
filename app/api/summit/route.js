@@ -25,6 +25,33 @@ export async function POST(request) {
     const data = parsed.data ?? {};
     const supabase = createServiceClient();
 
+    const visitDateTimeIso = String(data.visitDateTime ?? "").trim();
+    if (visitDateTimeIso) {
+      const { data: conflicts, error: conflictError } = await supabase
+        .from("vip_visitor")
+        .select("id,status")
+        .eq("visitDateTime", visitDateTimeIso)
+        .or("status.eq.1,status.is.null")
+        .limit(1);
+
+      if (conflictError) {
+        return NextResponse.json(
+          { success: false, error: conflictError.message },
+          { status: 500 }
+        );
+      }
+
+      if (Array.isArray(conflicts) && conflicts.length > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "วันและเวลานี้มีการจองแล้ว กรุณาเลือกเวลาอื่น",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const guests = Array.isArray(data.guests) ? data.guests : [];
     const cars = Array.isArray(data.cars) ? data.cars : [];
     const transportType = String(data.transportType ?? "").trim();
@@ -174,7 +201,7 @@ export async function POST(request) {
       contactPhone: data.contactPhone ?? "",
       visitTopic: data.visitTopic ?? "",
       visitDetail: data.visitDetail ?? "",
-      visitDateTime: data.visitDateTime ?? null,
+      visitDateTime: visitDateTimeIso || null,
       status: 1,
       meetingRoomSelection,
       executiveHost,
