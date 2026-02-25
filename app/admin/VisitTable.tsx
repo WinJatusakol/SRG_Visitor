@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import EditBookingModal from "./EditBookingModal";
+import type { Visit } from "./visitTypes";
 import {
     CalendarClock,
     Building2,
@@ -26,42 +28,13 @@ import {
     CheckCircle2
 } from "lucide-react";
 
-export type Visit = {
-    id: string | number;
-    visitDateTime?: string | null;
-    created_at?: string | null;
-    status?: number | null;
-    clientCompany?: string | null;
-    vipCompany?: string | null;
-    vipPosition?: string | null;
-    nationality?: string | null;
-    contactPhone?: string | null;
-    totalGuests?: number | null;
-    hostName?: string | null;
-    transportType?: string | null;
-    carLicense?: string | null;
-    carBrand?: string | null;
-    meetingRoom?: boolean | null;
-    foodRequired?: boolean | null;
-    meals?: string | null;
-    souvenir?: boolean | null;
-    visitTopic?: string | null;
-    visitDetail?: string | null;
-    guests?: unknown[] | null;
-    carCount?: number | null;
-    cars?: unknown[] | null;
-    meetingRoomSelection?: string | null;
-    foodPreferences?: any | null;
-    souvenirPreferences?: any | null;
-    presentationFiles?: any | null;
-};
-
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
     const router = useRouter();
     const timeZone = "UTC";
+    const [editVisit, setEditVisit] = useState<Visit | null>(null);
 
     const sortedVisits = useMemo(() => {
         if (!visits) return [];
@@ -102,6 +75,12 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         if (!selectedVisit) return;
         if (selectedVisit.status !== 1 && selectedVisit.status != null) return;
         setCancelConfirmOpen(true);
+    };
+
+    const openEdit = () => {
+        if (!selectedVisit) return;
+        if (selectedVisit.status !== 1 && selectedVisit.status != null) return;
+        setEditVisit(selectedVisit);
     };
 
     // Helpers สำหรับเช็คข้อมูลว่ามีอยู่จริงหรือไม่
@@ -276,7 +255,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             </div>
 
             {/* ✨ Modal View ✨ */}
-            {selectedVisit && (
+            {selectedVisit ? (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-gray-50 w-full max-w-5xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
 
@@ -454,8 +433,8 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             </div>
 
                             {/* Section 4: การรับรองและจัดเลี้ยงอาหาร */}
-                            {selectedVisit.foodPreferences && (() => {
-                                const foodData = selectedVisit.foodPreferences?.foodPreferences || selectedVisit.foodPreferences;
+                            {selectedVisit.foodPreferences ? (() => {
+                                const foodData = (selectedVisit.foodPreferences as any)?.foodPreferences || selectedVisit.foodPreferences;
                                 // เช็คว่ามีข้อมูลมื้อไหนบ้างเพื่อซ่อน/แสดง
                                 const hasBreakfast = foodData?.meals?.includes('เช้า') || (foodData?.menus?.breakfast && foodData.menus.breakfast.trim() !== "");
                                 const hasLunch = foodData?.meals?.includes('กลางวัน') || (foodData?.menus?.lunch?.main && foodData.menus.lunch.main.trim() !== "");
@@ -563,11 +542,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         </div>
                                     </div>
                                 );
-                            })()}
+                            })() : null}
                         </div>
 
                         <div className="shrink-0 border-t border-gray-200/60 bg-white px-6 py-4 sm:rounded-b-3xl">
                             <div className="flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={openEdit}
+                                    disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
+                                    className="px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                >
+                                    แก้ไข
+                                </button>
                                 <button
                                     type="button"
                                     onClick={openCancelConfirm}
@@ -580,7 +567,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         </div>
                     </div>
                 </div>
-            )}
+            ) : null}
 
             {selectedVisit && cancelConfirmOpen && (
                 <div
@@ -617,6 +604,16 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                     </div>
                 </div>
             )}
+
+            <EditBookingModal
+                visit={editVisit}
+                onClose={() => setEditVisit(null)}
+                onSaved={() => {
+                    setEditVisit(null);
+                    setSelectedVisit(null);
+                    router.refresh();
+                }}
+            />
         </div>
     );
 }

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import VisitorTable, { type Visit } from "./VisitTable";
+import VisitorTable from "./VisitTable";
+import type { Visit } from "./visitTypes";
 import RefDataManager from "./RefDataManager";
 import BookingHistoryModal from "./BookingHistoryModal";
 

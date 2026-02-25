@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Visit } from "./VisitTable";
+import type { Visit } from "./visitTypes";
 
 type VisitWithStatus = Visit & {
   status?: number | null;

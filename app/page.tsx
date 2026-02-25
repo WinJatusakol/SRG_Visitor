@@ -1110,23 +1110,18 @@ export default function Home() {
           <div className="absolute right-0 top-0 flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setLang("th")}
-              className={`rounded-full border px-3 py-1 text-xm font-semibold transition ${lang === "th"
-                ? "border-[#788B64] bg-[#788B64] text-white"
-                : "border-[#E2CCA8] bg-white/70 text-[#1b2a18] hover:border-[#788B64]"
-                }`}
+              onClick={() => setLang((prev) => (prev === "th" ? "en" : "th"))}
+              aria-label={t("เปลี่ยนภาษา", "Switch language")}
+              className="inline-flex items-center gap-2 rounded-full border border-[#788B64] bg-[#788B64] px-3 py-1 text-xm font-semibold text-white transition hover:bg-[#6b7d58]"
             >
-              ไทย
-            </button>
-            <button
-              type="button"
-              onClick={() => setLang("en")}
-              className={`rounded-full border px-3 py-1 text-xm font-semibold transition ${lang === "en"
-                ? "border-[#788B64] bg-[#788B64] text-white"
-                : "border-[#E2CCA8] bg-white/70 text-[#1b2a18] hover:border-[#788B64]"
-                }`}
-            >
-              EN
+              <Image
+                src={lang === "th" ? "/flags/th.svg" : "/flags/gb.svg"}
+                alt={lang === "th" ? "TH" : "EN"}
+                width={16}
+                height={12}
+                className="h-3 w-4 rounded-[2px]"
+              />
+              <span>{lang === "th" ? "ไทย" : "EN"}</span>
             </button>
           </div>
         </div>
