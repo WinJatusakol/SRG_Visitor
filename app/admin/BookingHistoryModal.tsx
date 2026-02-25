@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Visit } from "./visitTypes";
+import { VisitDetailsModal } from "./VisitTable";
 
 type VisitWithStatus = Visit & {
   status?: number | null;
@@ -24,6 +25,7 @@ const formatDateTime = (iso: string | null | undefined) => {
 
 export default function BookingHistoryModal({ visits }: { visits: VisitWithStatus[] }) {
   const [open, setOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<VisitWithStatus | null>(null);
 
   const sorted = useMemo(() => {
     const items = Array.isArray(visits) ? [...visits] : [];
@@ -49,7 +51,10 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onMouseDown={(e) => {
-            if (e.currentTarget === e.target) setOpen(false);
+            if (e.currentTarget === e.target) {
+              setSelectedVisit(null);
+              setOpen(false);
+            }
           }}
         >
           <div className="w-full max-w-[96vw] h-[92vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
@@ -60,7 +65,10 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
               </div>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setSelectedVisit(null);
+                  setOpen(false);
+                }}
                 className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
                 ปิด
@@ -100,7 +108,11 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                       {sorted.map((visit, index) => {
                         const label = statusLabel(visit.status);
                         return (
-                          <tr key={visit.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50/40"}>
+                          <tr
+                            key={visit.id}
+                            onClick={() => setSelectedVisit(visit)}
+                            className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50/40"} cursor-pointer hover:bg-blue-50/30`}
+                          >
                             <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
                               {formatDateTime(visit.visitDateTime || visit.created_at || null)}
                             </td>
@@ -133,6 +145,14 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                 </div>
               </div>
             </div>
+
+            <VisitDetailsModal
+              selectedVisit={selectedVisit}
+              onClose={() => setSelectedVisit(null)}
+              timeZone="UTC"
+              readOnly
+              zVariant="history"
+            />
           </div>
         </div>
       )}

@@ -32,6 +32,546 @@ import {
     PenLine
 } from "lucide-react";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const specialDietText = (value: unknown) => {
+    const data = isRecord(value) && isRecord(value.foodPreferences) ? value.foodPreferences : value;
+    if (!isRecord(data)) return "-";
+    const sd = data.specialDiet;
+    if (!isRecord(sd)) return "-";
+
+    const halal = Number(sd.halalSets ?? 0);
+    const vegan = Number(sd.veganSets ?? 0);
+    if (halal <= 0 && vegan <= 0) return "-";
+
+    const lines: string[] = [];
+    if (halal > 0) lines.push(`• ฮาลาล ${halal} ชุด`);
+    if (vegan > 0) lines.push(`• วีแกน ${vegan} ชุด`);
+    return lines.join("\n");
+};
+
+const allergyText = (value: unknown) => {
+    const data = isRecord(value) && isRecord(value.foodPreferences) ? value.foodPreferences : value;
+    if (!isRecord(data)) return "-";
+    const a = data.allergies;
+    if (!isRecord(a)) return "-";
+
+    const itemsRaw = a.items;
+    const items = Array.isArray(itemsRaw)
+        ? itemsRaw.filter((x): x is string => typeof x === "string" && x.trim().length > 0 && x !== "อื่นๆ")
+        : [];
+    const other = typeof a.other === "string" ? a.other.trim() : "";
+
+    const parts: string[] = [];
+    if (items.length > 0) parts.push(`• ${items.join(", ")}`);
+    if (other) parts.push(`• อื่นๆ: ${other}`);
+    return parts.length > 0 ? parts.join("\n") : "-";
+};
+
+const souvenirData = (value: unknown) => {
+    if (!value) return null;
+    const data = isRecord(value) && isRecord(value.souvenirPreferences) ? value.souvenirPreferences : value;
+    if (!isRecord(data)) return null;
+
+    const giftSet = typeof data.giftSet === "string" && data.giftSet && data.giftSet !== "-" ? data.giftSet : null;
+    const count = Number.isFinite(Number(data.count)) ? Number(data.count) : 0;
+    const extra = typeof data.extra === "string" && data.extra.trim() && data.extra !== "-" ? data.extra : null;
+
+    if (!giftSet && count === 0 && !extra) return null;
+    return { giftSet, count, extra };
+};
+
+const renderPresentationFiles = (value: unknown) => {
+    let fileData: unknown = value;
+    if (Array.isArray(value) && value.length > 0 && isRecord(value[0]) && "presentationFile" in value[0]) {
+        fileData = (value[0] as Record<string, unknown>).presentationFile;
+    } else if (isRecord(value) && "presentationFile" in value) {
+        fileData = value.presentationFile;
+    }
+
+    if (!fileData || (Array.isArray(fileData) && fileData.length === 0)) {
+        return <span className="text-sm font-bold text-gray-400">ไม่มีไฟล์แนบ</span>;
+    }
+
+    const filesArray = Array.isArray(fileData) ? fileData : [fileData];
+    return (
+        <div className="flex flex-wrap gap-2 mt-2">
+            {filesArray.map((file, idx) => {
+                if (!file) return null;
+                const url =
+                    typeof file === "string"
+                        ? file
+                        : isRecord(file)
+                            ? String(file.url ?? file.publicUrl ?? file.path ?? "")
+                            : "";
+                const name =
+                    isRecord(file) && (typeof file.name === "string" || typeof file.fileName === "string")
+                        ? String(file.name ?? file.fileName)
+                        : `ไฟล์เอกสาร ${idx + 1}`;
+                if (!url) return null;
+
+                return (
+                    <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 shadow-sm rounded-lg text-sm text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all w-full sm:w-auto"
+                    >
+                        <FileText className="w-4 h-4 shrink-0" />
+                        <span className="font-semibold line-clamp-1 break-all">{name}</span>
+                        <Download className="w-3.5 h-3.5 ml-auto sm:ml-1 text-gray-400 shrink-0" />
+                    </a>
+                );
+            })}
+        </div>
+    );
+};
+
+export function VisitDetailsModal({
+    selectedVisit,
+    onClose,
+    timeZone,
+    readOnly = false,
+    updatingStatus = false,
+    onEdit,
+    onCancel,
+    zVariant = "table",
+}: {
+    selectedVisit: Visit | null;
+    onClose: () => void;
+    timeZone: string;
+    readOnly?: boolean;
+    updatingStatus?: boolean;
+    onEdit?: () => void;
+    onCancel?: () => void;
+    zVariant?: "table" | "history";
+}) {
+    if (!selectedVisit) return null;
+    const overlayZ = zVariant === "history" ? "z-[70]" : "z-50";
+    const canManage = selectedVisit.status == null || selectedVisit.status === 1;
+    const statusMeta = (() => {
+        const status = selectedVisit.status;
+        if (status === 0) return { text: "ยกเลิกแล้ว", className: "bg-red-50 text-red-700 border-red-200" };
+        if (status === 2) return { text: "เสร็จสิ้นแล้ว", className: "bg-gray-50 text-gray-700 border-gray-200" };
+        return { text: "ยังดำเนินการอยู่", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+    })();
+
+    return (
+        <div
+            className={`fixed inset-0 ${overlayZ} flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300`}
+            onMouseDown={(e) => {
+                if (e.currentTarget === e.target) onClose();
+            }}
+        >
+            <div className="bg-gray-50 w-full max-w-5xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
+                <div className="relative px-6 py-6 border-b border-gray-200/60 overflow-hidden bg-white shrink-0 sm:rounded-t-3xl rounded-t-3xl">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+                    <div className="relative z-10 flex justify-between items-start">
+                        <div className="flex items-center gap-4">
+                            <CompanyAvatar name={selectedVisit.vipCompany} size="lg" />
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900 leading-tight">
+                                    {selectedVisit.vipCompany || "ไม่ระบุบริษัท"}
+                                </h2>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                    <p className="text-sm text-blue-600 font-semibold flex items-center gap-1.5">
+                                        <CalendarClock className="w-4 h-4" />
+                                        {selectedVisit.visitDateTime || selectedVisit.created_at
+                                            ? new Intl.DateTimeFormat("th-TH", {
+                                                year: "numeric",
+                                                month: "long",
+                                                day: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                                timeZone,
+                                            }).format(new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0)) + " น."
+                                            : "ไม่ระบุเวลาเข้าพบ"}
+                                    </p>
+                                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.className}`}>
+                                        {statusMeta.text}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="p-2 -mr-2 bg-gray-100 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-full transition-colors shadow-sm"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-6">
+                    <div className="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden">
+                        <div className="bg-blue-50/50 px-5 sm:px-6 py-4 border-b border-blue-100 flex items-center gap-2">
+                            <MessageSquareText className="w-5 h-5 text-blue-600" />
+                            <h3 className="text-base font-bold text-blue-900">ข้อมูลทั่วไปและการเข้าพบ</h3>
+                        </div>
+                        <div className="p-5 sm:p-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                                <InfoCard icon={<Phone className="w-4 h-4 text-blue-500" />} label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} />
+                                <InfoCard icon={<Globe2 className="w-4 h-4 text-blue-500" />} label="สัญชาติ" value={selectedVisit.nationality} />
+                                <InfoCard icon={<UserCircle2 className="w-4 h-4 text-blue-500" />} label="บุคคลที่ลูกค้าขอเข้าพบ (Host)" value={selectedVisit.hostName} />
+                                <InfoCard icon={<UserCheck className="w-4 h-4 text-blue-500" />} label="ผู้ดูแล ต้อนรับแขก" value={(selectedVisit.executiveHost as unknown as { name?: string })?.name || "-"} />
+                            </div>
+
+                            {(selectedVisit.visitTopic || selectedVisit.visitDetail) && (
+                                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
+                                    {selectedVisit.visitTopic && (
+                                        <div className="mb-4">
+                                            <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                                <Briefcase className="w-3.5 h-3.5" /> หัวข้อการเข้าพบ
+                                            </dt>
+                                            <dd className="text-base font-bold text-gray-900">{selectedVisit.visitTopic}</dd>
+                                        </div>
+                                    )}
+                                    {selectedVisit.visitDetail && (
+                                        <div>
+                                            <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                                <Info className="w-3.5 h-3.5" /> รายละเอียดเพิ่มเติม
+                                            </dt>
+                                            <dd className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{selectedVisit.visitDetail}</dd>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden h-full flex flex-col">
+                            <div className="bg-indigo-50/50 px-5 sm:px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Users className="w-5 h-5 text-indigo-600" />
+                                    <h3 className="text-base font-bold text-indigo-900">รายชื่อผู้เข้าร่วม</h3>
+                                </div>
+                                <span className="text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-md">{selectedVisit.guests?.length || 0} ท่าน</span>
+                            </div>
+                            <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
+                                {selectedVisit.guests && selectedVisit.guests.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {selectedVisit.guests.map((g: any, i: number) => (
+                                            <div key={i} className="flex items-center gap-4 p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-colors">
+                                                <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500 shrink-0">
+                                                    <UserCircle2 className="w-5 h-5" />
+                                                </div>
+                                                <div className="overflow-hidden">
+                                                    <div className="font-bold text-sm text-gray-900 truncate">
+                                                        {g.firstName || "-"} {g.middleName === "-" ? "" : g.middleName || ""}{" "}{g.lastName || ""}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                        {g.position || "ไม่ระบุตำแหน่ง"} • {g.nationality || "ไม่ระบุสัญชาติ"}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วม</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden h-full flex flex-col">
+                            <div className="bg-emerald-50/50 px-5 sm:px-6 py-4 border-b border-emerald-100 flex items-center gap-2">
+                                <CarFront className="w-5 h-5 text-emerald-600" />
+                                <h3 className="text-base font-bold text-emerald-900">ข้อมูลการเดินทาง</h3>
+                            </div>
+                            <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
+                                <div className="flex items-center gap-4 mb-5">
+                                    <div className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${selectedVisit.transportType === "personal" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
+                                        {selectedVisit.transportType === "personal" ? "🚗 เดินทางด้วยรถส่วนตัว" : "🚌 เดินทางด้วยรถสาธารณะ"}
+                                    </div>
+                                    {selectedVisit.transportType === "personal" && (
+                                        <div className="text-sm font-semibold text-gray-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
+                                    )}
+                                </div>
+
+                                {selectedVisit.transportType === "personal" && selectedVisit.cars && selectedVisit.cars.length > 0 ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {selectedVisit.cars.map((c: any, i: number) => (
+                                            <div key={i} className="p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-emerald-200 transition-colors">
+                                                <div className="text-xs text-gray-400 font-semibold mb-1 truncate">{c.brand || "ไม่ระบุแบรนด์"}</div>
+                                                <div className="font-bold text-sm text-gray-900 flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-400"></div> {c.license || "ไม่ระบุทะเบียน"}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : selectedVisit.transportType === "personal" ? (
+                                    <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถยนต์</div>
+                                ) : null}
+                            </div>
+                        </div>
+                    </div>
+
+                    {selectedVisit.siteVisit ? (() => {
+                        const siteV = selectedVisit.siteVisit as any;
+                        if (!siteV.areas || siteV.areas.length === 0) return null;
+                        return (
+                            <div className="bg-white rounded-2xl shadow-sm border border-violet-100 overflow-hidden">
+                                <div className="bg-violet-50/50 px-5 sm:px-6 py-4 border-b border-violet-100 flex items-center gap-2">
+                                    <MapPin className="w-5 h-5 text-violet-600" />
+                                    <h3 className="text-base font-bold text-violet-900">การเข้าชมพื้นที่ (Site Visit)</h3>
+                                </div>
+                                <div className="p-5 sm:p-6 bg-gray-50/30">
+                                    <div className="mb-5">
+                                        <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">พื้นที่เข้าชม</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {siteV.areas.map((area: string, i: number) => (
+                                                <span key={i} className="px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-sm font-semibold border border-violet-100">
+                                                    {area}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
+                                            <div className="overflow-hidden">
+                                                <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ชื่อ)</dt>
+                                                <dd className="text-sm font-bold text-gray-900 truncate">{siteV.approverName || "-"}</dd>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
+                                            <div className="overflow-hidden">
+                                                <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ตำแหน่ง)</dt>
+                                                <dd className="text-sm font-bold text-gray-900 truncate">{siteV.approverPosition || "-"}</dd>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })() : null}
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-cyan-100 overflow-hidden">
+                        <div className="bg-cyan-50/50 px-5 sm:px-6 py-4 border-b border-cyan-100 flex items-center gap-2">
+                            <Building2 className="w-5 h-5 text-cyan-600" />
+                            <h3 className="text-base font-bold text-cyan-900">การอำนวยความสะดวก (Facilities & Extras)</h3>
+                        </div>
+                        <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-3 gap-5 bg-gray-50/30">
+                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Users className="w-4 h-4 text-cyan-500" /> ห้องประชุม</dt>
+                                <dd className="text-sm font-bold text-gray-900">
+                                    {selectedVisit.meetingRoomSelection ? (
+                                        <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500" /> {selectedVisit.meetingRoomSelection}</span>
+                                    ) : (
+                                        <span className="text-gray-400 font-medium">ไม่ต้องการห้องประชุม</span>
+                                    )}
+                                </dd>
+                            </div>
+
+                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Gift className="w-4 h-4 text-pink-500" /> ของที่ระลึก</dt>
+                                {(() => {
+                                    const suv = souvenirData(selectedVisit.souvenirPreferences);
+                                    if (suv) {
+                                        return (
+                                            <dd className="text-sm font-bold text-gray-900 space-y-1">
+                                                <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500" /> {suv.giftSet || "-"}</div>
+                                                {suv.count > 0 && <div className="text-xs font-semibold text-gray-500">จำนวน {suv.count} ชุด</div>}
+                                                {suv.extra && <div className="text-xs font-semibold text-gray-500">พิเศษ: {suv.extra}</div>}
+                                            </dd>
+                                        );
+                                    }
+                                    return <dd className="text-sm font-bold text-gray-400">ไม่รับของที่ระลึก</dd>;
+                                })()}
+                            </div>
+
+                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-blue-500" /> ไฟล์แนบ</dt>
+                                <dd className="text-sm">{renderPresentationFiles(selectedVisit.presentationFiles)}</dd>
+                            </div>
+                        </div>
+                    </div>
+
+                    {(() => {
+                        const foodValue = (selectedVisit.foodPreferences as any)?.foodPreferences ?? selectedVisit.foodPreferences;
+                        const foodData = foodValue && typeof foodValue === "object" ? foodValue : null;
+                        const meals = Array.isArray(foodData?.meals) ? foodData.meals : [];
+                        const hasMeals = meals.length > 0;
+                        const sdText = specialDietText(foodData);
+                        const alText = allergyText(foodData);
+                        const hasSpecialDiet = sdText !== "-";
+                        const hasAllergies = alText !== "-";
+
+                        if (!hasMeals && !hasSpecialDiet && !hasAllergies) return null;
+
+                        const mealIcon = (meal: string) => {
+                            if (meal === "เช้า") return <Coffee className="w-4 h-4 text-yellow-600" />;
+                            if (meal === "กลางวัน") return <Sun className="w-4 h-4 text-orange-600" />;
+                            if (meal === "เย็น") return <Moon className="w-4 h-4 text-indigo-600" />;
+                            return <Utensils className="w-4 h-4 text-gray-600" />;
+                        };
+
+                        return (
+                            <div className="bg-white rounded-2xl shadow-sm border border-amber-100 overflow-hidden">
+                                <div className="bg-amber-50/50 px-5 sm:px-6 py-4 border-b border-amber-100 flex items-center gap-2">
+                                    <Utensils className="w-5 h-5 text-amber-600" />
+                                    <h3 className="text-base font-bold text-amber-900">อาหารและข้อจำกัด</h3>
+                                </div>
+
+                                <div className="p-5 sm:p-6 bg-gray-50/30">
+                                    {hasMeals ? (
+                                        <div className="space-y-4">
+                                            <div className="flex flex-wrap gap-2">
+                                                {meals.map((m: string, i: number) => (
+                                                    <span key={i} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-amber-100 text-sm font-bold text-gray-800 shadow-sm">
+                                                        {mealIcon(m)} {m}
+                                                    </span>
+                                                ))}
+                                            </div>
+
+                                            {foodData?.menus && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {foodData?.menus?.breakfast && (
+                                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-yellow-700 mb-3">
+                                                                <Coffee className="w-4 h-4" /> เมนูเช้า
+                                                            </div>
+                                                            <div className="text-sm font-semibold text-gray-900 whitespace-pre-line">{foodData?.menus?.breakfast || "-"}</div>
+                                                        </div>
+                                                    )}
+                                                    {foodData?.menus?.lunch && (
+                                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-orange-700 mb-3">
+                                                                <Sun className="w-4 h-4" /> เมนูกลางวัน
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
+                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.main || "-"}</span>
+                                                                </div>
+                                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
+                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.dessert || "-"}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {foodData?.menus?.dinner && (
+                                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-indigo-700 mb-3">
+                                                                <Moon className="w-4 h-4" /> เมนูเย็น
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
+                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.main || "-"}</span>
+                                                                </div>
+                                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
+                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.dessert || "-"}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {(hasSpecialDiet || hasAllergies) && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                                    {hasSpecialDiet && (
+                                                        <div className="p-4 bg-green-50/50 rounded-xl border border-green-200 shadow-sm">
+                                                            <span className="block text-xs font-extrabold text-green-700 uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
+                                                            <div className="text-sm text-gray-800 font-semibold whitespace-pre-line leading-relaxed">
+                                                                {sdText}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {hasAllergies && (
+                                                        <div className="p-4 bg-red-50/50 rounded-xl border border-red-200 shadow-sm">
+                                                            <span className="flex items-center gap-1.5 text-xs font-extrabold text-red-700 uppercase mb-3">
+                                                                <AlertCircle className="w-4 h-4" /> ข้อมูลการแพ้อาหาร
+                                                            </span>
+                                                            <div className="text-sm text-red-900 font-semibold whitespace-pre-line leading-relaxed">
+                                                                {alText}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {(hasSpecialDiet || hasAllergies) && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {hasSpecialDiet && (
+                                                        <div className="p-4 bg-green-50/50 rounded-xl border border-green-200 shadow-sm">
+                                                            <span className="block text-xs font-extrabold text-green-700 uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
+                                                            <div className="text-sm text-gray-800 font-semibold whitespace-pre-line leading-relaxed">
+                                                                {sdText}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {hasAllergies && (
+                                                        <div className="p-4 bg-red-50/50 rounded-xl border border-red-200 shadow-sm">
+                                                            <span className="flex items-center gap-1.5 text-xs font-extrabold text-red-700 uppercase mb-3">
+                                                                <AlertCircle className="w-4 h-4" /> ข้อมูลการแพ้อาหาร
+                                                            </span>
+                                                            <div className="text-sm text-red-900 font-semibold whitespace-pre-line leading-relaxed">
+                                                                {alText}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
+
+                <div className="shrink-0 border-t border-gray-200/60 bg-white px-6 py-4 sm:rounded-b-3xl">
+                    <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
+                            <PenLine className="w-3.5 h-3.5" />
+                            ผู้ยื่นคำร้อง: {(selectedVisit.submittedBy as any)?.name ? `${(selectedVisit.submittedBy as any).name} ${(selectedVisit.submittedBy as any).position ? `(${(selectedVisit.submittedBy as any).position})` : ""}` : "-"}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3">
+                            {readOnly ? (
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+                                >
+                                    ปิด
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => onEdit?.()}
+                                        disabled={updatingStatus || !canManage}
+                                        className="px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
+                                    >
+                                        แก้ไข
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => onCancel?.()}
+                                        disabled={updatingStatus || !canManage}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300 transition-colors shadow-sm"
+                                    >
+                                        ยกเลิกการจอง
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -110,92 +650,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         if (!selectedVisit) return;
         if (selectedVisit.status !== 1 && selectedVisit.status != null) return;
         setEditVisit(selectedVisit);
-    };
-
-    // Helpers สำหรับเช็คข้อมูลว่ามีอยู่จริงหรือไม่
-    const specialDietText = (value: any) => {
-        const data = value?.foodPreferences || value;
-        if (!data || typeof data !== "object") return "-";
-        const sd = data.specialDiet;
-        if (!sd || typeof sd !== "object") return "-";
-
-        const halal = Number(sd.halalSets || 0);
-        const vegan = Number(sd.veganSets || 0);
-
-        if (halal <= 0 && vegan <= 0) return "-";
-        const lines = [];
-        if (halal > 0) lines.push(`• ฮาลาล ${halal} ชุด`);
-        if (vegan > 0) lines.push(`• วีแกน ${vegan} ชุด`);
-        return lines.join("\n");
-    };
-
-    const allergyText = (value: any) => {
-        const data = value?.foodPreferences || value;
-        if (!data || typeof data !== "object") return "-";
-        const a = data.allergies;
-        if (!a || typeof a !== "object") return "-";
-
-        const items = Array.isArray(a.items)
-            ? a.items.filter((x: any) => typeof x === "string" && x.trim() && x !== "อื่นๆ")
-            : [];
-        const other = typeof a.other === "string" ? a.other.trim() : "";
-
-        const parts: string[] = [];
-        if (items.length > 0) parts.push(`• ${items.join(", ")}`);
-        if (other) parts.push(`• อื่นๆ: ${other}`);
-        return parts.length > 0 ? parts.join("\n") : "-";
-    };
-
-    const souvenirData = (value: any) => {
-        if (!value) return null;
-        const data = value.souvenirPreferences || value;
-        if (typeof data !== "object") return null;
-
-        const giftSet = typeof data.giftSet === "string" && data.giftSet && data.giftSet !== "-" ? data.giftSet : null;
-        const count = typeof data.count === "number" && data.count > 0 ? data.count : 0;
-        const extra = typeof data.extra === "string" && data.extra.trim() && data.extra !== "-" ? data.extra : null;
-
-        if (!giftSet && count === 0 && !extra) return null;
-        return { giftSet, count, extra };
-    };
-
-    const renderPresentationFiles = (value: any) => {
-        let fileData = value;
-        if (Array.isArray(value) && value.length > 0 && value[0].presentationFile) {
-            fileData = value[0].presentationFile;
-        } else if (value?.presentationFile) {
-            fileData = value.presentationFile;
-        }
-
-        if (!fileData || (Array.isArray(fileData) && fileData.length === 0)) {
-            return <span className="text-sm font-bold text-gray-400">ไม่มีไฟล์แนบ</span>;
-        }
-
-        const filesArray = Array.isArray(fileData) ? fileData : [fileData];
-        return (
-            <div className="flex flex-wrap gap-2 mt-2">
-                {filesArray.map((file, idx) => {
-                    if (!file) return null;
-                    const url = typeof file === 'string' ? file : file.url || file.publicUrl || file.path;
-                    const name = file.name || file.fileName || `ไฟล์เอกสาร ${idx + 1}`;
-                    if (!url) return null;
-
-                    return (
-                        <a
-                            key={idx}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 shadow-sm rounded-lg text-sm text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all w-full sm:w-auto"
-                        >
-                            <FileText className="w-4 h-4 shrink-0" />
-                            <span className="font-semibold line-clamp-1 break-all">{name}</span>
-                            <Download className="w-3.5 h-3.5 ml-auto sm:ml-1 text-gray-400 shrink-0" />
-                        </a>
-                    );
-                })}
-            </div>
-        );
     };
 
     return (
@@ -282,7 +736,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 </div>
             </div>
 
-            {/* ✨ Modal View ✨ */}
             {selectedVisit ? (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-gray-50 w-full max-w-5xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
@@ -422,7 +875,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             </div>
 
                             {/* Section: การเข้าชมพื้นที่ (Site Visit) */}
-                            {selectedVisit.siteVisit && (() => {
+                            {selectedVisit.siteVisit ? (() => {
                                 const siteV = selectedVisit.siteVisit as any;
                                 if (!siteV.areas || siteV.areas.length === 0) return null;
                                 return (
@@ -459,7 +912,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         </div>
                                     </div>
                                 );
-                            })()}
+                            })() : null}
 
                             {/* Section 3: การอำนวยความสะดวก */}
                             <div className="bg-white rounded-2xl shadow-sm border border-cyan-100 overflow-hidden">
