@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import VisitorTable from "./VisitTable";
 import type { Visit } from "./visitTypes";
@@ -34,14 +34,15 @@ export default async function AdminPage() {
   const nowThai = new Date();
   nowThai.setHours(nowThai.getHours() + 7);
   const todayThai = nowThai.toISOString().slice(0, 10);
-  const midnightThaiIso = `${todayThai}T00:00:00.000Z`;
+  const midnightThaiIso = new Date(`${todayThai}T00:00:00+07:00`).toISOString();
   try {
-    await supabase
+    const adminSupabase = createServiceClient();
+    await adminSupabase
       .from("vip_visitor")
       .update({ status: 2 })
       .eq("status", 1)
       .lt("visitDateTime", midnightThaiIso);
-    await supabase
+    await adminSupabase
       .from("vip_visitor")
       .update({ status: 2 })
       .is("status", null)

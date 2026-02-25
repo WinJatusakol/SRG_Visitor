@@ -129,7 +129,7 @@ export default function RefDataManager() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/admin/ref-data?table=${encodeURIComponent(table)}`);
+      const response = await fetch(`/api/admin/data?table=${encodeURIComponent(table)}`);
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.success === false) {
         throw new Error(result?.error ?? `Request failed: ${response.status}`);
@@ -183,7 +183,7 @@ export default function RefDataManager() {
         };
       }
 
-      const response = await fetch("/api/admin/ref-data", {
+      const response = await fetch("/api/admin/data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ table, data: payload }),
@@ -206,7 +206,7 @@ export default function RefDataManager() {
     setSaving(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/ref-data", {
+      const response = await fetch("/api/admin/data", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ table, id }),
