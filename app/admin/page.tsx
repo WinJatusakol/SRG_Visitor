@@ -5,9 +5,6 @@ import type { Visit } from "./visitTypes";
 import RefDataManager from "./RefDataManager";
 import BookingHistoryModal from "./BookingHistoryModal";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 type GuestRow = {
   sortIndex?: number | null;
   firstName?: string | null;
