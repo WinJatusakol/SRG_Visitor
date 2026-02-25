@@ -743,7 +743,7 @@ export default function EditBookingModal({
           if (e.currentTarget === e.target) close();
         }}
       >
-        <div className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200">
+        <div className="w-full max-w-4xl max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col">
           <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
             <div>
               <div className="text-lg font-bold text-gray-900">แก้ไขการจอง</div>
@@ -759,7 +759,7 @@ export default function EditBookingModal({
             </button>
           </div>
 
-          <div className="max-h-[calc(92vh-128px)] overflow-auto px-6 py-5">
+          <div className="flex-1 min-h-0 overflow-auto px-6 py-5">
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-2">
