@@ -785,7 +785,7 @@ export default function EditBookingModal({
   return (
     <>
       <div
-        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
         onMouseDown={(e) => {
           if (e.currentTarget === e.target) close();
         }}
@@ -1493,7 +1493,7 @@ export default function EditBookingModal({
 
       {confirmOpen && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-70 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onMouseDown={(e) => {
             if (e.currentTarget === e.target && !saving) setConfirmOpen(false);
           }}
@@ -1530,7 +1530,7 @@ export default function EditBookingModal({
 
       {resultPopup.open && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-90 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onMouseDown={(e) => {
             if (e.currentTarget === e.target) finishResult();
           }}
