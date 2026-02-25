@@ -26,7 +26,7 @@ export type Visit = {
   cars?: unknown[] | null;
   meetingRoomSelection?: string | null;
   foodPreferences?: unknown | null;
-  siteVisit?: any | null;
+  siteVisit?: unknown | null;
   souvenirPreferences?: unknown | null;
   presentationFiles?: unknown | null;
 };

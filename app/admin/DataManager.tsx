@@ -494,7 +494,7 @@ export default function RefDataManager() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 bg-white">
-                          {items.map((row, index) => (
+                          {items.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50/50 transition-colors group">
                               {columns.map((col) => {
                                 const raw = (row as Record<string, unknown>)[col.key];
