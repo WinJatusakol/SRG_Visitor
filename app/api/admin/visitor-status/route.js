@@ -10,6 +10,8 @@ const requireAdmin = async () => {
   return user;
 };
 
+const AUDIT_TABLE = "vip_visitor_admin_audit_logs";
+
 export async function POST(request) {
   try {
     const user = await requireAdmin();
@@ -29,16 +31,54 @@ export async function POST(request) {
     }
 
     const supabase = createServiceClient();
+    const visitorId = id;
+
+    const { data: beforeRow } = await supabase
+      .from("vip_visitor")
+      .select("id,status,visitDateTime,vipCompany,hostName")
+      .eq("id", visitorId)
+      .maybeSingle();
+
     const { data, error } = await supabase
       .from("vip_visitor")
       .update({ status })
       .eq("id", id)
-      .select("id,status")
+      .select("id,status,visitDateTime,vipCompany,hostName")
       .single();
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+
+    const ip =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "";
+    const userAgent = request.headers.get("user-agent") || "";
+    const action = status === 0 ? "cancel" : "status_change";
+    const summary = {
+      changes: [
+        {
+          field: "status",
+          from: beforeRow?.status ?? null,
+          to: data?.status ?? status,
+        },
+      ],
+    };
+
+    try {
+      await supabase.from(AUDIT_TABLE).insert([
+        {
+          actor_user_id: user.id ?? null,
+          actor_email: user.email ?? null,
+          action,
+          visitor_id: String(data?.id ?? visitorId),
+          before: beforeRow ?? null,
+          after: data ?? null,
+          meta: { ip, user_agent: userAgent, summary },
+        },
+      ]);
+    } catch {}
 
     return NextResponse.json({ success: true, item: data });
   } catch (error) {
@@ -46,4 +86,3 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
-

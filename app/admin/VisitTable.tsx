@@ -148,17 +148,18 @@ export function VisitDetailsModal({
     onCancel?: () => void;
     zVariant?: "table" | "history";
 }) {
-    if (!selectedVisit) return null;
     const overlayZ = zVariant === "history" ? "z-[70]" : "z-50";
-    const canManage = selectedVisit.status == null || selectedVisit.status === 1;
+    const canManage = selectedVisit ? selectedVisit.status == null || selectedVisit.status === 1 : false;
     const statusMeta = (() => {
-        const status = selectedVisit.status;
+        const status = selectedVisit?.status;
         if (status === 0) return { text: "ยกเลิกแล้ว", className: "bg-red-50 text-red-700 border-red-200" };
         if (status === 2) return { text: "เสร็จสิ้นแล้ว", className: "bg-gray-50 text-gray-700 border-gray-200" };
         return { text: "ยังดำเนินการอยู่", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
     })();
+    if (!selectedVisit) return null;
 
     return (
+        <>
         <div
             className={`fixed inset-0 ${overlayZ} flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300`}
             onMouseDown={(e) => {
@@ -526,6 +527,7 @@ export function VisitDetailsModal({
                             </div>
                         );
                     })()}
+
                 </div>
 
                 <div className="shrink-0 border-t border-gray-200/60 bg-white px-6 py-4 sm:rounded-b-3xl">
@@ -569,6 +571,7 @@ export function VisitDetailsModal({
                 </div>
             </div>
         </div>
+        </>
     );
 }
 

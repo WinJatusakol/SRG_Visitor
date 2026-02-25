@@ -4,6 +4,7 @@ import VisitorTable from "./VisitTable";
 import type { Visit } from "./visitTypes";
 import DataManager from "./DataManager";
 import BookingHistoryModal from "./BookingHistoryModal";
+import AuditLogsModal from "./AuditLogsModal";
 
 type GuestRow = {
   sortIndex?: number | null;
@@ -170,6 +171,7 @@ export default async function AdminPage() {
           
           <div className="flex items-center gap-3">
             <DataManager />
+            <AuditLogsModal />
             <BookingHistoryModal visits={visits as unknown as Array<Visit & { status?: number | null }>} />
             <form action={async () => {
               "use server";
