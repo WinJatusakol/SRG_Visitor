@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import EditBookingModal from "./EditBookingModal";
 import type { Visit } from "./visitTypes";
@@ -25,16 +25,43 @@ import {
     Coffee,
     Sun,
     Moon,
-    CheckCircle2
+    CheckCircle2,
+    XCircle
 } from "lucide-react";
 
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+    const [resultPopup, setResultPopup] = useState<{ open: boolean; kind: "bookingCanceled" }>({
+        open: false,
+        kind: "bookingCanceled",
+    });
+    const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const router = useRouter();
     const timeZone = "UTC";
     const [editVisit, setEditVisit] = useState<Visit | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+        };
+    }, []);
+
+    const finishResult = () => {
+        if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+        resultTimeoutRef.current = null;
+        setResultPopup((prev) => ({ ...prev, open: false }));
+        setSelectedVisit(null);
+        router.refresh();
+    };
+
+    const showResult = (kind: "bookingCanceled") => {
+        if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+        resultTimeoutRef.current = null;
+        setResultPopup({ open: true, kind });
+        resultTimeoutRef.current = setTimeout(() => finishResult(), 1500);
+    };
 
     const sortedVisits = useMemo(() => {
         if (!visits) return [];
@@ -61,8 +88,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             if (!response.ok || result?.success === false) {
                 throw new Error(result?.error ?? `Request failed: ${response.status}`);
             }
-            setSelectedVisit(null);
-            router.refresh();
+            showResult("bookingCanceled");
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error";
             window.alert(message);
@@ -600,6 +626,27 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             >
                                 {updatingStatus ? "Cancelling..." : "Confirm"}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {resultPopup.open && (
+                <div
+                    className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onMouseDown={(e) => {
+                        if (e.currentTarget === e.target) finishResult();
+                    }}
+                >
+                    <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white px-6 py-6 shadow-2xl">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-700 border border-red-200">
+                                <XCircle className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1">
+                                <div className="text-base font-bold text-gray-900">ยกเลิกการจองสำเร็จ</div>
+                                <div className="mt-1 text-sm text-gray-600">เปลี่ยนสถานะเป็นยกเลิกแล้ว</div>
+                            </div>
                         </div>
                     </div>
                 </div>
