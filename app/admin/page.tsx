@@ -2,7 +2,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import VisitorTable from "./VisitTable";
 import type { Visit } from "./visitTypes";
-import RefDataManager from "./RefDataManager";
+import DataManager from "./DataManager";
 import BookingHistoryModal from "./BookingHistoryModal";
 
 type GuestRow = {
@@ -169,7 +169,7 @@ export default async function AdminPage() {
           </div>
           
           <div className="flex items-center gap-3">
-            <RefDataManager />
+            <DataManager />
             <BookingHistoryModal visits={visits as unknown as Array<Visit & { status?: number | null }>} />
             <form action={async () => {
               "use server";
