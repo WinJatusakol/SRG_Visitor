@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Download, FileText } from "lucide-react";
+import { CheckCircle2, Download, FileText, XCircle } from "lucide-react";
 import type { Visit } from "./visitTypes";
 
 type EditableGuest = {
@@ -206,6 +206,12 @@ export default function EditBookingModal({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [resultPopup, setResultPopup] = useState<{ open: boolean; kind: "saved" | "canceled" }>({
+    open: false,
+    kind: "saved",
+  });
+  const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resultActionRef = useRef<null | "saved" | "canceled">(null);
 
   const [hostOptions, setHostOptions] = useState<RefOptionRow[]>([]);
   const [executiveHostOptions, setExecutiveHostOptions] = useState<RefOptionRow[]>([]);
@@ -262,6 +268,47 @@ export default function EditBookingModal({
 
   const [presentationFile, setPresentationFile] = useState<File | null>(null);
   const [removePresentation, setRemovePresentation] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!visit) {
+      setConfirmOpen(false);
+      setResultPopup({ open: false, kind: "saved" });
+      resultActionRef.current = null;
+      if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+      resultTimeoutRef.current = null;
+    }
+  }, [visit]);
+
+  const finishResult = () => {
+    const action = resultActionRef.current;
+    resultActionRef.current = null;
+    if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+    resultTimeoutRef.current = null;
+    setResultPopup((prev) => ({ ...prev, open: false }));
+    if (action === "saved") {
+      onSaved();
+      router.refresh();
+      return;
+    }
+    if (action === "canceled") {
+      onClose();
+    }
+  };
+
+  const showResult = (kind: "saved" | "canceled") => {
+    if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+    resultTimeoutRef.current = null;
+    resultActionRef.current = kind;
+    setResultPopup({ open: true, kind });
+    const durationMs = kind === "saved" ? 1800 : 1100;
+    resultTimeoutRef.current = setTimeout(() => finishResult(), durationMs);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -529,7 +576,8 @@ export default function EditBookingModal({
   const close = () => {
     if (saving) return;
     setConfirmOpen(false);
-    onClose();
+    setErrorMessage("");
+    showResult("canceled");
   };
 
   const validateBeforeSave = () => {
@@ -723,8 +771,7 @@ export default function EditBookingModal({
       }
 
       setConfirmOpen(false);
-      onSaved();
-      router.refresh();
+      showResult("saved");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       setErrorMessage(message);
@@ -1476,6 +1523,40 @@ export default function EditBookingModal({
               >
                 Confirm
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resultPopup.open && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onMouseDown={(e) => {
+            if (e.currentTarget === e.target) finishResult();
+          }}
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white px-6 py-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-10 w-10 items-center justify-center rounded-full ${resultPopup.kind === "saved"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-red-50 text-red-700 border border-red-200"
+                  }`}
+              >
+                {resultPopup.kind === "saved" ? (
+                  <CheckCircle2 className="h-5 w-5" />
+                ) : (
+                  <XCircle className="h-5 w-5" />
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="text-base font-bold text-gray-900">
+                  {resultPopup.kind === "saved" ? "แก้ไขสำเร็จ" : "ยกเลิกสำเร็จ"}
+                </div>
+                <div className="mt-1 text-sm text-gray-600">
+                  {resultPopup.kind === "saved" ? "บันทึกการแก้ไขเรียบร้อย" : "ยกเลิกการแก้ไขเรียบร้อย"}
+                </div>
+              </div>
             </div>
           </div>
         </div>
