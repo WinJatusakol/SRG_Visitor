@@ -548,7 +548,7 @@ export default function RefDataManager() {
 
       {/* 🛑 Modal ยืนยันการลบ */}
       {deleteConfirmId !== null && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
@@ -583,7 +583,7 @@ export default function RefDataManager() {
 
       {/* ✨ Popup แสดงผลสำเร็จ/ผิดพลาด */}
       {resultPopup.open && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-transparent p-4 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-transparent p-4 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="w-full max-w-sm rounded-2xl border border-gray-100 bg-white px-5 py-4 shadow-xl pointer-events-auto mt-20">
             <div className="flex items-center gap-3">
               <div

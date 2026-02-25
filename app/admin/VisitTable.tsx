@@ -26,7 +26,10 @@ import {
     Sun,
     Moon,
     CheckCircle2,
-    XCircle
+    XCircle,
+    MapPin,
+    UserCheck,
+    PenLine
 } from "lucide-react";
 
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
@@ -197,7 +200,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
     return (
         <div className="p-2 md:p-4 space-y-6 bg-gray-50/50 min-h-screen rounded-3xl">
-            {/* Header Table (เหมือนเดิม) */}
+            {/* Header Table */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
                 <div>
                     <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600">
@@ -213,12 +216,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 </div>
             </div>
 
-            {/* Table Section (เหมือนเดิม) */}
+            {/* Table Section */}
             <div className="bg-white/80 backdrop-blur-xl rounded-lg shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden relative z-0">
                 <div className="absolute top-0 right-0 -z-10 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
                 <div className="overflow-x-auto p-2">
                     <table className="min-w-full w-full">
-                        {/* โครงสร้าง Table เดิม */}
                         <thead>
                             <tr className="border-b border-gray-100/80">
                                 <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[28%]">วันและเวลา</th>
@@ -317,10 +319,17 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     <h3 className="text-base font-bold text-blue-900">ข้อมูลทั่วไปและการเข้าพบ</h3>
                                 </div>
                                 <div className="p-5 sm:p-6">
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                                         <InfoCard icon={<Phone className="w-4 h-4 text-blue-500" />} label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} />
                                         <InfoCard icon={<Globe2 className="w-4 h-4 text-blue-500" />} label="สัญชาติ" value={selectedVisit.nationality} />
-                                        <InfoCard icon={<UserCircle2 className="w-4 h-4 text-blue-500" />} label="ผู้ติดต่อ (Host)" value={selectedVisit.hostName} />
+                                        <InfoCard icon={<UserCircle2 className="w-4 h-4 text-blue-500" />} label="บุคคลที่ลูกค้าขอเข้าพบ (Host)" value={selectedVisit.hostName} />
+                                        
+                                        {/* ข้อมูล Executive Host & Submitted By */}
+                                        <InfoCard 
+                                            icon={<UserCheck className="w-4 h-4 text-blue-500" />} 
+                                            label="ผู้ดูแล ต้อนรับแขก" 
+                                            value={(selectedVisit.executiveHost as any)?.name || "-"} 
+                                        />
                                     </div>
 
                                     {(selectedVisit.visitTopic || selectedVisit.visitDetail) && (
@@ -411,6 +420,46 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Section: การเข้าชมพื้นที่ (Site Visit) */}
+                            {selectedVisit.siteVisit && (() => {
+                                const siteV = selectedVisit.siteVisit as any;
+                                if (!siteV.areas || siteV.areas.length === 0) return null;
+                                return (
+                                    <div className="bg-white rounded-2xl shadow-sm border border-violet-100 overflow-hidden">
+                                        <div className="bg-violet-50/50 px-5 sm:px-6 py-4 border-b border-violet-100 flex items-center gap-2">
+                                            <MapPin className="w-5 h-5 text-violet-600" />
+                                            <h3 className="text-base font-bold text-violet-900">การเข้าชมพื้นที่ (Site Visit)</h3>
+                                        </div>
+                                        <div className="p-5 sm:p-6 bg-gray-50/30">
+                                            <div className="mb-5">
+                                                <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">พื้นที่เข้าชม</span>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {siteV.areas.map((area: string, i: number) => (
+                                                        <span key={i} className="px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-sm font-semibold border border-violet-100">
+                                                            {area}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
+                                                    <div className="overflow-hidden">
+                                                        <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ชื่อ)</dt>
+                                                        <dd className="text-sm font-bold text-gray-900 truncate">{siteV.approverName || "-"}</dd>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
+                                                    <div className="overflow-hidden">
+                                                        <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ตำแหน่ง)</dt>
+                                                        <dd className="text-sm font-bold text-gray-900 truncate">{siteV.approverPosition || "-"}</dd>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
 
                             {/* Section 3: การอำนวยความสะดวก */}
                             <div className="bg-white rounded-2xl shadow-sm border border-cyan-100 overflow-hidden">
@@ -572,25 +621,35 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         </div>
 
                         <div className="shrink-0 border-t border-gray-200/60 bg-white px-6 py-4 sm:rounded-b-3xl">
-                            <div className="flex items-center justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={openEdit}
-                                    disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
-                                    className="px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
-                                >
-                                    แก้ไข
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={openCancelConfirm}
-                                    disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                                >
-                                    ยกเลิกการจอง
-                                </button>
+                            <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4">
+                                {/* ✨ ส่วนที่เพิ่มใหม่: โชว์ชื่อผู้กรอกเล็กๆ จางๆ ฝั่งซ้าย */}
+                                <div className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
+                                    <PenLine className="w-3.5 h-3.5" />
+                                    ผู้ยื่นคำร้อง: {(selectedVisit.submittedBy as any)?.name ? `${(selectedVisit.submittedBy as any).name} ${(selectedVisit.submittedBy as any).position ? `(${(selectedVisit.submittedBy as any).position})` : ''}` : "-"}
+                                </div>
+                                
+                                {/* ฝั่งขวา: ปุ่ม Action */}
+                                <div className="flex items-center justify-end gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={openEdit}
+                                        disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
+                                        className="px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
+                                    >
+                                        แก้ไข
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={openCancelConfirm}
+                                        disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300 transition-colors shadow-sm"
+                                    >
+                                        ยกเลิกการจอง
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                        
                     </div>
                 </div>
             ) : null}
