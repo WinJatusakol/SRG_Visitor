@@ -109,6 +109,40 @@ const asNumber = (value: unknown) => {
 
 const limitText = (value: string, max = 220) => (value.length > max ? `${value.slice(0, max)}…` : value);
 
+const formatUnknownObject = (value: unknown) => {
+  const v = parseJsonDeep(value);
+  if (v == null || v === "") return "-";
+  if (typeof v === "boolean") return v ? "ใช่" : "ไม่";
+  if (typeof v === "number") return String(v);
+  if (typeof v === "string") return limitText(v, 260);
+  if (Array.isArray(v)) {
+    const texts = v.map(asString).filter(Boolean);
+    if (texts.length === v.length && texts.length > 0) return limitText(texts.join(", "), 260);
+    return `(${v.length} รายการ)`;
+  }
+  if (isRecord(v)) {
+    const keys = Object.keys(v).sort();
+    const previewValue = (x: unknown) => {
+      const p = parseJsonDeep(x);
+      if (p == null || p === "") return "-";
+      if (typeof p === "boolean") return p ? "ใช่" : "ไม่";
+      if (typeof p === "number") return String(p);
+      if (typeof p === "string") return limitText(p, 160);
+      if (Array.isArray(p)) {
+        const t = p.map(asString).filter(Boolean);
+        if (t.length === p.length && t.length > 0) return limitText(t.join(", "), 160);
+        return `(${p.length} รายการ)`;
+      }
+      if (isRecord(p)) return "(ข้อมูล)";
+      return limitText(String(p), 160);
+    };
+    const lines = keys.slice(0, 8).map((k) => `${k}: ${previewValue(v[k])}`);
+    const suffix = keys.length > 8 ? `\n… (+${keys.length - 8})` : "";
+    return `${lines.join("\n")}${suffix}` || "-";
+  }
+  return limitText(String(v), 260);
+};
+
 const formatDateTime = (iso: string | null | undefined) => {
   if (!iso) return "-";
   const d = new Date(iso);
@@ -132,6 +166,18 @@ const actionText = (action: string) => {
   if (action === "update") return "แก้ไขข้อมูล";
   if (action === "status_change") return "เปลี่ยนสถานะ";
   return action || "-";
+};
+
+const actionBadgeClass = (action: string) => {
+  if (action === "cancel") return "bg-red-50 text-red-700 border-red-200";
+  if (action === "status_change") return "bg-amber-50 text-amber-800 border-amber-200";
+  if (action === "update") return "bg-blue-50 text-blue-700 border-blue-200";
+  return "bg-gray-50 text-gray-700 border-gray-200";
+};
+
+const inlinePreview = (value: string) => {
+  const oneLine = String(value ?? "").split("\n")[0] ?? "";
+  return limitText(oneLine.trim() || "-", 90);
 };
 
 const formatFoodPreferences = (value: unknown) => {
@@ -264,12 +310,7 @@ const formatValue = (field: string, value: unknown) => {
   if (typeof v === "boolean") return v ? "ใช่" : "ไม่";
   if (typeof v === "number") return String(v);
   if (typeof v === "string") return limitText(v, 260);
-  try {
-    const text = stableStringify(v);
-    return limitText(text, 260);
-  } catch {
-    return limitText(String(v), 260);
-  }
+  return formatUnknownObject(v);
 };
 
 type ChangeItem = { field: string; label: string; from: string; to: string };
@@ -532,38 +573,55 @@ export default function AuditLogsModal() {
 
             <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
               <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                <table className="min-w-full w-full">
+                <table className="min-w-full w-full table-fixed">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr className="border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">เวลา</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">อีเมล</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">การกระทำ</th>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">รายการ</th>
+                      <th className="px-4 py-3 w-44 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">เวลา</th>
+                      <th className="px-4 py-3 w-64 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">อีเมล</th>
+                      <th className="px-4 py-3 w-36 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">การกระทำ</th>
+                      <th className="px-4 py-3 w-24 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">รายการ</th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">รายละเอียด</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {items.map((row, idx) => (
-                      <tr key={String(row.id ?? idx)} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"}>
+                      <tr
+                        key={String(row.id ?? idx)}
+                        className={`${
+                          idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
+                        } hover:bg-gray-50 transition-colors`}
+                      >
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{formatDateTime(row.created_at)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{row.actor_email || "-"}</td>
-                        <td className="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">{actionText(row.action)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">#{row.visitor_id}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          <div className="truncate">{row.actor_email || "-"}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm whitespace-nowrap">
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${actionBadgeClass(row.action)}`}>
+                            {actionText(row.action)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                          <span className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-gray-700">
+                            #{row.visitor_id}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           {row.action === "update" ? (
                             (() => {
                               const changes = getChangeItems(row);
                               if (changes.length === 0) return <div className="text-gray-400">-</div>;
                               return (
-                                <div className="flex items-center gap-3">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <button
                                     type="button"
                                     onClick={() => setDetailsRow(row)}
-                                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                                   >
                                     ดูรายละเอียด
                                   </button>
-                                  <div className="text-xs text-gray-500">เปลี่ยน {changes.length} รายการ</div>
+                                  <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                                    เปลี่ยน {changes.length} รายการ
+                                  </span>
                                 </div>
                               );
                             })()
@@ -607,7 +665,7 @@ export default function AuditLogsModal() {
             if (e.currentTarget === e.target) setDetailsRow(null);
           }}
         >
-          <div className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col">
+          <div className="w-full max-w-4xl max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col">
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
               <div>
                 <div className="text-lg font-bold text-gray-900">รายละเอียดการแก้ไข</div>
@@ -625,26 +683,45 @@ export default function AuditLogsModal() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
-              <div className="grid gap-3">
-                {getChangeItems(detailsRow).map((c, i) => (
-                  <div key={`${c.field}-${i}`} className="rounded-xl border border-gray-200 bg-white p-4">
-                    <div className="text-sm font-bold text-gray-900">{c.label}</div>
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <div className="text-xs font-bold text-gray-500">ก่อนเปลี่ยน</div>
-                        <div className="mt-1 text-sm text-gray-800 whitespace-pre-line break-words">{c.from}</div>
-                      </div>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <div className="text-xs font-bold text-gray-500">หลังเปลี่ยน</div>
-                        <div className="mt-1 text-sm text-gray-800 whitespace-pre-line break-words">{c.to}</div>
-                      </div>
+            <div className="flex-1 overflow-auto p-5 bg-gray-50/30">
+              <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                {(() => {
+                  const items = getChangeItems(detailsRow);
+                  if (items.length === 0) {
+                    return <div className="p-6 text-sm text-gray-500">ไม่มีรายการเปลี่ยนแปลง</div>;
+                  }
+                  return (
+                    <div className="divide-y divide-gray-100">
+                      {items.map((c, i) => (
+                        <details key={`${c.field}-${i}`} className="group p-4 open:bg-gray-50/40">
+                          <summary className="cursor-pointer list-none">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <div className="text-sm font-bold text-gray-900">{c.label}</div>
+                                <div className="mt-1 text-xs text-gray-500">
+                                  ก่อน: {inlinePreview(c.from)} → หลัง: {inlinePreview(c.to)}
+                                </div>
+                              </div>
+                              <div className="shrink-0 text-xs font-semibold text-gray-600 group-open:hidden">ดู</div>
+                              <div className="shrink-0 text-xs font-semibold text-gray-600 hidden group-open:block">ย่อ</div>
+                            </div>
+                          </summary>
+
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <div className="rounded-lg border border-gray-200 bg-white p-3">
+                              <div className="text-xs font-bold text-gray-500">ก่อนเปลี่ยน</div>
+                              <div className="mt-1 text-sm text-gray-800 whitespace-pre-line break-words">{c.from}</div>
+                            </div>
+                            <div className="rounded-lg border border-gray-200 bg-white p-3">
+                              <div className="text-xs font-bold text-gray-500">หลังเปลี่ยน</div>
+                              <div className="mt-1 text-sm text-gray-800 whitespace-pre-line break-words">{c.to}</div>
+                            </div>
+                          </div>
+                        </details>
+                      ))}
                     </div>
-                  </div>
-                ))}
-                {getChangeItems(detailsRow).length === 0 && (
-                  <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">ไม่มีรายการเปลี่ยนแปลง</div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>
