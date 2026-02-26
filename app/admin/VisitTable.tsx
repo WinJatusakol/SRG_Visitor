@@ -148,17 +148,18 @@ export function VisitDetailsModal({
     onCancel?: () => void;
     zVariant?: "table" | "history";
 }) {
-    if (!selectedVisit) return null;
     const overlayZ = zVariant === "history" ? "z-[70]" : "z-50";
-    const canManage = selectedVisit.status == null || selectedVisit.status === 1;
+    const canManage = selectedVisit ? selectedVisit.status == null || selectedVisit.status === 1 : false;
     const statusMeta = (() => {
-        const status = selectedVisit.status;
+        const status = selectedVisit?.status;
         if (status === 0) return { text: "ยกเลิกแล้ว", className: "bg-red-50 text-red-700 border-red-200" };
         if (status === 2) return { text: "เสร็จสิ้นแล้ว", className: "bg-gray-50 text-gray-700 border-gray-200" };
         return { text: "ยังดำเนินการอยู่", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
     })();
+    if (!selectedVisit) return null;
 
     return (
+        <>
         <div
             className={`fixed inset-0 ${overlayZ} flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300`}
             onMouseDown={(e) => {
@@ -526,6 +527,7 @@ export function VisitDetailsModal({
                             </div>
                         );
                     })()}
+
                 </div>
 
                 <div className="shrink-0 border-t border-gray-200/60 bg-white px-6 py-4 sm:rounded-b-3xl">
@@ -569,6 +571,7 @@ export function VisitDetailsModal({
                 </div>
             </div>
         </div>
+        </>
     );
 }
 
@@ -582,8 +585,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     });
     const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const router = useRouter();
-    const timeZone = "UTC";
+    const timeZone = "Asia/Bangkok";
     const [editVisit, setEditVisit] = useState<Visit | null>(null);
+    const [filterDateFrom, setFilterDateFrom] = useState("");
+    const [filterDateTo, setFilterDateTo] = useState("");
+    const [filterHost, setFilterHost] = useState("");
+    const [filterCompany, setFilterCompany] = useState("");
+    const [exportOpen, setExportOpen] = useState(false);
+    const [exportFrom, setExportFrom] = useState("");
+    const [exportTo, setExportTo] = useState("");
+    const [exportStatus, setExportStatus] = useState<"active" | "canceled" | "completed" | "all">("active");
+    const [exportHost, setExportHost] = useState("");
+    const [exportCompany, setExportCompany] = useState("");
+    const [exportFormat, setExportFormat] = useState<"excel" | "csv">("excel");
 
     useEffect(() => {
         return () => {
@@ -614,6 +628,194 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             return dateA - dateB;
         });
     }, [visits]);
+
+    const hostOptions = useMemo(() => {
+        const set = new Set<string>();
+        for (const v of sortedVisits) {
+            const name = typeof v.hostName === "string" ? v.hostName.trim() : "";
+            if (name) set.add(name);
+        }
+        return Array.from(set).sort((a, b) => a.localeCompare(b, "th"));
+    }, [sortedVisits]);
+
+    const toThaiDateKey = (value: string | null | undefined) => {
+        if (!value) return "";
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return "";
+        return new Intl.DateTimeFormat("en-CA", {
+            timeZone,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(d);
+    };
+
+    const isActiveStatus = (status: unknown) => status == null || Number(status) === 1;
+
+    const statusText = (status: unknown) => {
+        const n = Number(status);
+        if (n === 0) return "ยกเลิกแล้ว";
+        if (n === 2) return "เสร็จสิ้นแล้ว";
+        return "ยังดำเนินการอยู่";
+    };
+
+    const filteredVisits = useMemo(() => {
+        const qCompany = filterCompany.trim().toLowerCase();
+        return sortedVisits.filter((v) => {
+            if (!isActiveStatus(v.status)) return false;
+
+            const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
+            if (filterDateFrom && dateKey && dateKey < filterDateFrom) return false;
+            if (filterDateTo && dateKey && dateKey > filterDateTo) return false;
+            if (filterDateFrom || filterDateTo) {
+                if (!dateKey) return false;
+            }
+
+            if (filterHost.trim()) {
+                const hn = typeof v.hostName === "string" ? v.hostName.trim() : "";
+                if (hn !== filterHost.trim()) return false;
+            }
+
+            if (qCompany) {
+                const vip = typeof v.vipCompany === "string" ? v.vipCompany.toLowerCase() : "";
+                const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
+                if (!vip.includes(qCompany) && !client.includes(qCompany)) return false;
+            }
+
+            return true;
+        });
+    }, [filterCompany, filterDateFrom, filterDateTo, filterHost, sortedVisits]);
+
+    const exportableVisits = useMemo(() => {
+        const qCompany = exportCompany.trim().toLowerCase();
+        return sortedVisits.filter((v) => {
+            const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
+            if (exportFrom && dateKey && dateKey < exportFrom) return false;
+            if (exportTo && dateKey && dateKey > exportTo) return false;
+            if (exportFrom || exportTo) {
+                if (!dateKey) return false;
+            }
+
+            if (exportStatus === "active" && !isActiveStatus(v.status)) return false;
+            if (exportStatus === "canceled" && Number(v.status) !== 0) return false;
+            if (exportStatus === "completed" && Number(v.status) !== 2) return false;
+
+            if (exportHost.trim()) {
+                const hn = typeof v.hostName === "string" ? v.hostName.trim() : "";
+                if (hn !== exportHost.trim()) return false;
+            }
+
+            if (qCompany) {
+                const vip = typeof v.vipCompany === "string" ? v.vipCompany.toLowerCase() : "";
+                const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
+                if (!vip.includes(qCompany) && !client.includes(qCompany)) return false;
+            }
+
+            return true;
+        });
+    }, [exportCompany, exportFrom, exportHost, exportStatus, exportTo, sortedVisits]);
+
+    const downloadCsv = (rows: Array<Record<string, string>>, filename: string) => {
+        const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+        const esc = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+        const lines = [
+            headers.map(esc).join(","),
+            ...rows.map((r) => headers.map((h) => esc(r[h] ?? "")).join(",")),
+        ];
+        const bom = "\ufeff";
+        const csv = bom + lines.join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const downloadExcel = (rows: Array<Record<string, string>>, filename: string) => {
+        const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+        const escapeHtml = (text: string) =>
+            String(text ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+
+        const thead = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
+        const tbody = rows
+            .map((r) => `<tr>${headers.map((h) => `<td>${escapeHtml(r[h] ?? "")}</td>`).join("")}</tr>`)
+            .join("");
+
+        const html =
+            `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body>` +
+            `<table border="1">${thead}${tbody}</table>` +
+            `</body></html>`;
+
+        const bom = "\ufeff";
+        const blob = new Blob([bom + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const formatExportDateTime = (value: string | null | undefined) => {
+        if (!value) return "";
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return "";
+        return new Intl.DateTimeFormat("th-TH", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone,
+        }).format(d);
+    };
+
+    const exportRows = useMemo(() => {
+        return exportableVisits.map((v) => {
+            const dt = v.visitDateTime || v.created_at || "";
+            return {
+                id: String(v.id ?? ""),
+                วันและเวลา: formatExportDateTime(dt),
+                สถานะ: statusText(v.status),
+                บริษัทลูกค้า: typeof v.clientCompany === "string" ? v.clientCompany : "",
+                บริษัทแขกVIP: typeof v.vipCompany === "string" ? v.vipCompany : "",
+                Host: typeof v.hostName === "string" ? v.hostName : "",
+                หัวข้อ: typeof v.visitTopic === "string" ? v.visitTopic : "",
+                จำนวนผู้เข้าร่วม: String((v.guests?.length ?? v.totalGuests ?? 0) || 0),
+                เบอร์โทรศัพท์: typeof v.contactPhone === "string" ? v.contactPhone : "",
+                สัญชาติ: typeof v.nationality === "string" ? v.nationality : "",
+            };
+        });
+    }, [exportableVisits]);
+
+    const exportFilenameBase = useMemo(() => {
+        const parts = [
+            "visitor-export",
+            exportFrom ? `from-${exportFrom}` : "",
+            exportTo ? `to-${exportTo}` : "",
+            exportStatus ? `status-${exportStatus}` : "",
+        ].filter(Boolean);
+        return parts.join("_");
+    }, [exportFrom, exportStatus, exportTo]);
+
+    const runExport = () => {
+        if (exportFormat === "csv") {
+            downloadCsv(exportRows, `${exportFilenameBase}.csv`);
+            return;
+        }
+        downloadExcel(exportRows, `${exportFilenameBase}.xls`);
+    };
 
     const cancelBooking = async () => {
         if (!selectedVisit) return;
@@ -662,11 +864,93 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                     </h2>
                     <p className="text-gray-500 text-sm mt-1">รายการแขกคนสำคัญและผู้มาเยือน</p>
                 </div>
-                <div className="flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50">
-                    <Users className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium text-gray-600">
-                        ทั้งหมด: <span className="text-gray-900 font-bold">{sortedVisits.length}</span> รายการ
-                    </span>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50">
+                        <Users className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm font-medium text-gray-600">
+                            กำลังดำเนินอยู่: <span className="text-gray-900 font-bold">{filteredVisits.length}</span> รายการ
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setExportFrom(filterDateFrom);
+                            setExportTo(filterDateTo);
+                            setExportStatus("active");
+                            setExportHost(filterHost);
+                            setExportCompany(filterCompany);
+                            setExportFormat("excel");
+                            setExportOpen(true);
+                        }}
+                        className="inline-flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                        <Download className="w-4 h-4" />
+                        Export
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-white/60 p-4">
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">จากวันที่</label>
+                        <input
+                            type="date"
+                            value={filterDateFrom}
+                            onChange={(e) => setFilterDateFrom(e.target.value)}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ถึงวันที่</label>
+                        <input
+                            type="date"
+                            value={filterDateTo}
+                            onChange={(e) => setFilterDateTo(e.target.value)}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Host</label>
+                        <select
+                            value={filterHost}
+                            onChange={(e) => setFilterHost(e.target.value)}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        >
+                            <option value="">ทุกคน</option>
+                            {hostOptions.map((h) => (
+                                <option key={h} value={h}>
+                                    {h}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">บริษัท (ลูกค้า/แขก VIP)</label>
+                        <input
+                            value={filterCompany}
+                            onChange={(e) => setFilterCompany(e.target.value)}
+                            placeholder="พิมพ์ชื่อบริษัทเพื่อค้นหา"
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        />
+                    </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-xs text-gray-500">
+                        ตัวกรองใช้วันที่ตามเวลาไทย (Asia/Bangkok)
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setFilterDateFrom("");
+                            setFilterDateTo("");
+                            setFilterHost("");
+                            setFilterCompany("");
+                        }}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                        ล้างตัวกรอง
+                    </button>
                 </div>
             </div>
 
@@ -685,7 +969,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50/50">
-                            {sortedVisits.map((visit, index) => {
+                            {filteredVisits.map((visit, index) => {
                                 const visitDate = new Date(visit.visitDateTime || visit.created_at || 0);
                                 const monthShort = new Intl.DateTimeFormat("en-US", { month: "short", timeZone }).format(visitDate);
                                 const dayNum = new Intl.DateTimeFormat("en-US", { day: "2-digit", timeZone }).format(visitDate);
@@ -1158,6 +1442,136 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             <div className="flex-1">
                                 <div className="text-base font-bold text-gray-900">ยกเลิกการจองสำเร็จ</div>
                                 <div className="mt-1 text-sm text-gray-600">เปลี่ยนสถานะเป็นยกเลิกแล้ว</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {exportOpen && (
+                <div
+                    className="fixed inset-0 z-80 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onMouseDown={(e) => {
+                        if (e.currentTarget === e.target) setExportOpen(false);
+                    }}
+                >
+                    <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200">
+                        <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
+                            <div>
+                                <div className="text-lg font-bold text-gray-900">Export</div>
+                                <div className="text-sm text-gray-500">เลือกช่วงวันที่ สถานะ Host และบริษัท</div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setExportOpen(false)}
+                                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                            >
+                                <X className="w-4 h-4" />
+                                ปิด
+                            </button>
+                        </div>
+
+                        <div className="p-6 bg-gray-50/30">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-semibold text-gray-700">จากวันที่</label>
+                                    <input
+                                        type="date"
+                                        value={exportFrom}
+                                        onChange={(e) => setExportFrom(e.target.value)}
+                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-semibold text-gray-700">ถึงวันที่</label>
+                                    <input
+                                        type="date"
+                                        value={exportTo}
+                                        onChange={(e) => setExportTo(e.target.value)}
+                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-semibold text-gray-700">สถานะ</label>
+                                    <select
+                                        value={exportStatus}
+                                        onChange={(e) => setExportStatus(e.target.value as typeof exportStatus)}
+                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                    >
+                                        <option value="active">ยังดำเนินการอยู่</option>
+                                        <option value="canceled">ยกเลิกแล้ว</option>
+                                        <option value="completed">เสร็จสิ้นแล้ว</option>
+                                        <option value="all">ทั้งหมด</option>
+                                    </select>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-sm font-semibold text-gray-700">Host</label>
+                                    <select
+                                        value={exportHost}
+                                        onChange={(e) => setExportHost(e.target.value)}
+                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                    >
+                                        <option value="">ทุกคน</option>
+                                        {hostOptions.map((h) => (
+                                            <option key={h} value={h}>
+                                                {h}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex flex-col gap-1 md:col-span-2">
+                                    <label className="text-sm font-semibold text-gray-700">บริษัท (ลูกค้า/แขก VIP)</label>
+                                    <input
+                                        value={exportCompany}
+                                        onChange={(e) => setExportCompany(e.target.value)}
+                                        placeholder="เว้นว่างเพื่อเอาทั้งหมด"
+                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1 md:col-span-2">
+                                    <label className="text-sm font-semibold text-gray-700">รูปแบบไฟล์</label>
+                                    <select
+                                        value={exportFormat}
+                                        onChange={(e) => setExportFormat(e.target.value as typeof exportFormat)}
+                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                    >
+                                        <option value="excel">Excel (.xls)</option>
+                                        <option value="csv">CSV (.csv)</option>
+                                    </select>
+                                    <div className="mt-1 text-xs text-gray-500">วันที่/เวลาอ้างอิงเวลาไทย (Asia/Bangkok)</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                                <div className="text-sm text-gray-700">
+                                    จะ export ทั้งหมด <span className="font-bold text-gray-900">{exportRows.length}</span> รายการ
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setExportFrom("");
+                                            setExportTo("");
+                                            setExportStatus("all");
+                                            setExportHost("");
+                                            setExportCompany("");
+                                            setExportFormat("excel");
+                                        }}
+                                        className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                    >
+                                        ล้างค่า
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            runExport();
+                                            setExportOpen(false);
+                                        }}
+                                        className="rounded-md bg-[#1b2a18] px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+                                    >
+                                        ดาวน์โหลด
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

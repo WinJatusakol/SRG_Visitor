@@ -780,6 +780,28 @@ export default function EditBookingModal({
     }
   };
 
+  const cardClass = "rounded-2xl border border-gray-200 bg-white p-5 shadow-sm";
+  const labelClass = "text-sm font-semibold text-gray-700";
+  const controlClass =
+    "rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-200";
+  const controlDisabledClass = `${controlClass} disabled:bg-gray-100`;
+  const smallBtnClass =
+    "rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50";
+  const dangerBtnClass =
+    "rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50";
+
+  const guestTitle = (g: EditableGuest) => {
+    const fullName = [g.firstName, g.middleName, g.lastName].map((x) => x.trim()).filter(Boolean).join(" ");
+    return fullName || "ผู้เข้าร่วม";
+  };
+
+  const carTitle = (c: EditableCar) => {
+    const brand = c.brand.trim();
+    const license = c.license.trim();
+    const text = [brand, license].filter(Boolean).join(" / ");
+    return text || "รถยนต์";
+  };
+
   if (!visit) return null;
 
   return (
@@ -790,7 +812,7 @@ export default function EditBookingModal({
           if (e.currentTarget === e.target) close();
         }}
       >
-        <div className="w-full max-w-4xl max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col">
+        <div className="w-full max-w-7xl max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col">
           <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
             <div>
               <div className="text-lg font-bold text-gray-900">แก้ไขการจอง</div>
@@ -806,196 +828,182 @@ export default function EditBookingModal({
             </button>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-auto px-6 py-5">
-            <div className="grid gap-5 md:grid-cols-2">
-              <div className="space-y-4">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">วันที่</label>
-                    <input
-                      type="date"
-                      value={visitDate}
-                      onChange={(e) => setVisitDate(e.target.value)}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                    />
+          <div className="flex-1 min-h-0 overflow-auto p-6 bg-gray-50/30">
+            <div className="grid gap-5">
+              <div className="space-y-5">
+                <div className={cardClass}>
+                  <div className="text-sm font-bold text-gray-900">ข้อมูลพื้นฐาน</div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>วันที่</label>
+                      <input type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} className={controlClass} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>เวลา</label>
+                      <select value={visitTime} onChange={(e) => setVisitTime(e.target.value)} className={controlClass}>
+                        <option value="">เลือกเวลา</option>
+                        {timeSlots.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">เวลา</label>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>บริษัทลูกค้า</label>
+                      <input value={clientCompany} onChange={(e) => setClientCompany(e.target.value)} className={controlClass} placeholder="เช่น ABC" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>บริษัทแขก VIP</label>
+                      <input value={vipCompany} onChange={(e) => setVipCompany(e.target.value)} className={controlClass} placeholder="เช่น KAI" />
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>สัญชาติ</label>
+                      <input value={nationality} onChange={(e) => setNationality(e.target.value)} className={controlClass} placeholder="เช่น ไทย" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>เบอร์โทรศัพท์</label>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        className={controlClass}
+                        placeholder="0XXXXXXXXX"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={cardClass}>
+                  <div className="text-sm font-bold text-gray-900">ผู้ติดต่อ</div>
+                  <div className="mt-4 grid gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>ผู้ติดต่อ (Host)</label>
+                      <select value={hostName} onChange={(e) => setHostName(e.target.value)} className={controlClass}>
+                        <option value="">เลือก Host</option>
+                        {hostOptions.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {optionLabelTh(o)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>Executive Host</label>
+                      <select value={executiveHostChoice} onChange={(e) => setExecutiveHostChoice(e.target.value)} className={controlClass}>
+                        <option value="">เลือก Executive Host</option>
+                        {executiveHostOptions.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {optionLabelTh(o)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={cardClass}>
+                  <div className="text-sm font-bold text-gray-900">ผู้กรอก</div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>ชื่อ</label>
+                      <input value={submittedByName} onChange={(e) => setSubmittedByName(e.target.value)} className={controlClass} placeholder="ชื่อผู้กรอก" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>ตำแหน่ง</label>
+                      <input
+                        value={submittedByPosition}
+                        onChange={(e) => setSubmittedByPosition(e.target.value)}
+                        className={controlClass}
+                        placeholder="ตำแหน่งผู้กรอก"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={cardClass}>
+                  <div className="text-sm font-bold text-gray-900">รายละเอียดการเข้าพบ</div>
+                  <div className="mt-4 grid gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>หัวข้อ</label>
+                      <input value={visitTopic} onChange={(e) => setVisitTopic(e.target.value)} className={controlClass} placeholder="หัวข้อการเข้าพบ" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>รายละเอียด</label>
+                      <textarea
+                        value={visitDetail}
+                        onChange={(e) => setVisitDetail(e.target.value)}
+                        rows={4}
+                        className={controlClass}
+                        placeholder="รายละเอียดเพิ่มเติม"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                <div className={cardClass}>
+                  <div className="text-sm font-bold text-gray-900">การเดินทางและห้องประชุม</div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>การเดินทาง</label>
+                      <select
+                        value={transportType}
+                        onChange={(e) => setTransportType(e.target.value as "" | "personal" | "public")}
+                        className={controlClass}
+                      >
+                        <option value="">เลือก</option>
+                        <option value="public">รถสาธารณะ</option>
+                        <option value="personal">รถส่วนตัว</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>ต้องการห้องประชุม</label>
+                      <select
+                        value={meetingRoom}
+                        onChange={(e) => {
+                          const next = e.target.value as YesNo | "";
+                          setMeetingRoom(next);
+                          if (next !== "yes") setMeetingRoomSelection("");
+                        }}
+                        className={controlClass}
+                      >
+                        <option value="">เลือก</option>
+                        <option value="yes">ต้องการ</option>
+                        <option value="no">ไม่ต้องการ</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-col gap-1">
+                    <label className={labelClass}>เลือกห้องประชุม</label>
                     <select
-                      value={visitTime}
-                      onChange={(e) => setVisitTime(e.target.value)}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                      value={meetingRoomSelection}
+                      onChange={(e) => setMeetingRoomSelection(e.target.value)}
+                      disabled={meetingRoom !== "yes"}
+                      className={controlDisabledClass}
                     >
-                      <option value="">เลือกเวลา</option>
-                      {timeSlots.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
+                      <option value="">เลือกห้องประชุม</option>
+                      {meetingRoomOptions.map((r) => (
+                        <option key={r.code} value={meetingRoomLabelTh(r)}>
+                          {meetingRoomLabelTh(r)}
                         </option>
                       ))}
                     </select>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-700">บริษัทลูกค้า</label>
-                  <input
-                    value={clientCompany}
-                    onChange={(e) => setClientCompany(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-700">บริษัทแขก VIP</label>
-                  <input
-                    value={vipCompany}
-                    onChange={(e) => setVipCompany(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                  />
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">สัญชาติ</label>
-                    <input
-                      value={nationality}
-                      onChange={(e) => setNationality(e.target.value)}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">เบอร์โทรศัพท์</label>
-                    <input
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-700">ผู้ติดต่อ (Host)</label>
-                  <select
-                    value={hostName}
-                    onChange={(e) => setHostName(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                  >
-                    <option value="">เลือก Host</option>
-                    {hostOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {optionLabelTh(o)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-700">Executive Host</label>
-                  <select
-                    value={executiveHostChoice}
-                    onChange={(e) => setExecutiveHostChoice(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                  >
-                    <option value="">เลือก Executive Host</option>
-                    {executiveHostOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {optionLabelTh(o)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">ผู้กรอก (ชื่อ)</label>
-                    <input
-                      value={submittedByName}
-                      onChange={(e) => setSubmittedByName(e.target.value)}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">ผู้กรอก (ตำแหน่ง)</label>
-                    <input
-                      value={submittedByPosition}
-                      onChange={(e) => setSubmittedByPosition(e.target.value)}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-700">หัวข้อ</label>
-                  <input
-                    value={visitTopic}
-                    onChange={(e) => setVisitTopic(e.target.value)}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-700">รายละเอียด</label>
-                  <textarea
-                    value={visitDetail}
-                    onChange={(e) => setVisitDetail(e.target.value)}
-                    rows={4}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">การเดินทาง</label>
-                    <select
-                      value={transportType}
-                      onChange={(e) => setTransportType(e.target.value as "" | "personal" | "public")}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                    >
-                      <option value="">เลือก</option>
-                      <option value="public">รถสาธารณะ</option>
-                      <option value="personal">รถส่วนตัว</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">ต้องการห้องประชุม</label>
-                    <select
-                      value={meetingRoom}
-                      onChange={(e) => {
-                        const next = e.target.value as YesNo | "";
-                        setMeetingRoom(next);
-                        if (next !== "yes") setMeetingRoomSelection("");
-                      }}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                    >
-                      <option value="">เลือก</option>
-                      <option value="yes">ต้องการ</option>
-                      <option value="no">ไม่ต้องการ</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-semibold text-gray-700">เลือกห้องประชุม</label>
-                  <select
-                    value={meetingRoomSelection}
-                    onChange={(e) => setMeetingRoomSelection(e.target.value)}
-                    disabled={meetingRoom !== "yes"}
-                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900 disabled:bg-gray-100"
-                  >
-                    <option value="">เลือกห้องประชุม</option>
-                    {meetingRoomOptions.map((r) => (
-                      <option key={r.code} value={meetingRoomLabelTh(r)}>
-                        {meetingRoomLabelTh(r)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-bold text-gray-900">รายชื่อผู้เข้าร่วม</div>
+                <div className={cardClass}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-gray-900">รายชื่อผู้เข้าร่วม</div>
+                      <div className="mt-1 text-xs text-gray-500">กรอกอย่างน้อย 1 คน</div>
+                    </div>
                     <button
                       type="button"
                       onClick={() =>
@@ -1004,21 +1012,49 @@ export default function EditBookingModal({
                           { firstName: "", middleName: "", lastName: "", company: "", position: "", nationality: "" },
                         ])
                       }
-                      className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                      className={smallBtnClass}
                     >
                       เพิ่มแขก
                     </button>
                   </div>
-                  <div className="mt-3 space-y-3">
+
+                  <div className="mt-4 space-y-3">
+                    {guests.length === 0 && <div className="text-sm text-gray-500">ไม่มีรายชื่อผู้เข้าร่วม</div>}
                     {guests.map((g, index) => (
-                      <div key={index} className="rounded-lg border border-gray-200 bg-white p-3">
-                        <div className="grid gap-2 md:grid-cols-3">
+                      <details key={index} className="rounded-xl border border-gray-200 bg-white p-3 group">
+                        <summary className="cursor-pointer list-none">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-xs font-bold text-gray-700">
+                                  {index + 1}
+                                </span>
+                                <div className="text-sm font-semibold text-gray-900 truncate">{guestTitle(g)}</div>
+                              </div>
+                              <div className="mt-1 text-xs text-gray-500">
+                                {[g.company, g.position, g.nationality].map((x) => x.trim()).filter(Boolean).join(" • ") || "กดเพื่อกรอกข้อมูลเพิ่มเติม"}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setGuests((prev) => prev.filter((_, i) => i !== index));
+                              }}
+                              className={dangerBtnClass}
+                            >
+                              ลบ
+                            </button>
+                          </div>
+                        </summary>
+
+                        <div className="mt-3 grid gap-2 md:grid-cols-3">
                           <input
                             value={g.firstName}
                             onChange={(e) =>
                               setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, firstName: e.target.value } : x)))
                             }
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                            className={controlClass}
                             placeholder="ชื่อ"
                           />
                           <input
@@ -1026,7 +1062,7 @@ export default function EditBookingModal({
                             onChange={(e) =>
                               setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, middleName: e.target.value } : x)))
                             }
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                            className={controlClass}
                             placeholder="ชื่อกลาง"
                           />
                           <input
@@ -1034,7 +1070,7 @@ export default function EditBookingModal({
                             onChange={(e) =>
                               setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, lastName: e.target.value } : x)))
                             }
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                            className={controlClass}
                             placeholder="นามสกุล"
                           />
                           <input
@@ -1042,7 +1078,7 @@ export default function EditBookingModal({
                             onChange={(e) =>
                               setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, company: e.target.value } : x)))
                             }
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                            className={controlClass}
                             placeholder="บริษัท"
                           />
                           <input
@@ -1050,7 +1086,7 @@ export default function EditBookingModal({
                             onChange={(e) =>
                               setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, position: e.target.value } : x)))
                             }
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                            className={controlClass}
                             placeholder="ตำแหน่ง"
                           />
                           <input
@@ -1058,45 +1094,60 @@ export default function EditBookingModal({
                             onChange={(e) =>
                               setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, nationality: e.target.value } : x)))
                             }
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                            className={controlClass}
                             placeholder="สัญชาติ"
                           />
-                          <button
-                            type="button"
-                            onClick={() => setGuests((prev) => prev.filter((_, i) => i !== index))}
-                            className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 md:col-span-3"
-                          >
-                            ลบ
-                          </button>
                         </div>
-                      </div>
+                      </details>
                     ))}
-                    {guests.length === 0 && <div className="text-sm text-gray-500">ไม่มีรายชื่อผู้เข้าร่วม</div>}
                   </div>
                 </div>
 
                 {transportType === "personal" && (
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <div className={cardClass}>
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-bold text-gray-900">ข้อมูลรถ</div>
                       <button
                         type="button"
                         onClick={() => setCars((prev) => [...prev, { brand: "", license: "" }])}
-                        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                        className={smallBtnClass}
                       >
                         เพิ่มรถ
                       </button>
                     </div>
                     <div className="mt-3 space-y-3">
                       {cars.map((c, index) => (
-                        <div key={index} className="rounded-lg border border-gray-200 bg-white p-3">
-                          <div className="grid gap-2 md:grid-cols-3">
+                        <details key={index} className="rounded-xl border border-gray-200 bg-white p-3 group">
+                          <summary className="cursor-pointer list-none">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-xs font-bold text-gray-700">
+                                    {index + 1}
+                                  </span>
+                                  <div className="text-sm font-semibold text-gray-900 truncate">{carTitle(c)}</div>
+                                </div>
+                                <div className="mt-1 text-xs text-gray-500">กดเพื่อแก้ไขข้อมูลรถ</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setCars((prev) => prev.filter((_, i) => i !== index));
+                                }}
+                                className={dangerBtnClass}
+                              >
+                                ลบ
+                              </button>
+                            </div>
+                          </summary>
+                          <div className="mt-3 grid gap-2 md:grid-cols-2">
                             <input
                               value={c.brand}
                               onChange={(e) =>
                                 setCars((prev) => prev.map((x, i) => (i === index ? { ...x, brand: e.target.value } : x)))
                               }
-                              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                              className={controlClass}
                               placeholder="ยี่ห้อ"
                             />
                             <input
@@ -1104,25 +1155,18 @@ export default function EditBookingModal({
                               onChange={(e) =>
                                 setCars((prev) => prev.map((x, i) => (i === index ? { ...x, license: e.target.value } : x)))
                               }
-                              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                              className={controlClass}
                               placeholder="ทะเบียน"
                             />
-                            <button
-                              type="button"
-                              onClick={() => setCars((prev) => prev.filter((_, i) => i !== index))}
-                              className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
-                            >
-                              ลบ
-                            </button>
                           </div>
-                        </div>
+                        </details>
                       ))}
                       {cars.length === 0 && <div className="text-sm text-gray-500">ไม่มีข้อมูลรถ</div>}
                     </div>
                   </div>
                 )}
 
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className={cardClass}>
                   <div className="text-sm font-bold text-gray-900">การเข้าชมพื้นที่</div>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
                     {siteVisitAreaOptions.map((o) => {
@@ -1144,29 +1188,29 @@ export default function EditBookingModal({
                   {siteVisitAreas.length > 0 && (
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
                       <div className="flex flex-col gap-1">
-                        <label className="text-sm font-semibold text-gray-700">ผู้อนุญาต (ชื่อ)</label>
+                        <label className={labelClass}>ผู้อนุญาต (ชื่อ)</label>
                         <input
                           value={siteVisitApproverName}
                           onChange={(e) => setSiteVisitApproverName(e.target.value)}
-                          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                          className={controlClass}
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-sm font-semibold text-gray-700">ผู้อนุญาต (ตำแหน่ง)</label>
+                        <label className={labelClass}>ผู้อนุญาต (ตำแหน่ง)</label>
                         <input
                           value={siteVisitApproverPosition}
                           onChange={(e) => setSiteVisitApproverPosition(e.target.value)}
-                          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                          className={controlClass}
                         />
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className={cardClass}>
                   <div className="text-sm font-bold text-gray-900">อาหาร</div>
                   <div className="mt-3 flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">รับอาหาร</label>
+                    <label className={labelClass}>รับอาหาร</label>
                     <select
                       value={foodRequired}
                       onChange={(e) => {
@@ -1187,7 +1231,7 @@ export default function EditBookingModal({
                           setAllergyOther("");
                         }
                       }}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                      className={controlClass}
                     >
                       <option value="">เลือก</option>
                       <option value="yes">รับ</option>
@@ -1215,11 +1259,11 @@ export default function EditBookingModal({
 
                       {meals.includes("เช้า") && (
                         <div className="flex flex-col gap-1">
-                          <label className="text-sm font-semibold text-gray-700">เมนูอาหารเช้า</label>
+                          <label className={labelClass}>เมนูอาหารเช้า</label>
                           <select
                             value={breakfastMenu}
                             onChange={(e) => setBreakfastMenu(e.target.value)}
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                            className={controlClass}
                           >
                             <option value="">เลือกเมนู</option>
                             {breakfastMenuOptions.map((o) => (
@@ -1234,11 +1278,11 @@ export default function EditBookingModal({
                       {meals.includes("กลางวัน") && (
                         <div className="grid gap-3 md:grid-cols-2">
                           <div className="flex flex-col gap-1">
-                            <label className="text-sm font-semibold text-gray-700">เมนูอาหารกลางวัน</label>
+                            <label className={labelClass}>เมนูอาหารกลางวัน</label>
                             <select
                               value={lunchMenu}
                               onChange={(e) => setLunchMenu(e.target.value)}
-                              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                              className={controlClass}
                             >
                               <option value="">เลือกเมนู</option>
                               {lunchMenuOptions.map((o) => (
@@ -1249,11 +1293,11 @@ export default function EditBookingModal({
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-sm font-semibold text-gray-700">ของหวาน (กลางวัน)</label>
+                            <label className={labelClass}>ของหวาน (กลางวัน)</label>
                             <select
                               value={lunchDessert}
                               onChange={(e) => setLunchDessert(e.target.value)}
-                              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                              className={controlClass}
                             >
                               <option value="">เลือกเมนู</option>
                               {lunchDessertOptions.map((o) => (
@@ -1269,11 +1313,11 @@ export default function EditBookingModal({
                       {meals.includes("เย็น") && (
                         <div className="grid gap-3 md:grid-cols-2">
                           <div className="flex flex-col gap-1">
-                            <label className="text-sm font-semibold text-gray-700">เมนูอาหารเย็น</label>
+                            <label className={labelClass}>เมนูอาหารเย็น</label>
                             <select
                               value={dinnerMenu}
                               onChange={(e) => setDinnerMenu(e.target.value)}
-                              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                              className={controlClass}
                             >
                               <option value="">เลือกเมนู</option>
                               {dinnerMenuOptions.map((o) => (
@@ -1284,11 +1328,11 @@ export default function EditBookingModal({
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-sm font-semibold text-gray-700">ของหวาน (เย็น)</label>
+                            <label className={labelClass}>ของหวาน (เย็น)</label>
                             <select
                               value={dinnerDessert}
                               onChange={(e) => setDinnerDessert(e.target.value)}
-                              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                              className={controlClass}
                             >
                               <option value="">เลือกเมนู</option>
                               {dinnerDessertOptions.map((o) => (
@@ -1310,7 +1354,7 @@ export default function EditBookingModal({
                           value={halalCount}
                           onChange={(e) => setHalalCount(e.target.value.replace(/[^\d]/g, ""))}
                           inputMode="numeric"
-                          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                          className={controlDisabledClass}
                           placeholder="จำนวนชุดฮาลาล"
                           disabled={!halalEnabled}
                         />
@@ -1322,7 +1366,7 @@ export default function EditBookingModal({
                           value={veganCount}
                           onChange={(e) => setVeganCount(e.target.value.replace(/[^\d]/g, ""))}
                           inputMode="numeric"
-                          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                          className={controlDisabledClass}
                           placeholder="จำนวนชุดวีแกน"
                           disabled={!veganEnabled}
                         />
@@ -1350,7 +1394,7 @@ export default function EditBookingModal({
                             <input
                               value={allergyOther}
                               onChange={(e) => setAllergyOther(e.target.value)}
-                              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                              className={`w-full ${controlClass}`}
                               placeholder="ระบุแพ้อาหารอื่นๆ"
                             />
                           </div>
@@ -1360,10 +1404,10 @@ export default function EditBookingModal({
                   )}
                 </div>
 
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className={cardClass}>
                   <div className="text-sm font-bold text-gray-900">ของที่ระลึก</div>
                   <div className="mt-3 flex flex-col gap-1">
-                    <label className="text-sm font-semibold text-gray-700">รับของที่ระลึก</label>
+                    <label className={labelClass}>รับของที่ระลึก</label>
                     <select
                       value={souvenir}
                       onChange={(e) => {
@@ -1375,7 +1419,7 @@ export default function EditBookingModal({
                           setSouvenirExtra("");
                         }
                       }}
-                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                      className={controlClass}
                     >
                       <option value="">เลือก</option>
                       <option value="yes">รับ</option>
@@ -1385,11 +1429,11 @@ export default function EditBookingModal({
                   {souvenir === "yes" && (
                     <div className="mt-3 space-y-3">
                       <div className="flex flex-col gap-1">
-                        <label className="text-sm font-semibold text-gray-700">ประเภทของที่ระลึก</label>
+                        <label className={labelClass}>ประเภทของที่ระลึก</label>
                         <select
                           value={souvenirGiftSet}
                           onChange={(e) => setSouvenirGiftSet(e.target.value)}
-                          className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                          className={controlClass}
                         >
                           <option value="">เลือก</option>
                           {souvenirGiftSetOptions.map((o) => (
@@ -1401,20 +1445,20 @@ export default function EditBookingModal({
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">
                         <div className="flex flex-col gap-1">
-                          <label className="text-sm font-semibold text-gray-700">จำนวนชุด</label>
+                          <label className={labelClass}>จำนวนชุด</label>
                           <input
                             value={souvenirGiftSetCount}
                             onChange={(e) => setSouvenirGiftSetCount(e.target.value.replace(/[^\d]/g, ""))}
                             inputMode="numeric"
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                            className={controlClass}
                           />
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-sm font-semibold text-gray-700">เพิ่มเติม</label>
+                          <label className={labelClass}>เพิ่มเติม</label>
                           <input
                             value={souvenirExtra}
                             onChange={(e) => setSouvenirExtra(e.target.value)}
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                            className={controlClass}
                           />
                         </div>
                       </div>
@@ -1422,7 +1466,7 @@ export default function EditBookingModal({
                   )}
                 </div>
 
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className={cardClass}>
                   <div className="text-sm font-bold text-gray-900">ไฟล์นำเสนอ</div>
                   <div className="mt-3 space-y-3">
                     <div className="text-sm text-gray-700">{renderPresentationFiles(visit.presentationFiles)}</div>

@@ -4,6 +4,7 @@ import VisitorTable from "./VisitTable";
 import type { Visit } from "./visitTypes";
 import DataManager from "./DataManager";
 import BookingHistoryModal from "./BookingHistoryModal";
+import AuditLogsModal from "./AuditLogsModal";
 
 type GuestRow = {
   sortIndex?: number | null;
@@ -148,11 +149,6 @@ export default async function AdminPage() {
     return normalized as unknown as Visit;
   });
 
-  const activeVisits = visits.filter((visit) => {
-    const v = visit as unknown as Record<string, unknown>;
-    return v.status === 1;
-  });
-
   const error = joinedResult.error && !fallbackResult ? joinedResult.error : fallbackResult?.error;
 
   console.log("Error:", error);
@@ -170,6 +166,7 @@ export default async function AdminPage() {
           
           <div className="flex items-center gap-3">
             <DataManager />
+            <AuditLogsModal />
             <BookingHistoryModal visits={visits as unknown as Array<Visit & { status?: number | null }>} />
             <form action={async () => {
               "use server";
@@ -185,7 +182,7 @@ export default async function AdminPage() {
         </div>
 
         {/* เรียกใช้ Client Component */}
-        <VisitorTable visits={activeVisits} />
+        <VisitorTable visits={visits} />
       </div>
     </div>
   );
