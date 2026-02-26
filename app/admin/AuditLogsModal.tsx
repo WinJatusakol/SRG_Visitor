@@ -56,6 +56,59 @@ const parseJsonDeep = (value: unknown) => {
   return value;
 };
 
+const knownFields = [
+  "status",
+  "visitDateTime",
+  "vipCompany",
+  "clientCompany",
+  "nationality",
+  "contactPhone",
+  "visitTopic",
+  "visitDetail",
+  "meetingRoomSelection",
+  "transportType",
+  "hostName",
+  "executiveHost",
+  "submittedBy",
+  "guests",
+  "cars",
+  "foodPreferences",
+  "siteVisit",
+  "souvenirPreferences",
+];
+
+const labelFor = (field: string) => {
+  const labels: Record<string, string> = {
+    status: "สถานะ",
+    visitDateTime: "วันและเวลา",
+    vipCompany: "บริษัท VIP",
+    clientCompany: "บริษัทลูกค้า",
+    nationality: "สัญชาติ",
+    contactPhone: "เบอร์โทรศัพท์",
+    visitTopic: "หัวข้อ",
+    visitDetail: "รายละเอียด",
+    meetingRoomSelection: "ห้องประชุม",
+    transportType: "การเดินทาง",
+    hostName: "ชื่อผู้ถูกเข้าพบ",
+    executiveHost: "ชื่อผู้ดูแลต้อนรับ",
+    submittedBy: "ชื่อผู้ยื่นคำร้อง",
+    guests: "ผู้เข้าร่วม",
+    cars: "รถยนต์",
+    foodPreferences: "อาหาร",
+    siteVisit: "Site Visit",
+    souvenirPreferences: "ของที่ระลึก",
+  };
+  return labels[field] ?? field;
+};
+
+const asString = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+const asNumber = (value: unknown) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const limitText = (value: string, max = 220) => (value.length > max ? `${value.slice(0, max)}…` : value);
+
 const formatDateTime = (iso: string | null | undefined) => {
   if (!iso) return "-";
   const d = new Date(iso);
@@ -81,6 +134,211 @@ const actionText = (action: string) => {
   return action || "-";
 };
 
+const formatFoodPreferences = (value: unknown) => {
+  const fpRaw = parseJsonDeep(value);
+  const fp = isRecord(fpRaw) ? fpRaw : null;
+  if (!fp) return "-";
+
+  const lines: string[] = [];
+  const meals = Array.isArray(fp.meals) ? fp.meals.map(asString).filter(Boolean) : [];
+  if (meals.length > 0) lines.push(`มื้ออาหาร: ${meals.join(", ")}`);
+
+  const menus = isRecord(fp.menus) ? fp.menus : null;
+  const breakfast = menus ? asString(menus.breakfast) : "";
+  if (breakfast) lines.push(`เช้า: ${breakfast}`);
+
+  const lunch = menus && isRecord(menus.lunch) ? menus.lunch : null;
+  const lunchMain = lunch ? asString(lunch.main) : "";
+  const lunchDessert = lunch ? asString(lunch.dessert) : "";
+  if (lunchMain || lunchDessert) {
+    const p: string[] = [];
+    if (lunchMain) p.push(`เมนู ${lunchMain}`);
+    if (lunchDessert) p.push(`ของหวาน ${lunchDessert}`);
+    lines.push(`กลางวัน: ${p.join(" / ")}`);
+  }
+
+  const dinner = menus && isRecord(menus.dinner) ? menus.dinner : null;
+  const dinnerMain = dinner ? asString(dinner.main) : "";
+  const dinnerDessert = dinner ? asString(dinner.dessert) : "";
+  if (dinnerMain || dinnerDessert) {
+    const p: string[] = [];
+    if (dinnerMain) p.push(`เมนู ${dinnerMain}`);
+    if (dinnerDessert) p.push(`ของหวาน ${dinnerDessert}`);
+    lines.push(`เย็น: ${p.join(" / ")}`);
+  }
+
+  const sd = isRecord(fp.specialDiet) ? fp.specialDiet : null;
+  const halalSets = sd ? asNumber(sd.halalSets) : null;
+  const veganSets = sd ? asNumber(sd.veganSets) : null;
+  const sdParts: string[] = [];
+  if (halalSets && halalSets > 0) sdParts.push(`ฮาลาล ${halalSets} ชุด`);
+  if (veganSets && veganSets > 0) sdParts.push(`วีแกน ${veganSets} ชุด`);
+  if (sdParts.length > 0) lines.push(`อาหารพิเศษ: ${sdParts.join(", ")}`);
+
+  const al = isRecord(fp.allergies) ? fp.allergies : null;
+  const items = al && Array.isArray(al.items) ? al.items.map(asString).filter(Boolean) : [];
+  const other = al ? asString(al.other) : "";
+  const alParts: string[] = [];
+  if (items.length > 0) alParts.push(items.join(", "));
+  if (other) alParts.push(other);
+  if (alParts.length > 0) lines.push(`แพ้อาหาร: ${alParts.join(" / ")}`);
+
+  if (lines.length === 0) return "-";
+  return lines.map((x) => limitText(x, 260)).join("\n");
+};
+
+const formatSiteVisit = (value: unknown) => {
+  const svRaw = parseJsonDeep(value);
+  const sv = isRecord(svRaw) ? svRaw : null;
+  if (!sv) return "-";
+  const areas = Array.isArray(sv.areas) ? sv.areas.map(asString).filter(Boolean) : [];
+  const approverName = asString(sv.approverName);
+  const approverPosition = asString(sv.approverPosition);
+  const lines: string[] = [];
+  if (areas.length > 0) lines.push(`พื้นที่: ${areas.join(", ")}`);
+  if (approverName || approverPosition) {
+    const who = [approverName, approverPosition].filter(Boolean).join(" / ");
+    lines.push(`ผู้อนุญาต: ${who}`);
+  }
+  if (lines.length === 0) return "-";
+  return lines.map((x) => limitText(x, 260)).join("\n");
+};
+
+const formatSouvenirPreferences = (value: unknown) => {
+  const spRaw = parseJsonDeep(value);
+  const sp = isRecord(spRaw) ? spRaw : null;
+  if (!sp) return "-";
+  const giftSet = asString(sp.giftSet);
+  const count = asNumber(sp.count);
+  const extra = asString(sp.extra);
+  const lines: string[] = [];
+  if (giftSet) lines.push(`ประเภท: ${giftSet}`);
+  if (count && count > 0) lines.push(`จำนวนชุด: ${count}`);
+  if (extra) lines.push(`ของพิเศษ: ${extra}`);
+  if (lines.length === 0) return "-";
+  return lines.map((x) => limitText(x, 260)).join("\n");
+};
+
+const formatExecutiveHost = (value: unknown) => {
+  const exRaw = parseJsonDeep(value);
+  const ex = isRecord(exRaw) ? exRaw : null;
+  if (!ex) return "-";
+  const type = asString(ex.type);
+  if (type === "preset") return asString(ex.name) || "-";
+  if (type === "other") {
+    const fullName = [asString(ex.firstName), asString(ex.middleName), asString(ex.lastName)].filter(Boolean).join(" ");
+    const position = asString(ex.position);
+    const text = [fullName, position].filter(Boolean).join(" / ");
+    return text || "-";
+  }
+  const text = asString(ex.name);
+  return text || "-";
+};
+
+const formatSubmittedBy = (value: unknown) => {
+  const sbRaw = parseJsonDeep(value);
+  const sb = isRecord(sbRaw) ? sbRaw : null;
+  if (!sb) return "-";
+  const name = asString(sb.name);
+  const position = asString(sb.position);
+  const text = [name, position].filter(Boolean).join(" / ");
+  return text || "-";
+};
+
+const formatValue = (field: string, value: unknown) => {
+  const v = parseJsonDeep(value);
+  if (v == null || v === "") return "-";
+  if (field === "status") return statusText(v);
+  if (field === "visitDateTime" && typeof v === "string") return formatDateTime(v);
+  if (field === "transportType") {
+    const t = asString(v);
+    if (t === "personal") return "ส่วนตัว";
+    if (t === "public") return "สาธารณะ";
+    return t || "-";
+  }
+  if (field === "foodPreferences") return formatFoodPreferences(v);
+  if (field === "siteVisit") return formatSiteVisit(v);
+  if (field === "souvenirPreferences") return formatSouvenirPreferences(v);
+  if (field === "executiveHost") return formatExecutiveHost(v);
+  if (field === "submittedBy") return formatSubmittedBy(v);
+  if (typeof v === "boolean") return v ? "ใช่" : "ไม่";
+  if (typeof v === "number") return String(v);
+  if (typeof v === "string") return limitText(v, 260);
+  try {
+    const text = stableStringify(v);
+    return limitText(text, 260);
+  } catch {
+    return limitText(String(v), 260);
+  }
+};
+
+type ChangeItem = { field: string; label: string; from: string; to: string };
+
+const getChangeItems = (row: AuditLogRow): ChangeItem[] => {
+  const beforeValue = parseJsonDeep(row.before);
+  const afterValue = parseJsonDeep(row.after);
+  const metaValue = parseJsonDeep(row.meta);
+  const beforeRec = isRecord(beforeValue) ? beforeValue : null;
+  const afterRec = isRecord(afterValue) ? afterValue : null;
+  const metaRec = isRecord(metaValue) ? metaValue : null;
+  const summaryRec = metaRec && isRecord(metaRec.summary) ? metaRec.summary : null;
+  const summaryChanges =
+    summaryRec && Array.isArray(summaryRec.changes)
+      ? summaryRec.changes.filter((x: unknown) => isRecord(x))
+      : [];
+
+  const out: ChangeItem[] = [];
+
+  for (const c of summaryChanges) {
+    const field = typeof c.field === "string" ? c.field : "";
+    if (!field) continue;
+    const fromRaw = "from" in c ? (c as Record<string, unknown>).from : null;
+    const toRaw = "to" in c ? (c as Record<string, unknown>).to : null;
+    if (valuesEqual(fromRaw, toRaw)) continue;
+    out.push({
+      field,
+      label: labelFor(field),
+      from: formatValue(field, fromRaw),
+      to: formatValue(field, toRaw),
+    });
+  }
+
+  if (out.length > 0) return out;
+  if (!beforeRec || !afterRec) return out;
+
+  for (const field of knownFields) {
+    if (!(field in beforeRec) && !(field in afterRec)) continue;
+    const fromRaw = beforeRec[field];
+    const toRaw = afterRec[field];
+    if (valuesEqual(fromRaw, toRaw)) continue;
+    out.push({
+      field,
+      label: labelFor(field),
+      from: formatValue(field, fromRaw),
+      to: formatValue(field, toRaw),
+    });
+  }
+
+  if (out.length > 0) return out;
+
+  const ignored = new Set(["id", "created_at", "updated_at", "visitorId", "visitor_id"]);
+  const allKeys = Array.from(new Set([...Object.keys(beforeRec), ...Object.keys(afterRec)]))
+    .filter((k) => !ignored.has(k))
+    .sort();
+  for (const field of allKeys) {
+    const fromRaw = beforeRec[field];
+    const toRaw = afterRec[field];
+    if (valuesEqual(fromRaw, toRaw)) continue;
+    out.push({
+      field,
+      label: labelFor(field),
+      from: formatValue(field, fromRaw),
+      to: formatValue(field, toRaw),
+    });
+  }
+  return out;
+};
+
 const summarize = (row: AuditLogRow) => {
   const beforeValue = parseJsonDeep(row.before);
   const afterValue = parseJsonDeep(row.after);
@@ -93,66 +351,6 @@ const summarize = (row: AuditLogRow) => {
     summaryRec && Array.isArray(summaryRec.changes)
       ? summaryRec.changes.filter((x: unknown) => isRecord(x))
       : [];
-
-  const knownFields = [
-    "status",
-    "visitDateTime",
-    "vipCompany",
-    "clientCompany",
-    "nationality",
-    "contactPhone",
-    "visitTopic",
-    "visitDetail",
-    "meetingRoomSelection",
-    "transportType",
-    "hostName",
-    "executiveHost",
-    "submittedBy",
-    "guests",
-    "cars",
-    "foodPreferences",
-    "siteVisit",
-    "souvenirPreferences",
-  ];
-
-  const labelFor = (field: string) => {
-    const labels: Record<string, string> = {
-      status: "สถานะ",
-      visitDateTime: "วันและเวลา",
-      vipCompany: "บริษัท VIP",
-      clientCompany: "บริษัทลูกค้า",
-      nationality: "สัญชาติ",
-      contactPhone: "เบอร์โทรศัพท์",
-      visitTopic: "หัวข้อ",
-      visitDetail: "รายละเอียด",
-      meetingRoomSelection: "ห้องประชุม",
-      transportType: "การเดินทาง",
-      hostName: "ชื่อผู้ถูกเข้าพบ",
-      executiveHost: "ชื่อผู้ดูแลต้อนรับ",
-      submittedBy: "ชื่อผู้ยื่นคำร้อง",
-      guests: "ผู้เข้าร่วม",
-      cars: "รถยนต์",
-      foodPreferences: "อาหาร",
-      siteVisit: "Site Visit",
-      souvenirPreferences: "ของที่ระลึก",
-    };
-    return labels[field] ?? field;
-  };
-
-  const formatValue = (field: string, value: unknown) => {
-    if (value == null || value === "") return "-";
-    if (field === "status") return statusText(value);
-    if (field === "visitDateTime" && typeof value === "string") return formatDateTime(value);
-    if (typeof value === "boolean") return value ? "ใช่" : "ไม่";
-    if (typeof value === "number") return String(value);
-    if (typeof value === "string") return value;
-    try {
-      const text = JSON.stringify(value);
-      return text.length > 160 ? `${text.slice(0, 160)}…` : text;
-    } catch {
-      return String(value);
-    }
-  };
 
   if (changes.length > 0) {
     const parts = changes
@@ -213,6 +411,8 @@ export default function AuditLogsModal() {
   const [error, setError] = useState("");
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+
+  const [detailsRow, setDetailsRow] = useState<AuditLogRow | null>(null);
 
   const [actorEmail, setActorEmail] = useState("");
   const [action, setAction] = useState("");
@@ -350,7 +550,26 @@ export default function AuditLogsModal() {
                         <td className="px-4 py-3 text-sm font-semibold text-gray-900 whitespace-nowrap">{actionText(row.action)}</td>
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">#{row.visitor_id}</td>
                         <td className="px-4 py-3 text-sm text-gray-700">
-                          <div className="whitespace-pre-line">{summarize(row)}</div>
+                          {row.action === "update" ? (
+                            (() => {
+                              const changes = getChangeItems(row);
+                              if (changes.length === 0) return <div className="text-gray-400">-</div>;
+                              return (
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => setDetailsRow(row)}
+                                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                  >
+                                    ดูรายละเอียด
+                                  </button>
+                                  <div className="text-xs text-gray-500">เปลี่ยน {changes.length} รายการ</div>
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <div className="whitespace-pre-line">{summarize(row)}</div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -375,6 +594,57 @@ export default function AuditLogsModal() {
                 >
                   {loading ? "กำลังโหลด..." : hasMore ? "โหลดเพิ่ม" : "ครบแล้ว"}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {open && detailsRow && detailsRow.action === "update" && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onMouseDown={(e) => {
+            if (e.currentTarget === e.target) setDetailsRow(null);
+          }}
+        >
+          <div className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200 flex flex-col">
+            <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
+              <div>
+                <div className="text-lg font-bold text-gray-900">รายละเอียดการแก้ไข</div>
+                <div className="text-sm text-gray-500">
+                  #{detailsRow.visitor_id} • {detailsRow.actor_email || "-"} • {formatDateTime(detailsRow.created_at)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailsRow(null)}
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                ปิด
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
+              <div className="grid gap-3">
+                {getChangeItems(detailsRow).map((c, i) => (
+                  <div key={`${c.field}-${i}`} className="rounded-xl border border-gray-200 bg-white p-4">
+                    <div className="text-sm font-bold text-gray-900">{c.label}</div>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div className="text-xs font-bold text-gray-500">ก่อนเปลี่ยน</div>
+                        <div className="mt-1 text-sm text-gray-800 whitespace-pre-line break-words">{c.from}</div>
+                      </div>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div className="text-xs font-bold text-gray-500">หลังเปลี่ยน</div>
+                        <div className="mt-1 text-sm text-gray-800 whitespace-pre-line break-words">{c.to}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {getChangeItems(detailsRow).length === 0 && (
+                  <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">ไม่มีรายการเปลี่ยนแปลง</div>
+                )}
               </div>
             </div>
           </div>
