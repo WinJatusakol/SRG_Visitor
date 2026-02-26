@@ -585,8 +585,12 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     });
     const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const router = useRouter();
-    const timeZone = "UTC";
+    const timeZone = "Asia/Bangkok";
     const [editVisit, setEditVisit] = useState<Visit | null>(null);
+    const [filterDateFrom, setFilterDateFrom] = useState("");
+    const [filterDateTo, setFilterDateTo] = useState("");
+    const [filterHost, setFilterHost] = useState("");
+    const [filterCompany, setFilterCompany] = useState("");
 
     useEffect(() => {
         return () => {
@@ -617,6 +621,116 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             return dateA - dateB;
         });
     }, [visits]);
+
+    const hostOptions = useMemo(() => {
+        const set = new Set<string>();
+        for (const v of sortedVisits) {
+            const name = typeof v.hostName === "string" ? v.hostName.trim() : "";
+            if (name) set.add(name);
+        }
+        return Array.from(set).sort((a, b) => a.localeCompare(b, "th"));
+    }, [sortedVisits]);
+
+    const toThaiDateKey = (value: string | null | undefined) => {
+        if (!value) return "";
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return "";
+        return new Intl.DateTimeFormat("en-CA", {
+            timeZone,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(d);
+    };
+
+    const statusText = (status: unknown) => {
+        const n = Number(status);
+        if (n === 0) return "ยกเลิกแล้ว";
+        if (n === 2) return "เสร็จสิ้นแล้ว";
+        return "ยังดำเนินการอยู่";
+    };
+
+    const filteredVisits = useMemo(() => {
+        const qCompany = filterCompany.trim().toLowerCase();
+        return sortedVisits.filter((v) => {
+            const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
+            if (filterDateFrom && dateKey && dateKey < filterDateFrom) return false;
+            if (filterDateTo && dateKey && dateKey > filterDateTo) return false;
+            if (filterDateFrom || filterDateTo) {
+                if (!dateKey) return false;
+            }
+
+            if (filterHost.trim()) {
+                const hn = typeof v.hostName === "string" ? v.hostName.trim() : "";
+                if (hn !== filterHost.trim()) return false;
+            }
+
+            if (qCompany) {
+                const vip = typeof v.vipCompany === "string" ? v.vipCompany.toLowerCase() : "";
+                const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
+                if (!vip.includes(qCompany) && !client.includes(qCompany)) return false;
+            }
+
+            return true;
+        });
+    }, [filterCompany, filterDateFrom, filterDateTo, filterHost, sortedVisits]);
+
+    const downloadCsv = (rows: Array<Record<string, string>>, filename: string) => {
+        const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+        const esc = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+        const lines = [
+            headers.map(esc).join(","),
+            ...rows.map((r) => headers.map((h) => esc(r[h] ?? "")).join(",")),
+        ];
+        const bom = "\ufeff";
+        const csv = bom + lines.join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const exportFiltered = () => {
+        const formatDateTime = (value: string | null | undefined) => {
+            if (!value) return "";
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return "";
+            return new Intl.DateTimeFormat("th-TH", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                timeZone,
+            }).format(d);
+        };
+        const rows = filteredVisits.map((v) => {
+            const dt = v.visitDateTime || v.created_at || "";
+            return {
+                id: String(v.id ?? ""),
+                วันและเวลา: formatDateTime(dt),
+                สถานะ: statusText(v.status),
+                บริษัทลูกค้า: typeof v.clientCompany === "string" ? v.clientCompany : "",
+                บริษัทแขกVIP: typeof v.vipCompany === "string" ? v.vipCompany : "",
+                Host: typeof v.hostName === "string" ? v.hostName : "",
+                หัวข้อ: typeof v.visitTopic === "string" ? v.visitTopic : "",
+                จำนวนผู้เข้าร่วม: String((v.guests?.length ?? v.totalGuests ?? 0) || 0),
+                เบอร์โทรศัพท์: typeof v.contactPhone === "string" ? v.contactPhone : "",
+                สัญชาติ: typeof v.nationality === "string" ? v.nationality : "",
+            };
+        });
+        const nameParts = [
+            "visitor-export",
+            filterDateFrom ? `from-${filterDateFrom}` : "",
+            filterDateTo ? `to-${filterDateTo}` : "",
+        ].filter(Boolean);
+        downloadCsv(rows, `${nameParts.join("_")}.csv`);
+    };
 
     const cancelBooking = async () => {
         if (!selectedVisit) return;
@@ -665,11 +779,85 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                     </h2>
                     <p className="text-gray-500 text-sm mt-1">รายการแขกคนสำคัญและผู้มาเยือน</p>
                 </div>
-                <div className="flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50">
-                    <Users className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium text-gray-600">
-                        ทั้งหมด: <span className="text-gray-900 font-bold">{sortedVisits.length}</span> รายการ
-                    </span>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50">
+                        <Users className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm font-medium text-gray-600">
+                            การจองทั้งหมด: <span className="text-gray-900 font-bold">{sortedVisits.length}</span> รายการ
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={exportFiltered}
+                        className="inline-flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                        <Download className="w-4 h-4" />
+                        Export CSV/Excel
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-white/60 p-4">
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">จากวันที่</label>
+                        <input
+                            type="date"
+                            value={filterDateFrom}
+                            onChange={(e) => setFilterDateFrom(e.target.value)}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ถึงวันที่</label>
+                        <input
+                            type="date"
+                            value={filterDateTo}
+                            onChange={(e) => setFilterDateTo(e.target.value)}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Host</label>
+                        <select
+                            value={filterHost}
+                            onChange={(e) => setFilterHost(e.target.value)}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        >
+                            <option value="">ทุกคน</option>
+                            {hostOptions.map((h) => (
+                                <option key={h} value={h}>
+                                    {h}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">บริษัท (ลูกค้า/แขก VIP)</label>
+                        <input
+                            value={filterCompany}
+                            onChange={(e) => setFilterCompany(e.target.value)}
+                            placeholder="พิมพ์ชื่อบริษัทเพื่อค้นหา"
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        />
+                    </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-xs text-gray-500">
+                        ตัวกรองใช้วันที่ตามเวลาไทย (Asia/Bangkok)
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setFilterDateFrom("");
+                            setFilterDateTo("");
+                            setFilterHost("");
+                            setFilterCompany("");
+                        }}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                        ล้างตัวกรอง
+                    </button>
                 </div>
             </div>
 
@@ -688,7 +876,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50/50">
-                            {sortedVisits.map((visit, index) => {
+                            {filteredVisits.map((visit, index) => {
                                 const visitDate = new Date(visit.visitDateTime || visit.created_at || 0);
                                 const monthShort = new Intl.DateTimeFormat("en-US", { month: "short", timeZone }).format(visitDate);
                                 const dayNum = new Intl.DateTimeFormat("en-US", { day: "2-digit", timeZone }).format(visitDate);
