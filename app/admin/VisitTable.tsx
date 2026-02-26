@@ -643,6 +643,8 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         }).format(d);
     };
 
+    const isActiveStatus = (status: unknown) => status == null || Number(status) === 1;
+
     const statusText = (status: unknown) => {
         const n = Number(status);
         if (n === 0) return "ยกเลิกแล้ว";
@@ -653,6 +655,8 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const filteredVisits = useMemo(() => {
         const qCompany = filterCompany.trim().toLowerCase();
         return sortedVisits.filter((v) => {
+            if (!isActiveStatus(v.status)) return false;
+
             const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
             if (filterDateFrom && dateKey && dateKey < filterDateFrom) return false;
             if (filterDateTo && dateKey && dateKey > filterDateTo) return false;
@@ -783,7 +787,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                     <div className="flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50">
                         <Users className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-medium text-gray-600">
-                            การจองทั้งหมด: <span className="text-gray-900 font-bold">{sortedVisits.length}</span> รายการ
+                            กำลังดำเนินอยู่: <span className="text-gray-900 font-bold">{filteredVisits.length}</span> รายการ
                         </span>
                     </div>
                     <button

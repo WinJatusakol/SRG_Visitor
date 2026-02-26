@@ -149,6 +149,11 @@ export default async function AdminPage() {
     return normalized as unknown as Visit;
   });
 
+  const activeVisits = visits.filter((visit) => {
+    const status = (visit as unknown as Record<string, unknown>)?.status;
+    return status == null || Number(status) === 1;
+  });
+
   const error = joinedResult.error && !fallbackResult ? joinedResult.error : fallbackResult?.error;
 
   console.log("Error:", error);
@@ -182,7 +187,7 @@ export default async function AdminPage() {
         </div>
 
         {/* เรียกใช้ Client Component */}
-        <VisitorTable visits={visits} />
+        <VisitorTable visits={activeVisits} />
       </div>
     </div>
   );
