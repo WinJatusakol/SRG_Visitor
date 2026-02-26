@@ -18,14 +18,19 @@ const formatDateTime = (iso: string | null | undefined) => {
   if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "-";
-  const date = new Intl.DateTimeFormat("th-TH", { year: "numeric", month: "short", day: "2-digit", timeZone: "UTC" }).format(d);
-  const time = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(d);
+  const date = new Intl.DateTimeFormat("th-TH", { year: "numeric", month: "short", day: "2-digit", timeZone: "Asia/Bangkok" }).format(d);
+  const time = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }).format(d);
   return `${date} ${time} น.`;
 };
 
 export default function BookingHistoryModal({ visits }: { visits: VisitWithStatus[] }) {
   const [open, setOpen] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<VisitWithStatus | null>(null);
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"active" | "canceled" | "completed" | "all">("all");
+  const [filterHost, setFilterHost] = useState("");
+  const [filterCompany, setFilterCompany] = useState("");
 
   const sorted = useMemo(() => {
     const items = Array.isArray(visits) ? [...visits] : [];
@@ -36,6 +41,60 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
     });
     return items;
   }, [visits]);
+
+  const hostOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const v of sorted) {
+      const name = typeof v.hostName === "string" ? v.hostName.trim() : "";
+      if (name) set.add(name);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "th"));
+  }, [sorted]);
+
+  const timeZone = "Asia/Bangkok";
+
+  const toThaiDateKey = (value: string | null | undefined) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  };
+
+  const isActiveStatus = (status: unknown) => status == null || Number(status) === 1;
+
+  const filtered = useMemo(() => {
+    const qCompany = filterCompany.trim().toLowerCase();
+    return sorted.filter((v) => {
+      const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
+      if (filterDateFrom && dateKey && dateKey < filterDateFrom) return false;
+      if (filterDateTo && dateKey && dateKey > filterDateTo) return false;
+      if (filterDateFrom || filterDateTo) {
+        if (!dateKey) return false;
+      }
+
+      if (filterStatus === "active" && !isActiveStatus(v.status)) return false;
+      if (filterStatus === "canceled" && Number(v.status) !== 0) return false;
+      if (filterStatus === "completed" && Number(v.status) !== 2) return false;
+
+      if (filterHost.trim()) {
+        const hn = typeof v.hostName === "string" ? v.hostName.trim() : "";
+        if (hn !== filterHost.trim()) return false;
+      }
+
+      if (qCompany) {
+        const vip = typeof v.vipCompany === "string" ? v.vipCompany.toLowerCase() : "";
+        const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
+        if (!vip.includes(qCompany) && !client.includes(qCompany)) return false;
+      }
+
+      return true;
+    });
+  }, [filterCompany, filterDateFrom, filterDateTo, filterHost, filterStatus, sorted]);
 
   return (
     <>
@@ -61,7 +120,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-[#FAEFCC]/60 px-6 py-4">
               <div>
                 <div className="text-lg font-semibold text-gray-900">ประวัติการจองทั้งหมด</div>
-                <div className="text-sm text-gray-500">แสดงรายการทั้งหมด (ดำเนินการ/เสร็จสิ้น/ยกเลิก)</div>
+                <div className="text-sm text-gray-500">ค้นหา/คัดกรองตามวัน สถานะ Host และบริษัท</div>
               </div>
               <button
                 type="button"
@@ -76,9 +135,85 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
             </div>
 
             <div className="h-[calc(92vh-72px)] overflow-auto p-6">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="text-sm font-semibold text-gray-900">
-                  รายการทั้งหมด <span className="text-gray-500">({sorted.length})</span>
+              <div className="mb-4 flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-gray-900">
+                    แสดง <span className="text-gray-500">({filtered.length}/{sorted.length})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterDateFrom("");
+                      setFilterDateTo("");
+                      setFilterStatus("all");
+                      setFilterHost("");
+                      setFilterCompany("");
+                    }}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    ล้างตัวกรอง
+                  </button>
+                </div>
+
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200 p-4">
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-6">
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">จากวันที่</label>
+                      <input
+                        type="date"
+                        value={filterDateFrom}
+                        onChange={(e) => setFilterDateFrom(e.target.value)}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ถึงวันที่</label>
+                      <input
+                        type="date"
+                        value={filterDateTo}
+                        onChange={(e) => setFilterDateTo(e.target.value)}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">สถานะ</label>
+                      <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="active">ยังดำเนินการอยู่</option>
+                        <option value="completed">เสร็จสิ้นแล้ว</option>
+                        <option value="canceled">ยกเลิกแล้ว</option>
+                        <option value="all">ทั้งหมด</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Host</label>
+                      <select
+                        value={filterHost}
+                        onChange={(e) => setFilterHost(e.target.value)}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="">ทุกคน</option>
+                        {hostOptions.map((h) => (
+                          <option key={h} value={h}>
+                            {h}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1 lg:col-span-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">บริษัท (ลูกค้า/แขก VIP)</label>
+                      <input
+                        value={filterCompany}
+                        onChange={(e) => setFilterCompany(e.target.value)}
+                        placeholder="พิมพ์ชื่อบริษัทเพื่อค้นหา"
+                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500">ตัวกรองใช้วันที่ตามเวลาไทย (Asia/Bangkok)</div>
                 </div>
               </div>
 
@@ -105,7 +240,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
-                      {sorted.map((visit, index) => {
+                      {filtered.map((visit, index) => {
                         const label = statusLabel(visit.status);
                         return (
                           <tr
@@ -133,7 +268,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                           </tr>
                         );
                       })}
-                      {sorted.length === 0 && (
+                      {filtered.length === 0 && (
                         <tr>
                           <td colSpan={5} className="px-3 py-8 text-center text-sm text-gray-500">
                             ไม่มีข้อมูล
@@ -149,7 +284,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
             <VisitDetailsModal
               selectedVisit={selectedVisit}
               onClose={() => setSelectedVisit(null)}
-              timeZone="UTC"
+              timeZone={timeZone}
               readOnly
               zVariant="history"
             />
