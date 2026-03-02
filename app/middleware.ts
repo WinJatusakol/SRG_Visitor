@@ -48,12 +48,23 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // 2. ถ้ามี User แล้ว ให้เช็คว่าเป็น Admin หรือไม่?
-    // วิธีที่ 1: เช็คแบบง่าย (Hardcode Email)
-    const allowedEmails = ['admin@company.com', 'boss@company.com']
-    if (!allowedEmails.includes(user.email!)) {
-        return NextResponse.redirect(new URL('/', request.url)) // ส่งกลับหน้าบ้าน
-    }
+    const adminEmails = String(process.env.ADMIN_EMAILS ?? '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+    const adminDomains = String(process.env.ADMIN_EMAIL_DOMAINS ?? '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase().replace(/^@/, ''))
+      .filter(Boolean)
+
+    const email = String(user.email ?? '').trim().toLowerCase()
+    const domain = email.includes('@') ? email.split('@').pop() ?? '' : ''
+    const allowed =
+      adminEmails.length === 0 && adminDomains.length === 0
+        ? true
+        : adminEmails.includes(email) || (domain && adminDomains.includes(domain))
+
+    if (!allowed) return NextResponse.redirect(new URL('/', request.url))
 
     // วิธีที่ 2: เช็คจาก Database (Real-world กว่า)
     /* const { data: profile } = await supabase
