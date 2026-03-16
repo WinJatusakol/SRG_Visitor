@@ -191,25 +191,30 @@ const formatFoodPreferences = (value: unknown) => {
 
   const menus = isRecord(fp.menus) ? fp.menus : null;
   const breakfast = menus ? asString(menus.breakfast) : "";
-  if (breakfast) lines.push(`เช้า: ${breakfast}`);
+  const breakfastOther = menus ? asString(menus.breakfastOther) : "";
+  if (breakfast) lines.push(`เช้า: ${breakfast}${breakfastOther ? ` - ${breakfastOther}` : ""}`);
 
   const lunch = menus && isRecord(menus.lunch) ? menus.lunch : null;
   const lunchMain = lunch ? asString(lunch.main) : "";
   const lunchDessert = lunch ? asString(lunch.dessert) : "";
+  const lunchOtherMain = lunch ? asString(lunch.otherMain) : "";
+  const lunchOtherDessert = lunch ? asString(lunch.otherDessert) : "";
   if (lunchMain || lunchDessert) {
     const p: string[] = [];
-    if (lunchMain) p.push(`เมนู ${lunchMain}`);
-    if (lunchDessert) p.push(`ของหวาน ${lunchDessert}`);
+    if (lunchMain) p.push(`เมนู ${lunchMain}${lunchOtherMain ? ` - ${lunchOtherMain}` : ""}`);
+    if (lunchDessert) p.push(`ของหวาน ${lunchDessert}${lunchOtherDessert ? ` - ${lunchOtherDessert}` : ""}`);
     lines.push(`กลางวัน: ${p.join(" / ")}`);
   }
 
   const dinner = menus && isRecord(menus.dinner) ? menus.dinner : null;
   const dinnerMain = dinner ? asString(dinner.main) : "";
   const dinnerDessert = dinner ? asString(dinner.dessert) : "";
+  const dinnerOtherMain = dinner ? asString(dinner.otherMain) : "";
+  const dinnerOtherDessert = dinner ? asString(dinner.otherDessert) : "";
   if (dinnerMain || dinnerDessert) {
     const p: string[] = [];
-    if (dinnerMain) p.push(`เมนู ${dinnerMain}`);
-    if (dinnerDessert) p.push(`ของหวาน ${dinnerDessert}`);
+    if (dinnerMain) p.push(`เมนู ${dinnerMain}${dinnerOtherMain ? ` - ${dinnerOtherMain}` : ""}`);
+    if (dinnerDessert) p.push(`ของหวาน ${dinnerDessert}${dinnerOtherDessert ? ` - ${dinnerOtherDessert}` : ""}`);
     lines.push(`เย็น: ${p.join(" / ")}`);
   }
 

@@ -434,7 +434,11 @@ export function VisitDetailsModal({
                                                             <div className="flex items-center gap-2 text-sm font-extrabold text-yellow-700 mb-3">
                                                                 <Coffee className="w-4 h-4" /> เมนูเช้า
                                                             </div>
-                                                            <div className="text-sm font-semibold text-gray-900 whitespace-pre-line">{foodData?.menus?.breakfast || "-"}</div>
+                                                            <div className="text-sm font-semibold text-gray-900 whitespace-pre-line">
+                                                                {foodData?.menus?.breakfastOther
+                                                                    ? `${foodData?.menus?.breakfast} - ${foodData?.menus?.breakfastOther}`
+                                                                    : (foodData?.menus?.breakfast || "-")}
+                                                            </div>
                                                         </div>
                                                     )}
                                                     {foodData?.menus?.lunch && (
@@ -445,11 +449,19 @@ export function VisitDetailsModal({
                                                             <div className="grid grid-cols-2 gap-3">
                                                                 <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                                                     <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.main || "-"}</span>
+                                                                    <span className="font-semibold text-gray-900">
+                                                                        {foodData?.menus?.lunch?.otherMain
+                                                                            ? `${foodData?.menus?.lunch?.main} - ${foodData?.menus?.lunch?.otherMain}`
+                                                                            : (foodData?.menus?.lunch?.main || "-")}
+                                                                    </span>
                                                                 </div>
                                                                 <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                                                     <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.dessert || "-"}</span>
+                                                                    <span className="font-semibold text-gray-900">
+                                                                        {foodData?.menus?.lunch?.otherDessert
+                                                                            ? `${foodData?.menus?.lunch?.dessert} - ${foodData?.menus?.lunch?.otherDessert}`
+                                                                            : (foodData?.menus?.lunch?.dessert || "-")}
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -462,11 +474,19 @@ export function VisitDetailsModal({
                                                             <div className="grid grid-cols-2 gap-3">
                                                                 <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                                                     <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.main || "-"}</span>
+                                                                    <span className="font-semibold text-gray-900">
+                                                                        {foodData?.menus?.dinner?.otherMain
+                                                                            ? `${foodData?.menus?.dinner?.main} - ${foodData?.menus?.dinner?.otherMain}`
+                                                                            : (foodData?.menus?.dinner?.main || "-")}
+                                                                    </span>
                                                                 </div>
                                                                 <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                                                     <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.dessert || "-"}</span>
+                                                                    <span className="font-semibold text-gray-900">
+                                                                        {foodData?.menus?.dinner?.otherDessert
+                                                                            ? `${foodData?.menus?.dinner?.dessert} - ${foodData?.menus?.dinner?.otherDessert}`
+                                                                            : (foodData?.menus?.dinner?.dessert || "-")}
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1281,7 +1301,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                                                 </div>
                                                                 <p className="text-sm text-gray-700 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                                                     <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-gray-900">{foodData?.menus?.breakfast || "จัดเตรียมมื้อเช้าตามความเหมาะสม"}</span>
+                                                                    <span className="font-semibold text-gray-900">
+                                                                        {foodData?.menus?.breakfastOther
+                                                                            ? `${foodData?.menus?.breakfast} - ${foodData?.menus?.breakfastOther}`
+                                                                            : (foodData?.menus?.breakfast || "จัดเตรียมมื้อเช้าตามความเหมาะสม")}
+                                                                    </span>
                                                                 </p>
                                                             </div>
                                                         )}
@@ -1293,11 +1317,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                                                 <div className="space-y-3 text-sm text-gray-700">
                                                                     <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                                                         <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                        <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.main || "-"}</span>
+                                                                        <span className="font-semibold text-gray-900">
+                                                                            {foodData?.menus?.lunch?.otherMain
+                                                                                ? `${foodData?.menus?.lunch?.main} - ${foodData?.menus?.lunch?.otherMain}`
+                                                                                : (foodData?.menus?.lunch?.main || "-")}
+                                                                        </span>
                                                                     </div>
                                                                     <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                                                         <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-                                                                        <span className="font-semibold text-gray-900">{foodData?.menus?.lunch?.dessert || "-"}</span>
+                                                                        <span className="font-semibold text-gray-900">
+                                                                            {foodData?.menus?.lunch?.otherDessert
+                                                                                ? `${foodData?.menus?.lunch?.dessert} - ${foodData?.menus?.lunch?.otherDessert}`
+                                                                                : (foodData?.menus?.lunch?.dessert || "-")}
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1310,11 +1342,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                                                 <div className="space-y-3 text-sm text-gray-700">
                                                                     <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                                                         <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                        <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.main || "-"}</span>
+                                                                        <span className="font-semibold text-gray-900">
+                                                                            {foodData?.menus?.dinner?.otherMain
+                                                                                ? `${foodData?.menus?.dinner?.main} - ${foodData?.menus?.dinner?.otherMain}`
+                                                                                : (foodData?.menus?.dinner?.main || "-")}
+                                                                        </span>
                                                                     </div>
                                                                     <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                                                         <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-                                                                        <span className="font-semibold text-gray-900">{foodData?.menus?.dinner?.dessert || "-"}</span>
+                                                                        <span className="font-semibold text-gray-900">
+                                                                            {foodData?.menus?.dinner?.otherDessert
+                                                                                ? `${foodData?.menus?.dinner?.dessert} - ${foodData?.menus?.dinner?.otherDessert}`
+                                                                                : (foodData?.menus?.dinner?.dessert || "-")}
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             </div>
