@@ -227,6 +227,8 @@ export default function Home() {
     if (value === "เช้า") return t("เช้า", "Breakfast");
     if (value === "กลางวัน") return t("กลางวัน", "Lunch");
     if (value === "เย็น") return t("เย็น", "Dinner");
+    if (value === "อาหารว่างเช้า") return t("อาหารว่างเช้า", "Morning break");
+    if (value === "อาหารว่างบ่าย") return t("อาหารว่างบ่าย", "Afternoon break");
     return value;
   };
 
@@ -1795,34 +1797,61 @@ export default function Home() {
                     <label className="text-sm font-medium">
                       {t("มื้ออาหารที่ต้องการ", "Meals")}
                     </label>
-                    <div className="mt-1 flex flex-wrap gap-4 text-sm">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          value="เช้า"
-                          checked={form.meals.includes("เช้า")}
-                          onChange={handleMealsChange}
-                        />
-                        <span>{mealLabel("เช้า")}</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          value="กลางวัน"
-                          checked={form.meals.includes("กลางวัน")}
-                          onChange={handleMealsChange}
-                        />
-                        <span>{mealLabel("กลางวัน")}</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          value="เย็น"
-                          checked={form.meals.includes("เย็น")}
-                          onChange={handleMealsChange}
-                        />
-                        <span>{mealLabel("เย็น")}</span>
-                      </label>
+                    <div className="mt-1 flex flex-col gap-3 text-sm">
+                      <div className="flex flex-wrap gap-4">
+                        <label className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            value="เช้า"
+                            checked={form.meals.includes("เช้า")}
+                            onChange={handleMealsChange}
+                          />
+                          <span>{mealLabel("เช้า")}</span>
+                        </label>
+
+                        <label className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            value="กลางวัน"
+                            checked={form.meals.includes("กลางวัน")}
+                            onChange={handleMealsChange}
+                          />
+                          <span>{mealLabel("กลางวัน")}</span>
+                        </label>
+
+                        <label className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            value="เย็น"
+                            checked={form.meals.includes("เย็น")}
+                            onChange={handleMealsChange}
+                          />
+                          <span>{mealLabel("เย็น")}</span>
+                        </label>
+                      </div>
+
+                      <div className="flex flex-wrap gap-4">
+                        <label className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            value="อาหารว่างเช้า"
+                            checked={form.meals.includes("อาหารว่างเช้า")}
+                            onChange={handleMealsChange}
+                          />
+                          <span>{mealLabel("อาหารว่างเช้า")}</span>
+                        </label>
+
+                        <label className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            value="อาหารว่างบ่าย"
+                            checked={form.meals.includes("อาหารว่างบ่าย")}
+                            onChange={handleMealsChange}
+                          />
+                          <span>{mealLabel("อาหารว่างบ่าย")}</span>
+                        </label>
+                      </div>
+
                     </div>
                   </div>
                 )}

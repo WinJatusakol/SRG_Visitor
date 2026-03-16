@@ -1334,7 +1334,7 @@ export default function EditBookingModal({
                   {foodRequired === "yes" && (
                     <div className="mt-3 space-y-4">
                       <div className="grid gap-2 md:grid-cols-3">
-                        {["เช้า", "กลางวัน", "เย็น"].map((meal) => {
+                        {["เช้า", "กลางวัน", "อาหารว่างบ่าย", "เย็น", "อาหารว่างเช้า"].map((meal) => {
                           const checked = meals.includes(meal);
                           return (
                             <label key={meal} className="flex items-center gap-2 text-sm text-gray-800">
