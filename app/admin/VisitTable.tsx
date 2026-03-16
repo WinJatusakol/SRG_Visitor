@@ -404,7 +404,9 @@ export function VisitDetailsModal({
 
                         const mealIcon = (meal: string) => {
                             if (meal === "เช้า") return <Coffee className="w-4 h-4 text-yellow-600" />;
+                            if (meal === "อาหารว่างเช้า") return <Coffee className="w-4 h-4 text-emerald-600" />;
                             if (meal === "กลางวัน") return <Sun className="w-4 h-4 text-orange-600" />;
+                            if (meal === "อาหารว่างบ่าย") return <Coffee className="w-4 h-4 text-sky-600" />;
                             if (meal === "เย็น") return <Moon className="w-4 h-4 text-indigo-600" />;
                             return <Utensils className="w-4 h-4 text-gray-600" />;
                         };
