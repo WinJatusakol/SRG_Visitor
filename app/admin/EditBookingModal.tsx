@@ -250,10 +250,15 @@ export default function EditBookingModal({
   const [foodRequired, setFoodRequired] = useState<YesNo | "">("");
   const [meals, setMeals] = useState<string[]>([]);
   const [breakfastMenu, setBreakfastMenu] = useState("");
+  const [breakfastMenuOther, setBreakfastMenuOther] = useState("");
   const [lunchMenu, setLunchMenu] = useState("");
+  const [lunchMenuOther, setLunchMenuOther] = useState("");
   const [lunchDessert, setLunchDessert] = useState("");
+  const [lunchDessertOther, setLunchDessertOther] = useState("");
   const [dinnerMenu, setDinnerMenu] = useState("");
+  const [dinnerMenuOther, setDinnerMenuOther] = useState("");
   const [dinnerDessert, setDinnerDessert] = useState("");
+  const [dinnerDessertOther, setDinnerDessertOther] = useState("");
   const [halalEnabled, setHalalEnabled] = useState(false);
   const [halalCount, setHalalCount] = useState("");
   const [veganEnabled, setVeganEnabled] = useState(false);
@@ -366,8 +371,38 @@ export default function EditBookingModal({
 
       const foodMenuRows =
         !foodMenus.error && Array.isArray(foodMenus.data) ? (foodMenus.data as FoodMenuOptionRow[]) : [];
+      const sortOtherLast = (items: RefOptionRow[]) => {
+        const otherWords = new Set(["อื่นๆ", "other"]);
+        return [...items].sort((a, b) => {
+          const av = String(a.value ?? "").trim();
+          const bv = String(b.value ?? "").trim();
+          const al = String(a.label_th ?? "").trim();
+          const bl = String(b.label_th ?? "").trim();
+          const aIsOther = otherWords.has(av) || otherWords.has(al);
+          const bIsOther = otherWords.has(bv) || otherWords.has(bl);
+          if (aIsOther !== bIsOther) return aIsOther ? 1 : -1;
+          const asi = Number(a.sort_index ?? 0);
+          const bsi = Number(b.sort_index ?? 0);
+          if (asi !== bsi) return asi - bsi;
+          return av.localeCompare(bv, "th");
+        });
+      };
+      const ensureOtherOption = (items: RefOptionRow[]) => {
+        const hasOther = items.some((x) => {
+          const v = String(x.value ?? "").trim();
+          const th = String(x.label_th ?? "").trim();
+          return v === "อื่นๆ" || v.toLowerCase() === "other" || th === "อื่นๆ";
+        });
+        if (hasOther) return items;
+        return [
+          ...items,
+          { value: "อื่นๆ", label_th: "อื่นๆ", label_en: "Other", sort_index: 999999, active: true },
+        ];
+      };
       const readFoodGroup = (key: string) =>
-        foodMenuRows
+        sortOtherLast(
+          ensureOtherOption(
+          foodMenuRows
           .filter((row) => String(row.group_key ?? "") === key)
           .map((row) => ({
             value: String(row.value ?? "").trim(),
@@ -376,7 +411,9 @@ export default function EditBookingModal({
             sort_index: row.sort_index ?? null,
             active: row.active ?? null,
           }))
-          .filter((row) => row.value);
+          .filter((row) => row.value)
+          )
+        );
 
       setBreakfastMenuOptions(readFoodGroup("breakfast"));
       setLunchMenuOptions(readFoodGroup("lunch_main"));
@@ -452,10 +489,15 @@ export default function EditBookingModal({
     const lunch = asRecord(menus?.lunch);
     const dinner = asRecord(menus?.dinner);
     setBreakfastMenu(asString(menus?.breakfast));
+    setBreakfastMenuOther(asString(menus?.breakfastOther));
     setLunchMenu(asString(lunch?.main));
+    setLunchMenuOther(asString(lunch?.otherMain));
     setLunchDessert(asString(lunch?.dessert));
+    setLunchDessertOther(asString(lunch?.otherDessert));
     setDinnerMenu(asString(dinner?.main));
+    setDinnerMenuOther(asString(dinner?.otherMain));
     setDinnerDessert(asString(dinner?.dessert));
+    setDinnerDessertOther(asString(dinner?.otherDessert));
     const specialDiet = asRecord(fp?.specialDiet);
     const halalSets = hasFood ? asNumber(specialDiet?.halalSets) : 0;
     const veganSets = hasFood ? asNumber(specialDiet?.veganSets) : 0;
@@ -531,10 +573,15 @@ export default function EditBookingModal({
           const lunchDb = asRecord(menusDb?.lunch);
           const dinnerDb = asRecord(menusDb?.dinner);
           setBreakfastMenu(asString(menusDb?.breakfast));
+          setBreakfastMenuOther(asString(menusDb?.breakfastOther));
           setLunchMenu(asString(lunchDb?.main));
+          setLunchMenuOther(asString(lunchDb?.otherMain));
           setLunchDessert(asString(lunchDb?.dessert));
+          setLunchDessertOther(asString(lunchDb?.otherDessert));
           setDinnerMenu(asString(dinnerDb?.main));
+          setDinnerMenuOther(asString(dinnerDb?.otherMain));
           setDinnerDessert(asString(dinnerDb?.dessert));
+          setDinnerDessertOther(asString(dinnerDb?.otherDessert));
           const sdDb = asRecord(fpRec?.specialDiet);
           const halalSetsDb = hasFoodDb ? asNumber(sdDb?.halalSets) : 0;
           const veganSetsDb = hasFoodDb ? asNumber(sdDb?.veganSets) : 0;
@@ -641,12 +688,32 @@ export default function EditBookingModal({
         setErrorMessage("กรุณาเลือกเมนูอาหารเช้า");
         return false;
       }
+      if (meals.includes("เช้า") && isOtherMenuValue(breakfastMenu) && !breakfastMenuOther.trim()) {
+        setErrorMessage("กรุณาระบุเมนูอาหารเช้า (อื่นๆ)");
+        return false;
+      }
       if (meals.includes("กลางวัน") && (!lunchMenu.trim() || !lunchDessert.trim())) {
         setErrorMessage("กรุณาเลือกเมนูอาหารกลางวันและของหวาน");
         return false;
       }
+      if (meals.includes("กลางวัน") && isOtherMenuValue(lunchMenu) && !lunchMenuOther.trim()) {
+        setErrorMessage("กรุณาระบุเมนูอาหารกลางวัน (อื่นๆ)");
+        return false;
+      }
+      if (meals.includes("กลางวัน") && isOtherMenuValue(lunchDessert) && !lunchDessertOther.trim()) {
+        setErrorMessage("กรุณาระบุของหวาน (กลางวัน) (อื่นๆ)");
+        return false;
+      }
       if (meals.includes("เย็น") && (!dinnerMenu.trim() || !dinnerDessert.trim())) {
         setErrorMessage("กรุณาเลือกเมนูอาหารเย็นและของหวาน");
+        return false;
+      }
+      if (meals.includes("เย็น") && isOtherMenuValue(dinnerMenu) && !dinnerMenuOther.trim()) {
+        setErrorMessage("กรุณาระบุเมนูอาหารเย็น (อื่นๆ)");
+        return false;
+      }
+      if (meals.includes("เย็น") && isOtherMenuValue(dinnerDessert) && !dinnerDessertOther.trim()) {
+        setErrorMessage("กรุณาระบุของหวาน (เย็น) (อื่นๆ)");
         return false;
       }
       if (halalEnabled && Number(halalCount || 0) <= 0) {
@@ -700,8 +767,23 @@ export default function EditBookingModal({
               meals,
               menus: {
                 breakfast: meals.includes("เช้า") ? breakfastMenu : "",
-                lunch: meals.includes("กลางวัน") ? { main: lunchMenu, dessert: lunchDessert } : { main: "", dessert: "" },
-                dinner: meals.includes("เย็น") ? { main: dinnerMenu, dessert: dinnerDessert } : { main: "", dessert: "" },
+                breakfastOther: meals.includes("เช้า") && isOtherMenuValue(breakfastMenu) ? breakfastMenuOther : "",
+                lunch: meals.includes("กลางวัน")
+                  ? {
+                      main: lunchMenu,
+                      dessert: lunchDessert,
+                      otherMain: isOtherMenuValue(lunchMenu) ? lunchMenuOther : "",
+                      otherDessert: isOtherMenuValue(lunchDessert) ? lunchDessertOther : "",
+                    }
+                  : { main: "", dessert: "", otherMain: "", otherDessert: "" },
+                dinner: meals.includes("เย็น")
+                  ? {
+                      main: dinnerMenu,
+                      dessert: dinnerDessert,
+                      otherMain: isOtherMenuValue(dinnerMenu) ? dinnerMenuOther : "",
+                      otherDessert: isOtherMenuValue(dinnerDessert) ? dinnerDessertOther : "",
+                    }
+                  : { main: "", dessert: "", otherMain: "", otherDessert: "" },
               },
               specialDiet: {
                 halalSets: halalEnabled ? Number(halalCount || 0) : 0,
@@ -789,6 +871,11 @@ export default function EditBookingModal({
     "rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50";
   const dangerBtnClass =
     "rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50";
+
+  const isOtherMenuValue = (value: string) => {
+    const v = String(value ?? "").trim();
+    return v === "อื่นๆ" || v.toLowerCase() === "other";
+  };
 
   const guestTitle = (g: EditableGuest) => {
     const fullName = [g.firstName, g.middleName, g.lastName].map((x) => x.trim()).filter(Boolean).join(" ");
@@ -1219,10 +1306,15 @@ export default function EditBookingModal({
                         if (next !== "yes") {
                           setMeals([]);
                           setBreakfastMenu("");
+                          setBreakfastMenuOther("");
                           setLunchMenu("");
+                          setLunchMenuOther("");
                           setLunchDessert("");
+                          setLunchDessertOther("");
                           setDinnerMenu("");
+                          setDinnerMenuOther("");
                           setDinnerDessert("");
+                          setDinnerDessertOther("");
                           setHalalEnabled(false);
                           setHalalCount("");
                           setVeganEnabled(false);
@@ -1262,7 +1354,11 @@ export default function EditBookingModal({
                           <label className={labelClass}>เมนูอาหารเช้า</label>
                           <select
                             value={breakfastMenu}
-                            onChange={(e) => setBreakfastMenu(e.target.value)}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setBreakfastMenu(v);
+                              if (!isOtherMenuValue(v)) setBreakfastMenuOther("");
+                            }}
                             className={controlClass}
                           >
                             <option value="">เลือกเมนู</option>
@@ -1272,6 +1368,14 @@ export default function EditBookingModal({
                               </option>
                             ))}
                           </select>
+                          {isOtherMenuValue(breakfastMenu) && (
+                            <input
+                              value={breakfastMenuOther}
+                              onChange={(e) => setBreakfastMenuOther(e.target.value)}
+                              className={controlClass}
+                              placeholder="ระบุเมนูอื่นๆ (เช้า)"
+                            />
+                          )}
                         </div>
                       )}
 
@@ -1281,7 +1385,11 @@ export default function EditBookingModal({
                             <label className={labelClass}>เมนูอาหารกลางวัน</label>
                             <select
                               value={lunchMenu}
-                              onChange={(e) => setLunchMenu(e.target.value)}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setLunchMenu(v);
+                                if (!isOtherMenuValue(v)) setLunchMenuOther("");
+                              }}
                               className={controlClass}
                             >
                               <option value="">เลือกเมนู</option>
@@ -1291,12 +1399,24 @@ export default function EditBookingModal({
                                 </option>
                               ))}
                             </select>
+                            {isOtherMenuValue(lunchMenu) && (
+                              <input
+                                value={lunchMenuOther}
+                                onChange={(e) => setLunchMenuOther(e.target.value)}
+                                className={controlClass}
+                                placeholder="ระบุเมนูอื่นๆ (กลางวัน)"
+                              />
+                            )}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className={labelClass}>ของหวาน (กลางวัน)</label>
                             <select
                               value={lunchDessert}
-                              onChange={(e) => setLunchDessert(e.target.value)}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setLunchDessert(v);
+                                if (!isOtherMenuValue(v)) setLunchDessertOther("");
+                              }}
                               className={controlClass}
                             >
                               <option value="">เลือกเมนู</option>
@@ -1306,6 +1426,14 @@ export default function EditBookingModal({
                                 </option>
                               ))}
                             </select>
+                            {isOtherMenuValue(lunchDessert) && (
+                              <input
+                                value={lunchDessertOther}
+                                onChange={(e) => setLunchDessertOther(e.target.value)}
+                                className={controlClass}
+                                placeholder="ระบุของหวานอื่นๆ (กลางวัน)"
+                              />
+                            )}
                           </div>
                         </div>
                       )}
@@ -1316,7 +1444,11 @@ export default function EditBookingModal({
                             <label className={labelClass}>เมนูอาหารเย็น</label>
                             <select
                               value={dinnerMenu}
-                              onChange={(e) => setDinnerMenu(e.target.value)}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setDinnerMenu(v);
+                                if (!isOtherMenuValue(v)) setDinnerMenuOther("");
+                              }}
                               className={controlClass}
                             >
                               <option value="">เลือกเมนู</option>
@@ -1326,12 +1458,24 @@ export default function EditBookingModal({
                                 </option>
                               ))}
                             </select>
+                            {isOtherMenuValue(dinnerMenu) && (
+                              <input
+                                value={dinnerMenuOther}
+                                onChange={(e) => setDinnerMenuOther(e.target.value)}
+                                className={controlClass}
+                                placeholder="ระบุเมนูอื่นๆ (เย็น)"
+                              />
+                            )}
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className={labelClass}>ของหวาน (เย็น)</label>
                             <select
                               value={dinnerDessert}
-                              onChange={(e) => setDinnerDessert(e.target.value)}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setDinnerDessert(v);
+                                if (!isOtherMenuValue(v)) setDinnerDessertOther("");
+                              }}
                               className={controlClass}
                             >
                               <option value="">เลือกเมนู</option>
@@ -1341,6 +1485,14 @@ export default function EditBookingModal({
                                 </option>
                               ))}
                             </select>
+                            {isOtherMenuValue(dinnerDessert) && (
+                              <input
+                                value={dinnerDessertOther}
+                                onChange={(e) => setDinnerDessertOther(e.target.value)}
+                                className={controlClass}
+                                placeholder="ระบุของหวานอื่นๆ (เย็น)"
+                              />
+                            )}
                           </div>
                         </div>
                       )}

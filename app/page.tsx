@@ -43,10 +43,15 @@ type VisitFormState = {
   foodRequired: YesNo | "";
   meals: string[];
   breakfastMenu: string;
+  breakfastMenuOther: string;
   lunchMenu: string;
+  lunchMenuOther: string;
   lunchDessert: string;
+  lunchDessertOther: string;
   dinnerMenu: string;
+  dinnerMenuOther: string;
   dinnerDessert: string;
+  dinnerDessertOther: string;
   halalEnabled: boolean;
   halalCount: string;
   veganEnabled: boolean;
@@ -147,10 +152,15 @@ const initialState: VisitFormState = {
   foodRequired: "",
   meals: [],
   breakfastMenu: "",
+  breakfastMenuOther: "",
   lunchMenu: "",
+  lunchMenuOther: "",
   lunchDessert: "",
+  lunchDessertOther: "",
   dinnerMenu: "",
+  dinnerMenuOther: "",
   dinnerDessert: "",
+  dinnerDessertOther: "",
   halalEnabled: false,
   halalCount: "",
   veganEnabled: false,
@@ -196,6 +206,11 @@ export default function Home() {
     lang === "th"
       ? (option.label_th ?? option.value)
       : (option.label_en ?? option.value);
+
+  const isOtherMenuValue = (value: string) => {
+    const v = String(value ?? "").trim();
+    return v === "อื่นๆ" || v.toLowerCase() === "other";
+  };
   const meetingRoomLabel = (room: MeetingRoomRow, targetLang: Lang) => {
     const capacity = Number(room.capacity ?? 0);
     const name = targetLang === "th" ? room.name_th : room.name_en;
@@ -291,8 +306,38 @@ export default function Home() {
         !foodMenus.error && Array.isArray(foodMenus.data)
           ? (foodMenus.data as FoodMenuOptionRow[])
           : [];
+      const sortOtherLast = (items: RefOptionRow[]) => {
+        const otherWords = new Set(["อื่นๆ", "other"]);
+        return [...items].sort((a, b) => {
+          const av = String(a.value ?? "").trim();
+          const bv = String(b.value ?? "").trim();
+          const al = String(a.label_th ?? "").trim();
+          const bl = String(b.label_th ?? "").trim();
+          const aIsOther = otherWords.has(av) || otherWords.has(al);
+          const bIsOther = otherWords.has(bv) || otherWords.has(bl);
+          if (aIsOther !== bIsOther) return aIsOther ? 1 : -1;
+          const asi = Number(a.sort_index ?? 0);
+          const bsi = Number(b.sort_index ?? 0);
+          if (asi !== bsi) return asi - bsi;
+          return av.localeCompare(bv, "th");
+        });
+      };
+      const ensureOtherOption = (items: RefOptionRow[]) => {
+        const hasOther = items.some((x) => {
+          const v = String(x.value ?? "").trim();
+          const th = String(x.label_th ?? "").trim();
+          return v === "อื่นๆ" || v.toLowerCase() === "other" || th === "อื่นๆ";
+        });
+        if (hasOther) return items;
+        return [
+          ...items,
+          { value: "อื่นๆ", label_th: "อื่นๆ", label_en: "Other", sort_index: 999999, active: true },
+        ];
+      };
       const readFoodGroup = (key: string) =>
-        foodMenuRows
+        sortOtherLast(
+          ensureOtherOption(
+          foodMenuRows
           .filter((row) => String(row.group_key ?? "") === key)
           .map((row) => ({
             value: String(row.value ?? "").trim(),
@@ -301,7 +346,9 @@ export default function Home() {
             sort_index: row.sort_index ?? null,
             active: row.active ?? null,
           }))
-          .filter((row) => row.value);
+          .filter((row) => row.value)
+          )
+        );
 
       setBreakfastMenuOptions(readFoodGroup("breakfast"));
       setLunchMenuOptions(readFoodGroup("lunch_main"));
@@ -369,10 +416,15 @@ export default function Home() {
       name === "dinnerMenu" ||
       name === "dinnerDessert"
     ) {
-      return setForm((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      return setForm((prev) => {
+        const next: VisitFormState = { ...prev, [name]: value } as VisitFormState;
+        if (name === "breakfastMenu" && !isOtherMenuValue(value)) next.breakfastMenuOther = "";
+        if (name === "lunchMenu" && !isOtherMenuValue(value)) next.lunchMenuOther = "";
+        if (name === "lunchDessert" && !isOtherMenuValue(value)) next.lunchDessertOther = "";
+        if (name === "dinnerMenu" && !isOtherMenuValue(value)) next.dinnerMenuOther = "";
+        if (name === "dinnerDessert" && !isOtherMenuValue(value)) next.dinnerDessertOther = "";
+        return next;
+      });
     }
 
     if (name === "meetingRoom") {
@@ -389,10 +441,15 @@ export default function Home() {
         foodRequired: value as YesNo,
         meals: value === "yes" ? prev.meals : [],
         breakfastMenu: value === "yes" ? prev.breakfastMenu : "",
+        breakfastMenuOther: value === "yes" ? prev.breakfastMenuOther : "",
         lunchMenu: value === "yes" ? prev.lunchMenu : "",
+        lunchMenuOther: value === "yes" ? prev.lunchMenuOther : "",
         lunchDessert: value === "yes" ? prev.lunchDessert : "",
+        lunchDessertOther: value === "yes" ? prev.lunchDessertOther : "",
         dinnerMenu: value === "yes" ? prev.dinnerMenu : "",
+        dinnerMenuOther: value === "yes" ? prev.dinnerMenuOther : "",
         dinnerDessert: value === "yes" ? prev.dinnerDessert : "",
+        dinnerDessertOther: value === "yes" ? prev.dinnerDessertOther : "",
         halalEnabled: value === "yes" ? prev.halalEnabled : false,
         halalCount: value === "yes" ? prev.halalCount : "",
         veganEnabled: value === "yes" ? prev.veganEnabled : false,
@@ -626,6 +683,12 @@ export default function Home() {
             )
           );
         }
+        if (isOtherMenuValue(form.dinnerMenu) && !form.dinnerMenuOther.trim()) {
+          messages.push(t("กรุณาระบุเมนูอาหารเย็น (อื่นๆ)", "Please specify the dinner other menu."));
+        }
+        if (isOtherMenuValue(form.dinnerDessert) && !form.dinnerDessertOther.trim()) {
+          messages.push(t("กรุณาระบุของหวาน (เย็น) (อื่นๆ)", "Please specify the dinner dessert other menu."));
+        }
       }
     }
     if (!form.visitTopic.trim()) {
@@ -757,6 +820,9 @@ export default function Home() {
           )
         );
       }
+      if (form.meals.includes("เช้า") && isOtherMenuValue(form.breakfastMenu) && !form.breakfastMenuOther.trim()) {
+        messages.push(t("กรุณาระบุเมนูอาหารเช้า (อื่นๆ)", "Please specify the breakfast other menu."));
+      }
       if (form.meals.includes("กลางวัน")) {
         if (!form.lunchMenu.trim()) {
           messages.push(
@@ -770,6 +836,12 @@ export default function Home() {
               "Please select the lunch dessert."
             )
           );
+        }
+        if (isOtherMenuValue(form.lunchMenu) && !form.lunchMenuOther.trim()) {
+          messages.push(t("กรุณาระบุเมนูอาหารกลางวัน (อื่นๆ)", "Please specify the lunch other menu."));
+        }
+        if (isOtherMenuValue(form.lunchDessert) && !form.lunchDessertOther.trim()) {
+          messages.push(t("กรุณาระบุของหวาน (กลางวัน) (อื่นๆ)", "Please specify the lunch dessert other menu."));
         }
       }
       if (form.meals.includes("เย็น")) {
@@ -905,22 +977,30 @@ export default function Home() {
           meals: form.meals,
           menus: {
             breakfast: form.meals.includes("เช้า") ? form.breakfastMenu : "",
+            breakfastOther:
+              form.meals.includes("เช้า") && isOtherMenuValue(form.breakfastMenu)
+                ? form.breakfastMenuOther
+                : "",
             lunch: form.meals.includes("กลางวัน")
               ? {
                 main:
                   form.lunchMenu,
                 dessert:
                   form.lunchDessert,
+                otherMain: isOtherMenuValue(form.lunchMenu) ? form.lunchMenuOther : "",
+                otherDessert: isOtherMenuValue(form.lunchDessert) ? form.lunchDessertOther : "",
               }
-              : { main: "", dessert: "" },
+              : { main: "", dessert: "", otherMain: "", otherDessert: "" },
             dinner: form.meals.includes("เย็น")
               ? {
                 main:
                   form.dinnerMenu,
                 dessert:
                   form.dinnerDessert,
+                otherMain: isOtherMenuValue(form.dinnerMenu) ? form.dinnerMenuOther : "",
+                otherDessert: isOtherMenuValue(form.dinnerDessert) ? form.dinnerDessertOther : "",
               }
-              : { main: "", dessert: "" },
+              : { main: "", dessert: "", otherMain: "", otherDessert: "" },
           },
           specialDiet: {
             halalSets: form.halalEnabled ? Number(form.halalCount || 0) : 0,
@@ -1779,6 +1859,15 @@ export default function Home() {
                                   </option>
                                 ))}
                               </select>
+                              {isOtherMenuValue(form.breakfastMenu) && (
+                                <input
+                                  name="breakfastMenuOther"
+                                  value={form.breakfastMenuOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t("ระบุเมนูอื่นๆ (เช้า)", "Specify other breakfast menu")}
+                                />
+                              )}
                             </div>
                           </div>
                         )}
@@ -1804,6 +1893,15 @@ export default function Home() {
                                   </option>
                                 ))}
                               </select>
+                              {isOtherMenuValue(form.lunchMenu) && (
+                                <input
+                                  name="lunchMenuOther"
+                                  value={form.lunchMenuOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t("ระบุเมนูอื่นๆ (กลางวัน)", "Specify other lunch menu")}
+                                />
+                              )}
                             </div>
                             <div className="flex flex-col gap-1">
                               <label className="text-sm font-medium">
@@ -1822,6 +1920,15 @@ export default function Home() {
                                   </option>
                                 ))}
                               </select>
+                              {isOtherMenuValue(form.lunchDessert) && (
+                                <input
+                                  name="lunchDessertOther"
+                                  value={form.lunchDessertOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t("ระบุของหวานอื่นๆ (กลางวัน)", "Specify other lunch dessert")}
+                                />
+                              )}
                             </div>
                           </div>
                         )}
@@ -1847,6 +1954,15 @@ export default function Home() {
                                   </option>
                                 ))}
                               </select>
+                              {isOtherMenuValue(form.dinnerMenu) && (
+                                <input
+                                  name="dinnerMenuOther"
+                                  value={form.dinnerMenuOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t("ระบุเมนูอื่นๆ (เย็น)", "Specify other dinner menu")}
+                                />
+                              )}
                             </div>
                             <div className="flex flex-col gap-1">
                               <label className="text-sm font-medium">
@@ -1865,6 +1981,15 @@ export default function Home() {
                                   </option>
                                 ))}
                               </select>
+                              {isOtherMenuValue(form.dinnerDessert) && (
+                                <input
+                                  name="dinnerDessertOther"
+                                  value={form.dinnerDessertOther}
+                                  onChange={handleChange}
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t("ระบุของหวานอื่นๆ (เย็น)", "Specify other dinner dessert")}
+                                />
+                              )}
                             </div>
                           </div>
                         )}
