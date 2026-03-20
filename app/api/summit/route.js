@@ -11,7 +11,6 @@ export async function POST(request) {
         ? await (async () => {
             const formData = await request.formData();
             const raw = formData.get("data");
-            const file = formData.get("presentationFile");
             const registrationFile = formData.get("registrationFile");
             const data =
               typeof raw === "string"
@@ -19,9 +18,9 @@ export async function POST(request) {
                 : raw && typeof raw === "object"
                   ? JSON.parse(String(raw))
                   : {};
-            return { data, file, registrationFile };
+            return { data, registrationFile };
           })()
-        : { data: await request.json(), file: null, registrationFile: null };
+        : { data: await request.json(), registrationFile: null };
 
     const data = parsed.data ?? {};
     const supabase = createServiceClient();
@@ -108,7 +107,6 @@ export async function POST(request) {
     const totalGuests =
       guests.length > 0 ? guests.length : Number.isFinite(totalGuestsInput) ? totalGuestsInput : null;
 
-    const presentationFileInput = parsed.file;
     const registrationFileInput = parsed.registrationFile;
     const bucketName =
       process.env.SUPABASE_PRESENTATION_BUCKET || "vip_visitor_attachments";
@@ -117,86 +115,6 @@ export async function POST(request) {
         .replace(/[/\\?%*:|"<>]/g, "_")
         .replace(/\s+/g, " ")
         .trim();
-
-    let presentationFile = null;
-    if (presentationFileInput && presentationFileInput instanceof File) {
-      const maxSize = 10 * 1024 * 1024;
-      if (presentationFileInput.size > maxSize) {
-        return NextResponse.json(
-          { success: false, error: "ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)" },
-          { status: 400 }
-        );
-      }
-
-      const originalName = toSafeFilename(presentationFileInput.name);
-      const fileExt = originalName.includes(".")
-        ? originalName.split(".").pop()
-        : "";
-      const datedPrefix = new Date().toISOString().slice(0, 10);
-      const objectPath = `${datedPrefix}/${randomUUID()}${
-        fileExt ? `.${fileExt}` : ""
-      }`;
-      const arrayBuffer = await presentationFileInput.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-
-      const uploadOnce = async () =>
-        supabase.storage.from(bucketName).upload(objectPath, bytes, {
-          contentType: presentationFileInput.type || "application/octet-stream",
-          upsert: false,
-        });
-
-      let uploadResult = await uploadOnce();
-      if (uploadResult.error) {
-        const msg = String(uploadResult.error.message ?? "");
-        const isBucketNotFound =
-          msg.toLowerCase().includes("bucket not found") ||
-          msg.toLowerCase().includes("no such bucket");
-
-        if (isBucketNotFound) {
-          const createBucketResult = await supabase.storage.createBucket(
-            bucketName,
-            { public: true }
-          );
-          if (createBucketResult.error) {
-            const createMsg = String(createBucketResult.error.message ?? "");
-            const alreadyExists =
-              createMsg.toLowerCase().includes("already exists") ||
-              createMsg.toLowerCase().includes("duplicate");
-            if (!alreadyExists) {
-              return NextResponse.json(
-                {
-                  success: false,
-                  error: `สร้าง bucket ไม่สำเร็จ: ${createBucketResult.error.message}`,
-                },
-                { status: 500 }
-              );
-            }
-          }
-
-          uploadResult = await uploadOnce();
-        }
-      }
-
-      if (uploadResult.error) {
-        return NextResponse.json(
-          { success: false, error: uploadResult.error.message },
-          { status: 500 }
-        );
-      }
-
-      const publicUrlResult = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(objectPath);
-
-      presentationFile = {
-        bucket: bucketName,
-        path: objectPath,
-        originalName,
-        mimeType: presentationFileInput.type || "",
-        size: presentationFileInput.size,
-        publicUrl: publicUrlResult?.data?.publicUrl ?? "",
-      };
-    }
 
     let registrationFile = null;
     if (registrationFileInput && registrationFileInput instanceof File) {
@@ -287,6 +205,7 @@ export async function POST(request) {
       visitorTypeOther: data.visitorTypeOther ?? "",
       contactPhone: data.contactPhone ?? "",
       purposeOfVisit: data.purposeOfVisit ?? "",
+      welcomeMessage: data.welcomeMessage ?? "",
       visitDateTime: visitDateTimeIso || null,
       status: 1,
       meetingRoomSelection,
@@ -313,13 +232,14 @@ export async function POST(request) {
         msg.includes('column "country"') ||
         msg.includes('column "visitorType"') ||
         msg.includes('column "visitorTypeOther"') ||
-        msg.includes('column "purposeOfVisit"')
+        msg.includes('column "purposeOfVisit"') ||
+        msg.includes('column "welcomeMessage"')
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ companyAddress (text), country (text), visitorType (text), visitorTypeOther (text), purposeOfVisit (text), meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb), status (int2) ในตาราง vip_visitor ก่อน',
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ companyAddress (text), country (text), visitorType (text), visitorTypeOther (text), purposeOfVisit (text), welcomeMessage (text), meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb), status (int2) ในตาราง vip_visitor ก่อน',
           },
           { status: 500 }
         );
@@ -463,25 +383,25 @@ export async function POST(request) {
       }
     }
 
-    if (presentationFile || registrationFile) {
-      const { error: presentationFileError } = await supabase
-        .from("vip_visitor_presentation_file")
-        .insert([{ visitorId, presentationFile, registrationFile }]);
-      if (presentationFileError) {
+    if (registrationFile) {
+      const { error: registrationFileError } = await supabase
+        .from("vip_visitor_registration_file")
+        .insert([{ visitorId, registrationFile }]);
+      if (registrationFileError) {
         await rollback();
-        const msg = String(presentationFileError.message ?? "");
+        const msg = String(registrationFileError.message ?? "");
         if (msg.includes('column "registrationFile"')) {
           return NextResponse.json(
             {
               success: false,
               error:
-                'ฐานข้อมูลยังไม่มีคอลัมน์ registrationFile กรุณาเพิ่มคอลัมน์ registrationFile (jsonb) ในตาราง vip_visitor_presentation_file ก่อน',
+                'ฐานข้อมูลยังไม่มีคอลัมน์ registrationFile กรุณาเพิ่มคอลัมน์ registrationFile (jsonb) ในตาราง vip_visitor_registration_file ก่อน',
             },
             { status: 500 }
           );
         }
         return NextResponse.json(
-          { success: false, error: presentationFileError.message },
+          { success: false, error: registrationFileError.message },
           { status: 500 }
         );
       }
@@ -558,6 +478,10 @@ export async function POST(request) {
     const siteVisitApproverText =
       svAreas.length > 0
         ? `${svApproverName || "-"} / ${svApproverPosition || "-"}`
+        : "-";
+    const welcomeMessageText =
+      typeof data.welcomeMessage === "string" && data.welcomeMessage.trim()
+        ? data.welcomeMessage.trim()
         : "-";
 
     const sp = souvenirPreferences;
@@ -780,6 +704,7 @@ export async function POST(request) {
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
       `ผู้บริหารต้อนรับ: ${executiveHostText}`,
       `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
+      `ข้อความ Welcome board: ${welcomeMessageText}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
       `มื้ออาหาร: ${meals}`,
@@ -804,6 +729,7 @@ export async function POST(request) {
       `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
       `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
       `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
+      `ข้อความ Welcome board: ${welcomeMessageText}`,
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
       `รายชื่อผู้เข้าร่วม:\n${guestsText}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
@@ -832,6 +758,7 @@ export async function POST(request) {
       `เวลาแจ้ง: ${submittedAt}`,
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
       `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
+      `ข้อความ Welcome board: ${welcomeMessageText}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ชื่อบริษัทที่เชิญมา: ${data.clientCompany ?? "-"}`,
       `ประเภทผู้เข้าเยี่ยมชม: ${data.visitorType ?? "-"}${data.visitorTypeOther ? ` - ${data.visitorTypeOther}` : ""}`,

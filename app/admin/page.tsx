@@ -25,7 +25,7 @@ type FoodRow = { foodPreferences?: unknown | null };
 type SiteVisitRow = { siteVisit?: unknown | null };
 type SouvenirRow = { souvenirPreferences?: unknown | null };
 type ShuttleRow = { schedules?: unknown | null };
-type PresentationFileRow = { presentationFile?: unknown | null; registrationFile?: unknown | null };
+type RegistrationFileRow = { registrationFile?: unknown | null };
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -60,7 +60,7 @@ export default async function AdminPage() {
     vip_visitor_food(*),
     vip_visitor_site_visit(*),
     vip_visitor_souvenir(*),
-    vip_visitor_presentation_file(*)
+    vip_visitor_registration_file(*)
   `;
 
   const joinedResult = await supabase
@@ -92,7 +92,7 @@ export default async function AdminPage() {
     const foodRowsRaw = record.vip_visitor_food;
     const siteVisitRowsRaw = record.vip_visitor_site_visit;
     const souvenirRowsRaw = record.vip_visitor_souvenir;
-    const presentationFileRowsRaw = record.vip_visitor_presentation_file;
+    const registrationFileRowsRaw = record.vip_visitor_registration_file;
 
     // แขกและรถ เป็นความสัมพันธ์แบบ 1:Many (Supabase จะส่งมาเป็น Array แน่นอน)
     const guestRows = Array.isArray(guestRowsRaw) ? (guestRowsRaw as GuestRow[]) : null;
@@ -105,7 +105,7 @@ export default async function AdminPage() {
     const siteVisitRow = (Array.isArray(siteVisitRowsRaw) ? siteVisitRowsRaw[0] : siteVisitRowsRaw) as SiteVisitRow | null;
     const souvenirRow = (Array.isArray(souvenirRowsRaw) ? souvenirRowsRaw[0] : souvenirRowsRaw) as SouvenirRow | null;
     const shuttleRow = (Array.isArray(shuttleRowsRaw) ? shuttleRowsRaw[0] : shuttleRowsRaw) as ShuttleRow | null;
-    const presentationFileRow = (Array.isArray(presentationFileRowsRaw) ? presentationFileRowsRaw[0] : presentationFileRowsRaw) as PresentationFileRow | null;
+    const registrationFileRow = (Array.isArray(registrationFileRowsRaw) ? registrationFileRowsRaw[0] : registrationFileRowsRaw) as RegistrationFileRow | null;
 
     // ทำการจัดเรียง Guest ตาม sortIndex
     const normalizedGuests = guestRows
@@ -140,12 +140,11 @@ export default async function AdminPage() {
       foodPreferences: foodRow?.foodPreferences ?? record.foodPreferences,
       siteVisit: siteVisitRow?.siteVisit ?? record.siteVisit,
       souvenirPreferences: souvenirRow?.souvenirPreferences ?? record.souvenirPreferences,
-      presentationFiles: presentationFileRow
+      registrationFiles: registrationFileRow
         ? {
-            presentationFile: presentationFileRow.presentationFile ?? null,
-            registrationFile: presentationFileRow.registrationFile ?? null,
+            registrationFile: registrationFileRow.registrationFile ?? null,
           }
-        : record.presentationFile,
+        : record.registrationFile,
     };
 
     // ลบ Key ที่เป็น Table เก่าทิ้ง
@@ -154,7 +153,7 @@ export default async function AdminPage() {
     delete normalized.vip_visitor_food;
     delete normalized.vip_visitor_site_visit;
     delete normalized.vip_visitor_souvenir;
-    delete normalized.vip_visitor_presentation_file;
+    delete normalized.vip_visitor_registration_file;
 
     return normalized as unknown as Visit;
   });

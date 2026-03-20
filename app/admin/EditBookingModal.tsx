@@ -162,14 +162,14 @@ for (let hour = 6; hour <= 21; hour += 1) {
   timeSlots.push(`${hour.toString().padStart(2, "0")}:30`);
 }
 
-const renderFileList = (value: unknown, key: "presentationFile" | "registrationFile") => {
+const renderFileList = (value: unknown) => {
   let fileData = value;
   if (Array.isArray(value) && value.length > 0) {
     const first = asRecord(value[0]);
-    if (first && key in first) fileData = first[key];
+    if (first && "registrationFile" in first) fileData = first.registrationFile;
   } else {
     const rec = asRecord(value);
-    if (rec && key in rec) fileData = rec[key];
+    if (rec && "registrationFile" in rec) fileData = rec.registrationFile;
   }
 
   if (!fileData || (Array.isArray(fileData) && fileData.length === 0)) {
@@ -267,6 +267,7 @@ export default function EditBookingModal({
   const [submittedByName, setSubmittedByName] = useState("");
   const [submittedByPosition, setSubmittedByPosition] = useState("");
   const [purposeOfVisit, setPurposeOfVisit] = useState("");
+  const [welcomeMessage, setWelcomeMessage] = useState("");
   const [visitDate, setVisitDate] = useState("");
   const [visitTime, setVisitTime] = useState("");
   const [meetingRoom, setMeetingRoom] = useState<YesNo | "">("");
@@ -299,8 +300,6 @@ export default function EditBookingModal({
   const [souvenirGiftSetCount, setSouvenirGiftSetCount] = useState("");
   const [souvenirExtra, setSouvenirExtra] = useState("");
 
-  const [presentationFile, setPresentationFile] = useState<File | null>(null);
-  const [removePresentation, setRemovePresentation] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -479,8 +478,6 @@ export default function EditBookingModal({
 
     setErrorMessage("");
     setConfirmOpen(false);
-    setPresentationFile(null);
-    setRemovePresentation(false);
 
     setLoading(true);
 
@@ -492,6 +489,7 @@ export default function EditBookingModal({
     setVisitorTypeOther(asString(visitRecord?.visitorTypeOther));
     setHostName(visit.hostName || "");
     setPurposeOfVisit(asString(visitRecord?.purposeOfVisit));
+    setWelcomeMessage(asString(visitRecord?.welcomeMessage));
 
     const baseIso = visit.visitDateTime || visit.created_at || "";
     setVisitDate(toIsoDateInput(baseIso));
@@ -845,6 +843,7 @@ export default function EditBookingModal({
             visitorTypeOther: visitorType === "อื่นๆ" ? visitorTypeOther : "",
             contactPhone: submittedByPhone,
             purposeOfVisit,
+            welcomeMessage,
             hostName,
             visitDateTime,
             meetingRoomSelection: meetingRoomSelectionPayload,
@@ -863,22 +862,6 @@ export default function EditBookingModal({
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.success === false) {
         throw new Error(result?.error ?? `Request failed: ${response.status}`);
-      }
-
-      if (removePresentation) {
-        const fd = new FormData();
-        fd.append("id", String(visit.id));
-        fd.append("remove", "true");
-        const pr = await fetch("/api/admin/visitor-presentation", { method: "POST", body: fd });
-        const r = await pr.json().catch(() => ({}));
-        if (!pr.ok || r?.success === false) throw new Error(r?.error ?? `Request failed: ${pr.status}`);
-      } else if (presentationFile) {
-        const fd = new FormData();
-        fd.append("id", String(visit.id));
-        fd.append("presentationFile", presentationFile);
-        const pr = await fetch("/api/admin/visitor-presentation", { method: "POST", body: fd });
-        const r = await pr.json().catch(() => ({}));
-        if (!pr.ok || r?.success === false) throw new Error(r?.error ?? `Request failed: ${pr.status}`);
       }
 
       setConfirmOpen(false);
@@ -1064,6 +1047,16 @@ export default function EditBookingModal({
                     <div className="flex flex-col gap-1">
                       <label className={labelClass}>วัตถุประสงค์</label>
                       <input value={purposeOfVisit} onChange={(e) => setPurposeOfVisit(e.target.value)} className={controlClass} placeholder="เช่น ประชุม ติดตามงาน" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={cardClass}>
+                  <div className="text-sm font-bold text-gray-900">ข้อความที่แสดงบน Welcome board</div>
+                  <div className="mt-4 grid gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>ข้อความ</label>
+                      <input value={welcomeMessage} onChange={(e) => setWelcomeMessage(e.target.value)} className={controlClass} placeholder="Warmly welcome (Mr. A / Company name)" />
                     </div>
                   </div>
                 </div>
@@ -1811,44 +1804,8 @@ export default function EditBookingModal({
                   <div className="text-sm font-bold text-gray-900">ไฟล์แนบ</div>
                   <div className="mt-3 space-y-4">
                     <div>
-                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">ไฟล์นำเสนอ</div>
-                      <div className="text-sm text-gray-700">{renderFileList(visit.presentationFiles, "presentationFile")}</div>
-                      <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
-                        <input
-                          type="checkbox"
-                          checked={removePresentation}
-                          onChange={(e) => {
-                            setRemovePresentation(e.target.checked);
-                            if (e.target.checked) setPresentationFile(null);
-                          }}
-                        />
-                        ลบไฟล์เดิม
-                      </label>
-                      <input
-                        id="edit-presentation-file"
-                        type="file"
-                        disabled={removePresentation || loading || saving}
-                        onChange={(e) => setPresentationFile(e.target.files?.[0] ?? null)}
-                        className="sr-only"
-                      />
-                      <div className="mt-2 flex flex-wrap items-center gap-3">
-                        <label
-                          htmlFor="edit-presentation-file"
-                          className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm ${
-                            removePresentation || loading || saving
-                              ? "bg-gray-300 cursor-not-allowed"
-                              : "bg-[#1b2a18] hover:bg-black cursor-pointer"
-                          }`}
-                        >
-                          Choose file
-                        </label>
-                        <div className="text-sm text-gray-700">{presentationFile ? presentationFile.name : "No file chosen"}</div>
-                      </div>
-                      {presentationFile && <div className="text-xs text-gray-500">เลือกไฟล์: {presentationFile.name}</div>}
-                    </div>
-                    <div>
                       <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">ไฟล์ลงทะเบียนรายชื่อ</div>
-                      <div className="text-sm text-gray-700">{renderFileList(visit.presentationFiles, "registrationFile")}</div>
+                      <div className="text-sm text-gray-700">{renderFileList(visit.registrationFiles)}</div>
                     </div>
                   </div>
                 </div>

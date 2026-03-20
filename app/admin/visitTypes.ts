@@ -21,6 +21,7 @@ export type Visit = {
   meals?: string | null;
   souvenir?: boolean | null;
   purposeOfVisit?: string | null;
+  welcomeMessage?: string | null;
   guests?: unknown[] | null;
   carCount?: number | null;
   cars?: unknown[] | null;
@@ -29,5 +30,5 @@ export type Visit = {
   foodPreferences?: unknown | null;
   siteVisit?: unknown | null;
   souvenirPreferences?: unknown | null;
-  presentationFiles?: unknown | null;
+  registrationFiles?: unknown | null;
 };

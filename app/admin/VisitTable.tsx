@@ -83,12 +83,12 @@ const souvenirData = (value: unknown) => {
     return { giftSet, count, extra };
 };
 
-const renderFileList = (value: unknown, key: "presentationFile" | "registrationFile") => {
+const renderFileList = (value: unknown) => {
     let fileData: unknown = value;
-    if (Array.isArray(value) && value.length > 0 && isRecord(value[0]) && key in value[0]) {
-        fileData = (value[0] as Record<string, unknown>)[key];
-    } else if (isRecord(value) && key in value) {
-        fileData = value[key];
+    if (Array.isArray(value) && value.length > 0 && isRecord(value[0]) && "registrationFile" in value[0]) {
+        fileData = (value[0] as Record<string, unknown>).registrationFile;
+    } else if (isRecord(value) && "registrationFile" in value) {
+        fileData = (value as Record<string, unknown>).registrationFile;
     }
 
     if (!fileData || (Array.isArray(fileData) && fileData.length === 0)) {
@@ -235,6 +235,16 @@ export function VisitDetailsModal({
                                             <Briefcase className="w-3.5 h-3.5" /> วัตถุประสงค์ในการเข้าพบ
                                         </dt>
                                         <dd className="text-base font-bold text-gray-900">{selectedVisit.purposeOfVisit}</dd>
+                                    </div>
+                                </div>
+                            )}
+                            {selectedVisit.welcomeMessage && (
+                                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
+                                    <div>
+                                        <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <MessageSquareText className="w-3.5 h-3.5" /> ข้อความ Welcome board
+                                        </dt>
+                                        <dd className="text-base font-bold text-gray-900">{selectedVisit.welcomeMessage}</dd>
                                     </div>
                                 </div>
                             )}
@@ -424,9 +434,8 @@ export function VisitDetailsModal({
 
                             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                                 <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-blue-500" /> ไฟล์นำเสนอ</dt>
-                                <dd className="text-sm">{renderFileList(selectedVisit.presentationFiles, "presentationFile")}</dd>
-                                <dt className="mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-500" /> ไฟล์ลงทะเบียนรายชื่อ</dt>
-                                <dd className="text-sm">{renderFileList(selectedVisit.presentationFiles, "registrationFile")}</dd>
+                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-500" /> ไฟล์ลงทะเบียนรายชื่อ</dt>
+                                <dd className="text-sm">{renderFileList(selectedVisit.registrationFiles)}</dd>
                             </div>
                         </div>
                     </div>
@@ -1151,6 +1160,14 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                             </div>
                                         </div>
                                     )}
+                                    {selectedVisit.welcomeMessage && (
+                                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
+                                            <div>
+                                                <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><MessageSquareText className="w-3.5 h-3.5" /> ข้อความ Welcome board</dt>
+                                                <dd className="text-base font-bold text-gray-900">{selectedVisit.welcomeMessage}</dd>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1345,10 +1362,8 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
                                     {/* ไฟล์แนบ */}
                                     <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                        <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-purple-500" /> ไฟล์นำเสนอ</dt>
-                                        <dd>{renderFileList(selectedVisit.presentationFiles, "presentationFile")}</dd>
-                                        <dt className="mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-500" /> ไฟล์ลงทะเบียนรายชื่อ</dt>
-                                        <dd>{renderFileList(selectedVisit.presentationFiles, "registrationFile")}</dd>
+                                        <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-500" /> ไฟล์ลงทะเบียนรายชื่อ</dt>
+                                        <dd>{renderFileList(selectedVisit.registrationFiles)}</dd>
                                     </div>
                                 </div>
                             </div>

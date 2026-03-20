@@ -110,6 +110,7 @@ export async function POST(request) {
       "visitorTypeOther",
       "contactPhone",
       "purposeOfVisit",
+      "welcomeMessage",
       "visitDateTime",
       "meetingRoomSelection",
       "transportType",

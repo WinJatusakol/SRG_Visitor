@@ -27,7 +27,7 @@ export async function POST(request) {
     const formData = await request.formData();
     const id = formData.get("id");
     const remove = String(formData.get("remove") ?? "") === "true";
-    const file = formData.get("presentationFile");
+    const file = formData.get("registrationFile") || formData.get("presentationFile");
 
     if (!Number.isFinite(Number(id)) && typeof id !== "string") {
       return NextResponse.json({ success: false, error: "Invalid id" }, { status: 400 });
@@ -37,7 +37,7 @@ export async function POST(request) {
     const visitorId = id;
 
     if (remove) {
-      const { error } = await supabase.from("vip_visitor_presentation_file").delete().eq("visitorId", visitorId);
+      const { error } = await supabase.from("vip_visitor_registration_file").delete().eq("visitorId", visitorId);
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
       }
@@ -95,7 +95,7 @@ export async function POST(request) {
     }
 
     const publicUrlResult = supabase.storage.from(bucketName).getPublicUrl(objectPath);
-    const presentationFile = {
+    const registrationFile = {
       bucket: bucketName,
       path: objectPath,
       originalName,
@@ -104,15 +104,15 @@ export async function POST(request) {
       publicUrl: publicUrlResult?.data?.publicUrl ?? "",
     };
 
-    await supabase.from("vip_visitor_presentation_file").delete().eq("visitorId", visitorId);
+    await supabase.from("vip_visitor_registration_file").delete().eq("visitorId", visitorId);
     const { error: insertError } = await supabase
-      .from("vip_visitor_presentation_file")
-      .insert([{ visitorId, presentationFile }]);
+      .from("vip_visitor_registration_file")
+      .insert([{ visitorId, registrationFile }]);
     if (insertError) {
       return NextResponse.json({ success: false, error: insertError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, presentationFile });
+    return NextResponse.json({ success: true, registrationFile });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

@@ -40,6 +40,7 @@ type VisitFormState = {
   totalGuests: string;
   guests: Guest[];
   purposeOfVisit: string;
+  welcomeMessage: string;
   visitDate: string;
   visitTime: string;
   meetingRoom: YesNo | "";
@@ -157,6 +158,7 @@ const initialState: VisitFormState = {
   totalGuests: "",
   guests: [],
   purposeOfVisit: "",
+  welcomeMessage: "Warmly welcome (Mr. A / Company name)",
   visitDate: "",
   visitTime: "",
   meetingRoom: "",
@@ -195,7 +197,6 @@ const initialState: VisitFormState = {
 export default function Home() {
   const [lang, setLang] = useState<Lang>("th");
   const [form, setForm] = useState<VisitFormState>(initialState);
-  const [presentationFile, setPresentationFile] = useState<File | null>(null);
   const [registrationFile, setRegistrationFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dialog, setDialog] = useState<DialogState>({
@@ -675,7 +676,7 @@ export default function Home() {
 
   const validate = () => {
     const messages: string[] = [];
-    const maxPresentationFileSize = 10 * 1024 * 1024;
+    const maxRegistrationFileSize = 10 * 1024 * 1024;
 
     if (!form.clientCompany.trim()) {
       messages.push(
@@ -897,7 +898,7 @@ export default function Home() {
           if (!item.date.trim() || !item.pickup.trim() || !item.destination.trim() || !item.time.trim()) {
             messages.push(
               t(
-                `กรุณากรอกข้อมูลรถรับ-ส่งรายการที่ ${index + 1} ให้ครบ`,
+                `กรุณากรอกข้อมูลรถรับ-ส่งวันที่ ${index + 1} ให้ครบ`,
                 `Please complete shuttle schedule #${index + 1}.`
               )
             );
@@ -1023,7 +1024,7 @@ export default function Home() {
         )
       );
     }
-    if (presentationFile && presentationFile.size > maxPresentationFileSize) {
+    if (registrationFile && registrationFile.size > maxRegistrationFileSize) {
       messages.push(
         t(
           "ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)",
@@ -1127,6 +1128,7 @@ export default function Home() {
       contactPhone: form.submittedByPhone,
       guests: form.guests,
       purposeOfVisit: form.purposeOfVisit,
+      welcomeMessage: form.welcomeMessage,
       visitDateTime:
         form.visitDate && form.visitTime
           ? buildVisitDateTimeIso(form.visitDate, form.visitTime)
@@ -1165,8 +1167,8 @@ export default function Home() {
       }
 
       setSubmitting(true);
-      const response = await (async () => {
-        if (!presentationFile && !registrationFile) {
+    const response = await (async () => {
+        if (!registrationFile) {
           return fetch("/api/summit", {
             method: "POST",
             headers: {
@@ -1178,7 +1180,6 @@ export default function Home() {
 
         const formData = new FormData();
         formData.append("data", JSON.stringify(payload));
-        if (presentationFile) formData.append("presentationFile", presentationFile);
         if (registrationFile) formData.append("registrationFile", registrationFile);
         return fetch("/api/summit", {
           method: "POST",
@@ -1199,7 +1200,6 @@ export default function Home() {
       }
 
       setForm(initialState);
-      setPresentationFile(null);
       setRegistrationFile(null);
       setDialog({
         open: true,
@@ -1359,7 +1359,7 @@ export default function Home() {
                 href="#section-4"
                 className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("4) ไฟล์สำหรับการประชุม", "4) Meeting File")}
+                {t("4) ข้อความที่แสดงบน Welcome board", "4) Welcome Board Message")}
               </a>
               <a
                 href="#section-5"
@@ -1992,7 +1992,7 @@ export default function Home() {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="text-sm font-semibold text-zinc-900">
-                            {t("รายการที่", "Schedule")} {index + 1}
+                            {t("วันที่", "Schedule")} {index + 1}
                           </div>
                           <button
                             type="button"
@@ -2046,7 +2046,7 @@ export default function Home() {
                                 handleShuttleScheduleChange(index, "pickup", e.target.value)
                               }
                               className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("เช่น อาคาร A", "e.g., Building A")}
+                              placeholder={t("เช่น สนามบิน", "e.g., Airport")}
                             />
                           </div>
                           <div className="flex flex-col gap-1">
@@ -2448,43 +2448,26 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   4
                 </span>
-                <span>{t("ไฟล์สำหรับการประชุม", "Meeting File")}</span>
+                <span>{t("ข้อความที่แสดงบน Welcome board", "Welcome board message")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
-                  "แนบไฟล์ได้ไม่เกิน 10MB (ไม่บังคับ)",
-                  "Attach a file up to 10MB (optional)."
+                  "ข้อความที่จะนำไปแสดงบนป้ายต้อนรับ",
+                  "Message to display on the welcome board."
                 )}
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("แนบไฟล์นำเสนอ (ไม่บังคับ)", "Attach presentation file (optional)")}
+                  {t("ข้อความ Welcome board", "Welcome board text")}
                 </label>
                 <input
-                  type="file"
-                  name="presentationFile"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] ?? null;
-                    setPresentationFile(file);
-                  }}
-                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  type="text"
+                  name="welcomeMessage"
+                  value={form.welcomeMessage}
+                  onChange={handleChange}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  placeholder="Warmly welcome (Mr. A / Company name)"
                 />
-                {presentationFile && (
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
-                    <div>
-                      {t("ไฟล์ที่เลือก", "Selected file")}: {presentationFile.name} (
-                      {Math.ceil(presentationFile.size / 1024)} KB)
-                    </div>
-                    <button
-                      type="button"
-                      className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
-                      onClick={() => setPresentationFile(null)}
-                      disabled={submitting}
-                    >
-                      {t("เอาออก", "Remove")}
-                    </button>
-                  </div>
-                )}
               </div>
             </section>
 
@@ -2600,7 +2583,6 @@ export default function Home() {
                     type: "error",
                     message: "",
                   });
-                  setPresentationFile(null);
                   setRegistrationFile(null);
                 }}
                 disabled={submitting}
