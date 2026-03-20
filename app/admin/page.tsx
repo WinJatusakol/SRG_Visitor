@@ -8,11 +8,16 @@ import AuditLogsModal from "./AuditLogsModal";
 
 type GuestRow = {
   sortIndex?: number | null;
+  prefix?: string | null;
   firstName?: string | null;
   middleName?: string | null;
   lastName?: string | null;
   position?: string | null;
   nationality?: string | null;
+  halal?: boolean | null;
+  vegan?: boolean | null;
+  allergies?: string[] | null;
+  allergyOther?: string | null;
 };
 
 type CarRow = {
@@ -116,11 +121,16 @@ export default async function AdminPage() {
       ? [...guestRows]
           .sort((a, b) => Number(a?.sortIndex ?? 0) - Number(b?.sortIndex ?? 0))
           .map((g) => ({
+            prefix: g?.prefix ?? "",
             firstName: g?.firstName ?? "",
             middleName: g?.middleName ?? "",
             lastName: g?.lastName ?? "",
             position: g?.position ?? "",
             nationality: g?.nationality ?? "",
+            halal: !!g?.halal,
+            vegan: !!g?.vegan,
+            allergies: Array.isArray(g?.allergies) ? g?.allergies : [],
+            allergyOther: g?.allergyOther ?? "",
           }))
       : record.guests;
 
