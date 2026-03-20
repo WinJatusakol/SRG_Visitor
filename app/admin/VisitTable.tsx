@@ -863,6 +863,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const exportRows = useMemo(() => {
         return exportableVisits.map((v) => {
             const dt = v.visitDateTime || v.created_at || "";
+            const submittedByRaw =
+                isRecord(v.submittedBy) && "submittedBy" in v.submittedBy
+                    ? (v.submittedBy as Record<string, unknown>).submittedBy
+                    : v.submittedBy;
+            const submittedBy = isRecord(submittedByRaw) ? submittedByRaw : null;
             return {
                 id: String(v.id ?? ""),
                 วันและเวลา: formatExportDateTime(dt),
@@ -879,6 +884,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 วัตถุประสงค์: typeof v.purposeOfVisit === "string" ? v.purposeOfVisit : "",
                 จำนวนผู้เข้าร่วม: String((v.guests?.length ?? v.totalGuests ?? 0) || 0),
                 เบอร์ผู้ประสานงาน: typeof v.contactPhone === "string" ? v.contactPhone : "",
+                ชื่อผู้กรอกข้อมูล: typeof submittedBy?.name === "string" ? submittedBy.name : "",
             };
         });
     }, [exportableVisits]);
