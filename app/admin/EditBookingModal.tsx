@@ -7,12 +7,15 @@ import { CheckCircle2, Download, FileText, XCircle } from "lucide-react";
 import type { Visit } from "./visitTypes";
 
 type EditableGuest = {
+  prefix: string;
   firstName: string;
   middleName: string;
   lastName: string;
-  company: string;
   position: string;
-  nationality: string;
+  halal: boolean;
+  vegan: boolean;
+  allergies: string[];
+  allergyOther: string;
 };
 
 type EditableCar = {
@@ -109,12 +112,15 @@ const buildIsoUtc = (date: string, time: string) => {
 const normalizeEditableGuests = (value: unknown) => {
   const arr = Array.isArray(value) ? value : [];
   return arr.map((g) => ({
+    prefix: typeof g?.prefix === "string" ? g.prefix : "",
     firstName: typeof g?.firstName === "string" ? g.firstName : "",
     middleName: typeof g?.middleName === "string" ? g.middleName : "",
     lastName: typeof g?.lastName === "string" ? g.lastName : "",
-    company: typeof g?.company === "string" ? g.company : "",
     position: typeof g?.position === "string" ? g.position : "",
-    nationality: typeof g?.nationality === "string" ? g.nationality : "",
+    halal: typeof g?.halal === "boolean" ? g.halal : false,
+    vegan: typeof g?.vegan === "boolean" ? g.vegan : false,
+    allergies: Array.isArray(g?.allergies) ? g.allergies.filter(Boolean) : [],
+    allergyOther: typeof g?.allergyOther === "string" ? g.allergyOther : "",
   })) as EditableGuest[];
 };
 
@@ -132,14 +138,14 @@ for (let hour = 6; hour <= 21; hour += 1) {
   timeSlots.push(`${hour.toString().padStart(2, "0")}:30`);
 }
 
-const renderPresentationFiles = (value: unknown) => {
+const renderFileList = (value: unknown, key: "presentationFile" | "registrationFile") => {
   let fileData = value;
   if (Array.isArray(value) && value.length > 0) {
     const first = asRecord(value[0]);
-    if (first && "presentationFile" in first) fileData = first.presentationFile;
+    if (first && key in first) fileData = first[key];
   } else {
     const rec = asRecord(value);
-    if (rec && "presentationFile" in rec) fileData = rec.presentationFile;
+    if (rec && key in rec) fileData = rec[key];
   }
 
   if (!fileData || (Array.isArray(fileData) && fileData.length === 0)) {
@@ -169,7 +175,7 @@ const renderPresentationFiles = (value: unknown) => {
 
         const rec = asRecord(file);
         const url = asString(rec?.url ?? rec?.publicUrl ?? rec?.path);
-        const name = asString(rec?.name ?? rec?.fileName) || `ไฟล์เอกสาร ${idx + 1}`;
+        const name = asString(rec?.name ?? rec?.fileName ?? rec?.originalName) || `ไฟล์เอกสาร ${idx + 1}`;
         if (!url) return null;
 
         return (
@@ -260,12 +266,6 @@ export default function EditBookingModal({
   const [dinnerMenuOther, setDinnerMenuOther] = useState("");
   const [dinnerDessert, setDinnerDessert] = useState("");
   const [dinnerDessertOther, setDinnerDessertOther] = useState("");
-  const [halalEnabled, setHalalEnabled] = useState(false);
-  const [halalCount, setHalalCount] = useState("");
-  const [veganEnabled, setVeganEnabled] = useState(false);
-  const [veganCount, setVeganCount] = useState("");
-  const [allergies, setAllergies] = useState<string[]>([]);
-  const [allergyOther, setAllergyOther] = useState("");
 
   const [souvenir, setSouvenir] = useState<YesNo | "">("");
   const [souvenirGiftSet, setSouvenirGiftSet] = useState("");
@@ -422,7 +422,7 @@ export default function EditBookingModal({
       setDinnerMenuOptions(readFoodGroup("dinner_main"));
       setDinnerDessertOptions(readFoodGroup("dinner_dessert"));
 
-      setAllergyOptions(
+      const allergyItems =
         !allergiesRes.error && Array.isArray(allergiesRes.data)
           ? (allergiesRes.data as RefOptionRow[])
               .map((row) => ({
@@ -433,8 +433,8 @@ export default function EditBookingModal({
                 active: row.active ?? null,
               }))
               .filter((row) => row.value)
-          : []
-      );
+          : [];
+      setAllergyOptions(sortOtherLast(ensureOtherOption(allergyItems)));
     };
 
     void load();
@@ -501,17 +501,6 @@ export default function EditBookingModal({
     setDinnerMenuOther(asString(dinner?.otherMain));
     setDinnerDessert(asString(dinner?.dessert));
     setDinnerDessertOther(asString(dinner?.otherDessert));
-    const specialDiet = asRecord(fp?.specialDiet);
-    const halalSets = hasFood ? asNumber(specialDiet?.halalSets) : 0;
-    const veganSets = hasFood ? asNumber(specialDiet?.veganSets) : 0;
-    setHalalEnabled(Number.isFinite(halalSets) && halalSets > 0);
-    setHalalCount(Number.isFinite(halalSets) && halalSets > 0 ? String(halalSets) : "");
-    setVeganEnabled(Number.isFinite(veganSets) && veganSets > 0);
-    setVeganCount(Number.isFinite(veganSets) && veganSets > 0 ? String(veganSets) : "");
-    const allergyRec = asRecord(fp?.allergies);
-    const allergyItems = asStringArray(allergyRec?.items);
-    setAllergies(allergyItems);
-    setAllergyOther(asString(allergyRec?.other));
 
     const sp = asRecord(unwrapKey(visit.souvenirPreferences, "souvenirPreferences"));
     const hasSouvenir = !!sp;
@@ -530,7 +519,7 @@ export default function EditBookingModal({
         const [guestsRes, carsRes, foodRes, siteRes, souvenirRes] = await Promise.all([
           supabase
             .from("vip_visitor_guests")
-            .select("firstName,middleName,lastName,company,position,nationality,sortIndex")
+            .select("prefix,firstName,middleName,lastName,position,halal,vegan,allergies,allergyOther,sortIndex")
             .eq("visitorId", visitorId)
             .order("sortIndex", { ascending: true }),
           supabase
@@ -546,12 +535,15 @@ export default function EditBookingModal({
         if (!guestsRes.error && Array.isArray(guestsRes.data)) {
           setGuests(
             guestsRes.data.map((g) => ({
+              prefix: typeof g?.prefix === "string" ? g.prefix : "",
               firstName: typeof g?.firstName === "string" ? g.firstName : "",
               middleName: typeof g?.middleName === "string" ? g.middleName : "",
               lastName: typeof g?.lastName === "string" ? g.lastName : "",
-              company: typeof g?.company === "string" ? g.company : "",
               position: typeof g?.position === "string" ? g.position : "",
-              nationality: typeof g?.nationality === "string" ? g.nationality : "",
+              halal: typeof g?.halal === "boolean" ? g.halal : false,
+              vegan: typeof g?.vegan === "boolean" ? g.vegan : false,
+              allergies: Array.isArray(g?.allergies) ? g.allergies.filter(Boolean) : [],
+              allergyOther: typeof g?.allergyOther === "string" ? g.allergyOther : "",
             }))
           );
         }
@@ -585,17 +577,6 @@ export default function EditBookingModal({
           setDinnerMenuOther(asString(dinnerDb?.otherMain));
           setDinnerDessert(asString(dinnerDb?.dessert));
           setDinnerDessertOther(asString(dinnerDb?.otherDessert));
-          const sdDb = asRecord(fpRec?.specialDiet);
-          const halalSetsDb = hasFoodDb ? asNumber(sdDb?.halalSets) : 0;
-          const veganSetsDb = hasFoodDb ? asNumber(sdDb?.veganSets) : 0;
-          setHalalEnabled(Number.isFinite(halalSetsDb) && halalSetsDb > 0);
-          setHalalCount(Number.isFinite(halalSetsDb) && halalSetsDb > 0 ? String(halalSetsDb) : "");
-          setVeganEnabled(Number.isFinite(veganSetsDb) && veganSetsDb > 0);
-          setVeganCount(Number.isFinite(veganSetsDb) && veganSetsDb > 0 ? String(veganSetsDb) : "");
-          const allergyDb = asRecord(fpRec?.allergies);
-          const allergyItemsDb = asStringArray(allergyDb?.items);
-          setAllergies(allergyItemsDb);
-          setAllergyOther(asString(allergyDb?.other));
         }
 
         if (!siteRes.error) {
@@ -665,8 +646,12 @@ export default function EditBookingModal({
     }
     for (let index = 0; index < guests.length; index += 1) {
       const g = guests[index];
-      if (!g.firstName.trim() || !g.lastName.trim() || !g.company.trim() || !g.position.trim() || !g.nationality.trim()) {
+      if (!g.firstName.trim() || !g.lastName.trim() || !g.position.trim()) {
         setErrorMessage(`กรุณากรอกข้อมูลผู้เข้าร่วมคนที่ ${index + 1} ให้ครบ`);
+        return false;
+      }
+      if (g.allergies.includes("อื่นๆ") && !g.allergyOther.trim()) {
+        setErrorMessage(`กรุณาระบุแพ้อาหาร (อื่นๆ) ของผู้เข้าร่วมคนที่ ${index + 1}`);
         return false;
       }
     }
@@ -721,18 +706,6 @@ export default function EditBookingModal({
       }
       if (meals.includes("เย็น") && isOtherMenuValue(dinnerDessert) && !dinnerDessertOther.trim()) {
         setErrorMessage("กรุณาระบุของหวาน (เย็น) (อื่นๆ)");
-        return false;
-      }
-      if (halalEnabled && Number(halalCount || 0) <= 0) {
-        setErrorMessage("กรุณาระบุจำนวนชุดอาหารฮาลาล");
-        return false;
-      }
-      if (veganEnabled && Number(veganCount || 0) <= 0) {
-        setErrorMessage("กรุณาระบุจำนวนชุดอาหารวีแกน");
-        return false;
-      }
-      if (allergies.includes("อื่นๆ") && !allergyOther.trim()) {
-        setErrorMessage("กรุณาระบุรายการแพ้อาหาร (อื่นๆ)");
         return false;
       }
     }
@@ -791,14 +764,6 @@ export default function EditBookingModal({
                       otherDessert: isOtherMenuValue(dinnerDessert) ? dinnerDessertOther : "",
                     }
                   : { main: "", dessert: "", otherMain: "", otherDessert: "" },
-              },
-              specialDiet: {
-                halalSets: halalEnabled ? Number(halalCount || 0) : 0,
-                veganSets: veganEnabled ? Number(veganCount || 0) : 0,
-              },
-              allergies: {
-                items: allergies,
-                other: allergyOther,
               },
             }
           : null;
@@ -886,7 +851,7 @@ export default function EditBookingModal({
   };
 
   const guestTitle = (g: EditableGuest) => {
-    const fullName = [g.firstName, g.middleName, g.lastName].map((x) => x.trim()).filter(Boolean).join(" ");
+    const fullName = [g.prefix, g.firstName, g.middleName, g.lastName].map((x) => x.trim()).filter(Boolean).join(" ");
     return fullName || "ผู้เข้าร่วม";
   };
 
@@ -1110,7 +1075,7 @@ export default function EditBookingModal({
                       onClick={() =>
                         setGuests((prev) => [
                           ...prev,
-                          { firstName: "", middleName: "", lastName: "", company: "", position: "", nationality: "" },
+                          { prefix: "", firstName: "", middleName: "", lastName: "", position: "", halal: false, vegan: false, allergies: [], allergyOther: "" },
                         ])
                       }
                       className={smallBtnClass}
@@ -1133,7 +1098,14 @@ export default function EditBookingModal({
                                 <div className="text-sm font-semibold text-gray-900 truncate">{guestTitle(g)}</div>
                               </div>
                               <div className="mt-1 text-xs text-gray-500">
-                                {[g.company, g.position, g.nationality].map((x) => x.trim()).filter(Boolean).join(" • ") || "กดเพื่อกรอกข้อมูลเพิ่มเติม"}
+                                {[
+                                  g.position.trim(),
+                                  g.halal ? "ฮาลาล" : "",
+                                  g.vegan ? "มังสวิรัติ" : "",
+                                  g.allergies.length > 0 ? "แพ้อาหาร" : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" • ") || "กดเพื่อกรอกข้อมูลเพิ่มเติม"}
                               </div>
                             </div>
                             <button
@@ -1150,6 +1122,20 @@ export default function EditBookingModal({
                         </summary>
 
                         <div className="mt-3 grid gap-2 md:grid-cols-3">
+                          <select
+                            value={g.prefix}
+                            onChange={(e) =>
+                              setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, prefix: e.target.value } : x)))
+                            }
+                            className={controlClass}
+                          >
+                            <option value="">คำนำหน้า</option>
+                            <option value="นาย">นาย</option>
+                            <option value="นาง">นาง</option>
+                            <option value="นางสาว">นางสาว</option>
+                            <option value="MR.">MR.</option>
+                            <option value="MS.">MS.</option>
+                          </select>
                           <input
                             value={g.firstName}
                             onChange={(e) =>
@@ -1175,14 +1161,6 @@ export default function EditBookingModal({
                             placeholder="นามสกุล"
                           />
                           <input
-                            value={g.company}
-                            onChange={(e) =>
-                              setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, company: e.target.value } : x)))
-                            }
-                            className={controlClass}
-                            placeholder="บริษัท"
-                          />
-                          <input
                             value={g.position}
                             onChange={(e) =>
                               setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, position: e.target.value } : x)))
@@ -1190,14 +1168,74 @@ export default function EditBookingModal({
                             className={controlClass}
                             placeholder="ตำแหน่ง"
                           />
-                          <input
-                            value={g.nationality}
-                            onChange={(e) =>
-                              setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, nationality: e.target.value } : x)))
-                            }
-                            className={controlClass}
-                            placeholder="สัญชาติ"
-                          />
+                        </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <div className="rounded-lg border border-gray-200 bg-white p-3">
+                            <div className="text-sm font-semibold text-gray-900">อาหารเฉพาะบุคคล</div>
+                            <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-800">
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={g.halal}
+                                  onChange={(e) =>
+                                    setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, halal: e.target.checked } : x)))
+                                  }
+                                />
+                                ฮาลาล
+                              </label>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={g.vegan}
+                                  onChange={(e) =>
+                                    setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, vegan: e.target.checked } : x)))
+                                  }
+                                />
+                                มังสวิรัติ
+                              </label>
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-gray-200 bg-white p-3">
+                            <div className="text-sm font-semibold text-gray-900">แพ้อาหาร</div>
+                            <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-800">
+                              {allergyOptions.map((o) => (
+                                <label key={o.value} className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={g.allergies.includes(o.value)}
+                                    onChange={(e) =>
+                                      setGuests((prev) =>
+                                        prev.map((x, i) => {
+                                          if (i !== index) return x;
+                                          const nextAllergies = e.target.checked
+                                            ? x.allergies.includes(o.value)
+                                              ? x.allergies
+                                              : [...x.allergies, o.value]
+                                            : x.allergies.filter((item) => item !== o.value);
+                                          return {
+                                            ...x,
+                                            allergies: nextAllergies,
+                                            allergyOther: nextAllergies.includes("อื่นๆ") ? x.allergyOther : "",
+                                          };
+                                        })
+                                      )
+                                    }
+                                  />
+                                  {optionLabelTh(o)}
+                                </label>
+                              ))}
+                            </div>
+                            {g.allergies.includes("อื่นๆ") && (
+                              <input
+                                value={g.allergyOther}
+                                onChange={(e) =>
+                                  setGuests((prev) => prev.map((x, i) => (i === index ? { ...x, allergyOther: e.target.value } : x)))
+                                }
+                                className={`${controlClass} mt-2`}
+                                placeholder="ระบุ (อื่นๆ)"
+                              />
+                            )}
+                          </div>
                         </div>
                       </details>
                     ))}
@@ -1329,12 +1367,6 @@ export default function EditBookingModal({
                           setDinnerMenuOther("");
                           setDinnerDessert("");
                           setDinnerDessertOther("");
-                          setHalalEnabled(false);
-                          setHalalCount("");
-                          setVeganEnabled(false);
-                          setVeganCount("");
-                          setAllergies([]);
-                          setAllergyOther("");
                         }
                       }}
                       className={controlClass}
@@ -1511,61 +1543,6 @@ export default function EditBookingModal({
                         </div>
                       )}
 
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <label className="flex items-center gap-2 text-sm text-gray-800">
-                          <input type="checkbox" checked={halalEnabled} onChange={(e) => setHalalEnabled(e.target.checked)} />
-                          ฮาลาล
-                        </label>
-                        <input
-                          value={halalCount}
-                          onChange={(e) => setHalalCount(e.target.value.replace(/[^\d]/g, ""))}
-                          inputMode="numeric"
-                          className={controlDisabledClass}
-                          placeholder="จำนวนชุดฮาลาล"
-                          disabled={!halalEnabled}
-                        />
-                        <label className="flex items-center gap-2 text-sm text-gray-800">
-                          <input type="checkbox" checked={veganEnabled} onChange={(e) => setVeganEnabled(e.target.checked)} />
-                          วีแกน
-                        </label>
-                        <input
-                          value={veganCount}
-                          onChange={(e) => setVeganCount(e.target.value.replace(/[^\d]/g, ""))}
-                          inputMode="numeric"
-                          className={controlDisabledClass}
-                          placeholder="จำนวนชุดวีแกน"
-                          disabled={!veganEnabled}
-                        />
-                      </div>
-
-                      <div>
-                        <div className="text-sm font-semibold text-gray-700">แพ้อาหาร</div>
-                        <div className="mt-2 grid gap-2 md:grid-cols-2">
-                          {allergyOptions.map((o) => {
-                            const checked = allergies.includes(o.value);
-                            return (
-                              <label key={o.value} className="flex items-center gap-2 text-sm text-gray-800">
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => setAllergies((prev) => (checked ? prev.filter((x) => x !== o.value) : [...prev, o.value]))}
-                                />
-                                {optionLabelTh(o)}
-                              </label>
-                            );
-                          })}
-                        </div>
-                        {allergies.includes("อื่นๆ") && (
-                          <div className="mt-2">
-                            <input
-                              value={allergyOther}
-                              onChange={(e) => setAllergyOther(e.target.value)}
-                              className={`w-full ${controlClass}`}
-                              placeholder="ระบุแพ้อาหารอื่นๆ"
-                            />
-                          </div>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1633,41 +1610,48 @@ export default function EditBookingModal({
                 </div>
 
                 <div className={cardClass}>
-                  <div className="text-sm font-bold text-gray-900">ไฟล์นำเสนอ</div>
-                  <div className="mt-3 space-y-3">
-                    <div className="text-sm text-gray-700">{renderPresentationFiles(visit.presentationFiles)}</div>
-                    <label className="flex items-center gap-2 text-sm text-gray-800">
-                      <input
-                        type="checkbox"
-                        checked={removePresentation}
-                        onChange={(e) => {
-                          setRemovePresentation(e.target.checked);
-                          if (e.target.checked) setPresentationFile(null);
-                        }}
-                      />
-                      ลบไฟล์เดิม
-                    </label>
-                    <input
-                      id="edit-presentation-file"
-                      type="file"
-                      disabled={removePresentation || loading || saving}
-                      onChange={(e) => setPresentationFile(e.target.files?.[0] ?? null)}
-                      className="sr-only"
-                    />
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label
-                        htmlFor="edit-presentation-file"
-                        className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm ${
-                          removePresentation || loading || saving
-                            ? "bg-gray-300 cursor-not-allowed"
-                            : "bg-[#1b2a18] hover:bg-black cursor-pointer"
-                        }`}
-                      >
-                        Choose file
+                  <div className="text-sm font-bold text-gray-900">ไฟล์แนบ</div>
+                  <div className="mt-3 space-y-4">
+                    <div>
+                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">ไฟล์นำเสนอ</div>
+                      <div className="text-sm text-gray-700">{renderFileList(visit.presentationFiles, "presentationFile")}</div>
+                      <label className="mt-2 flex items-center gap-2 text-sm text-gray-800">
+                        <input
+                          type="checkbox"
+                          checked={removePresentation}
+                          onChange={(e) => {
+                            setRemovePresentation(e.target.checked);
+                            if (e.target.checked) setPresentationFile(null);
+                          }}
+                        />
+                        ลบไฟล์เดิม
                       </label>
-                      <div className="text-sm text-gray-700">{presentationFile ? presentationFile.name : "No file chosen"}</div>
+                      <input
+                        id="edit-presentation-file"
+                        type="file"
+                        disabled={removePresentation || loading || saving}
+                        onChange={(e) => setPresentationFile(e.target.files?.[0] ?? null)}
+                        className="sr-only"
+                      />
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <label
+                          htmlFor="edit-presentation-file"
+                          className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm ${
+                            removePresentation || loading || saving
+                              ? "bg-gray-300 cursor-not-allowed"
+                              : "bg-[#1b2a18] hover:bg-black cursor-pointer"
+                          }`}
+                        >
+                          Choose file
+                        </label>
+                        <div className="text-sm text-gray-700">{presentationFile ? presentationFile.name : "No file chosen"}</div>
+                      </div>
+                      {presentationFile && <div className="text-xs text-gray-500">เลือกไฟล์: {presentationFile.name}</div>}
                     </div>
-                    {presentationFile && <div className="text-xs text-gray-500">เลือกไฟล์: {presentationFile.name}</div>}
+                    <div>
+                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">ไฟล์ลงทะเบียนรายชื่อ</div>
+                      <div className="text-sm text-gray-700">{renderFileList(visit.presentationFiles, "registrationFile")}</div>
+                    </div>
                   </div>
                 </div>
 

@@ -8,12 +8,15 @@ type TransportType = "personal" | "public";
 type YesNo = "yes" | "no";
 
 type Guest = {
+  prefix: string;
   firstName: string;
   middleName: string;
   lastName: string;
-  company: string;
   position: string;
-  nationality: string;
+  halal: boolean;
+  vegan: boolean;
+  allergies: string[];
+  allergyOther: string;
 };
 
 type Car = {
@@ -52,12 +55,6 @@ type VisitFormState = {
   dinnerMenuOther: string;
   dinnerDessert: string;
   dinnerDessertOther: string;
-  halalEnabled: boolean;
-  halalCount: string;
-  veganEnabled: boolean;
-  veganCount: string;
-  allergies: string[];
-  allergyOther: string;
   souvenir: YesNo | "";
   souvenirGiftSet: string;
   souvenirGiftSetCount: string;
@@ -110,12 +107,15 @@ for (let hour = 6; hour <= 21; hour += 1) {
 
 
 const createEmptyGuest = (): Guest => ({
+  prefix: "",
   firstName: "",
   middleName: "",
   lastName: "",
-  company: "",
   position: "",
-  nationality: "",
+  halal: false,
+  vegan: false,
+  allergies: [],
+  allergyOther: "",
 });
 
 const createEmptyCar = (): Car => ({
@@ -162,12 +162,6 @@ const initialState: VisitFormState = {
   dinnerMenuOther: "",
   dinnerDessert: "",
   dinnerDessertOther: "",
-  halalEnabled: false,
-  halalCount: "",
-  veganEnabled: false,
-  veganCount: "",
-  allergies: [],
-  allergyOther: "",
   souvenir: "",
   souvenirGiftSet: "",
   souvenirGiftSetCount: "",
@@ -183,6 +177,7 @@ export default function Home() {
   const [lang, setLang] = useState<Lang>("th");
   const [form, setForm] = useState<VisitFormState>(initialState);
   const [presentationFile, setPresentationFile] = useState<File | null>(null);
+  const [registrationFile, setRegistrationFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dialog, setDialog] = useState<DialogState>({
     open: false,
@@ -360,7 +355,7 @@ export default function Home() {
       setDinnerMenuOptions(readFoodGroup("dinner_main"));
       setDinnerDessertOptions(readFoodGroup("dinner_dessert"));
 
-      setAllergyOptions(
+      const allergyItems =
         !allergies.error && Array.isArray(allergies.data)
           ? (allergies.data as RefOptionRow[])
               .map((row) => ({
@@ -371,8 +366,8 @@ export default function Home() {
                 active: row.active ?? null,
               }))
               .filter((row) => row.value)
-          : []
-      );
+          : [];
+      setAllergyOptions(sortOtherLast(ensureOtherOption(allergyItems)));
     };
 
     void load();
@@ -406,9 +401,6 @@ export default function Home() {
       });
     }
 
-    if (name === "halalCount" || name === "veganCount") {
-      value = value.replace(/\D/g, "");
-    }
     if (name === "souvenirGiftSetCount") {
       value = value.replace(/\D/g, "");
     }
@@ -454,12 +446,6 @@ export default function Home() {
         dinnerMenuOther: value === "yes" ? prev.dinnerMenuOther : "",
         dinnerDessert: value === "yes" ? prev.dinnerDessert : "",
         dinnerDessertOther: value === "yes" ? prev.dinnerDessertOther : "",
-        halalEnabled: value === "yes" ? prev.halalEnabled : false,
-        halalCount: value === "yes" ? prev.halalCount : "",
-        veganEnabled: value === "yes" ? prev.veganEnabled : false,
-        veganCount: value === "yes" ? prev.veganCount : "",
-        allergies: value === "yes" ? prev.allergies : [],
-        allergyOther: value === "yes" ? prev.allergyOther : "",
       }));
     }
 
@@ -530,40 +516,6 @@ export default function Home() {
     });
   };
 
-  const handleDietToggle = (key: "halal" | "vegan") => {
-    setForm((prev) => {
-      if (key === "halal") {
-        const nextEnabled = !prev.halalEnabled;
-        return {
-          ...prev,
-          halalEnabled: nextEnabled,
-          halalCount: nextEnabled ? prev.halalCount : "",
-        };
-      }
-      const nextEnabled = !prev.veganEnabled;
-      return {
-        ...prev,
-        veganEnabled: nextEnabled,
-        veganCount: nextEnabled ? prev.veganCount : "",
-      };
-    });
-  };
-
-  const handleAllergyChange = (value: string, checked: boolean) => {
-    setForm((prev) => {
-      const next = checked
-        ? prev.allergies.includes(value)
-          ? prev.allergies
-          : [...prev.allergies, value]
-        : prev.allergies.filter((item) => item !== value);
-      return {
-        ...prev,
-        allergies: next,
-        allergyOther: next.includes("อื่นๆ") ? prev.allergyOther : "",
-      };
-    });
-  };
-
   const handleGuestChange = (
     index: number,
     field: keyof Guest,
@@ -573,6 +525,42 @@ export default function Home() {
       const nextGuests = prev.guests.map((guest, i) =>
         i === index ? { ...guest, [field]: value } : guest
       );
+      return { ...prev, guests: nextGuests };
+    });
+  };
+
+  const handleGuestDietChange = (
+    index: number,
+    field: "halal" | "vegan",
+    checked: boolean
+  ) => {
+    setForm((prev) => {
+      const nextGuests = prev.guests.map((guest, i) =>
+        i === index ? { ...guest, [field]: checked } : guest
+      );
+      return { ...prev, guests: nextGuests };
+    });
+  };
+
+  const handleGuestAllergyChange = (
+    index: number,
+    value: string,
+    checked: boolean
+  ) => {
+    setForm((prev) => {
+      const nextGuests = prev.guests.map((guest, i) => {
+        if (i !== index) return guest;
+        const nextAllergies = checked
+          ? guest.allergies.includes(value)
+            ? guest.allergies
+            : [...guest.allergies, value]
+          : guest.allergies.filter((item) => item !== value);
+        return {
+          ...guest,
+          allergies: nextAllergies,
+          allergyOther: nextAllergies.includes("อื่นๆ") ? guest.allergyOther : "",
+        };
+      });
       return { ...prev, guests: nextGuests };
     });
   };
@@ -685,11 +673,11 @@ export default function Home() {
             )
           );
         }
-        if (!guest.nationality.trim()) {
+        if (guest.allergies.includes("อื่นๆ") && !guest.allergyOther.trim()) {
           messages.push(
             t(
-              `กรุณากรอกสัญชาติผู้เข้าร่วมคนที่ ${index + 1}`,
-              `Please enter attendee #${index + 1} nationality.`
+              `กรุณาระบุการแพ้อาหารผู้เข้าร่วมคนที่ ${index + 1}`,
+              `Please specify attendee #${index + 1} allergy (Other).`
             )
           );
         }
@@ -700,6 +688,14 @@ export default function Home() {
           messages.push(t("กรุณาระบุของหวาน (เย็น) (อื่นๆ)", "Please specify the dinner dessert other menu."));
         }
       }
+    if (expectedCount > 20 && !registrationFile) {
+      messages.push(
+        t(
+          "หากเกิน 20 คน กรุณาแนบไฟล์ PDF เพื่อลงทะเบียนรายชื่อ",
+          "If more than 20 attendees, please attach a PDF roster."
+        )
+      );
+    }
     }
     if (!form.purposeOfVisit.trim()) {
       messages.push(t("กรุณากรอกวัตถุประสงค์ในการเข้าพบ", "Please enter the purpose of visit."));
@@ -859,30 +855,6 @@ export default function Home() {
           );
         }
       }
-      if (form.halalEnabled && Number(form.halalCount || 0) <= 0) {
-        messages.push(
-          t(
-            "กรุณาระบุจำนวนชุดอาหารฮาลาล",
-            "Please specify the number of Halal meal sets."
-          )
-        );
-      }
-      if (form.veganEnabled && Number(form.veganCount || 0) <= 0) {
-        messages.push(
-          t(
-            "กรุณาระบุจำนวนชุดอาหารวีแกน",
-            "Please specify the number of Vegan meal sets."
-          )
-        );
-      }
-      if (form.allergies.includes("อื่นๆ") && !form.allergyOther.trim()) {
-        messages.push(
-          t(
-            "กรุณาระบุรายการแพ้อาหาร (อื่นๆ)",
-            "Please specify allergy item(s) (Other)."
-          )
-        );
-      }
     }
     if (!form.souvenir) {
       messages.push(
@@ -1013,14 +985,6 @@ export default function Home() {
               }
               : { main: "", dessert: "", otherMain: "", otherDessert: "" },
           },
-          specialDiet: {
-            halalSets: form.halalEnabled ? Number(form.halalCount || 0) : 0,
-            veganSets: form.veganEnabled ? Number(form.veganCount || 0) : 0,
-          },
-          allergies: {
-            items: form.allergies,
-            other: form.allergyOther,
-          },
         }
         : null;
 
@@ -1092,7 +1056,7 @@ export default function Home() {
 
       setSubmitting(true);
       const response = await (async () => {
-        if (!presentationFile) {
+        if (!presentationFile && !registrationFile) {
           return fetch("/api/summit", {
             method: "POST",
             headers: {
@@ -1104,7 +1068,8 @@ export default function Home() {
 
         const formData = new FormData();
         formData.append("data", JSON.stringify(payload));
-        formData.append("presentationFile", presentationFile);
+        if (presentationFile) formData.append("presentationFile", presentationFile);
+        if (registrationFile) formData.append("registrationFile", registrationFile);
         return fetch("/api/summit", {
           method: "POST",
           body: formData,
@@ -1125,6 +1090,7 @@ export default function Home() {
 
       setForm(initialState);
       setPresentationFile(null);
+      setRegistrationFile(null);
       setDialog({
         open: true,
         type: "success",
@@ -1386,6 +1352,23 @@ export default function Home() {
                 </div>
               </div>
 
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">
+                  {t("วัตถุประสงค์ในการเข้าพบ", "Purpose of visit")}
+                </label>
+                <input
+                  type="text"
+                  name="purposeOfVisit"
+                  value={form.purposeOfVisit}
+                  onChange={handleChange}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  placeholder={t(
+                    "เช่น ประชุม ติดตามงาน ศึกษาดูงาน",
+                    "e.g., meeting, follow-up, site study"
+                  )}
+                />
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
@@ -1406,6 +1389,37 @@ export default function Home() {
                 </div>
               </div>
 
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">
+                  {t("ไฟล์ลงทะเบียนรายชื่อ (PDF)", "Registration roster file (PDF)")}
+                </label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    setRegistrationFile(file);
+                  }}
+                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                />
+                {registrationFile && (
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
+                    <div>
+                      {t("ไฟล์ที่เลือก", "Selected file")}: {registrationFile.name} (
+                      {Math.ceil(registrationFile.size / 1024)} KB)
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                      onClick={() => setRegistrationFile(null)}
+                      disabled={submitting}
+                    >
+                      {t("เอาออก", "Remove")}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {guestsCount > 0 && (
                 <div className="space-y-3">
                   <div className="text-sm font-medium text-zinc-900">
@@ -1422,86 +1436,141 @@ export default function Home() {
                           <div className="text-sm font-semibold text-zinc-900">
                             {t("ผู้เข้าร่วมคนที่", "Attendee")} {index + 1}
                           </div>
-                          <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                            <input
-                              type="text"
-                              value={guest.firstName}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "firstName",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("ชื่อ", "First name")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.middleName}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "middleName",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("ชื่อกลาง (ถ้ามี)", "Middle name (optional)")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.lastName}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "lastName",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("นามสกุล", "Last name")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.company}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "company",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("บริษัท", "Company")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.position}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "position",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("ตำแหน่ง", "Position")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.nationality}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "nationality",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("สัญชาติ", "Nationality")}
-                            />
+                        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                          <select
+                            value={guest.prefix}
+                            onChange={(e) =>
+                              handleGuestChange(index, "prefix", e.target.value)
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                          >
+                            <option value="">{t("คำนำหน้า", "Prefix")}</option>
+                            <option value="นาย">{t("นาย", "Mr.")}</option>
+                            <option value="นาง">{t("นาง", "Mrs.")}</option>
+                            <option value="นางสาว">{t("นางสาว", "Ms.")}</option>
+                            <option value="MR.">MR.</option>
+                            <option value="MS.">MS.</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={guest.firstName}
+                            onChange={(e) =>
+                              handleGuestChange(
+                                index,
+                                "firstName",
+                                e.target.value
+                              )
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("ชื่อ", "First name")}
+                          />
+                          <input
+                            type="text"
+                            value={guest.middleName}
+                            onChange={(e) =>
+                              handleGuestChange(
+                                index,
+                                "middleName",
+                                e.target.value
+                              )
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("ชื่อกลาง (ถ้ามี)", "Middle name (optional)")}
+                          />
+                          <input
+                            type="text"
+                            value={guest.lastName}
+                            onChange={(e) =>
+                              handleGuestChange(
+                                index,
+                                "lastName",
+                                e.target.value
+                              )
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("นามสกุล", "Last name")}
+                          />
+                          <input
+                            type="text"
+                            value={guest.position}
+                            onChange={(e) =>
+                              handleGuestChange(
+                                index,
+                                "position",
+                                e.target.value
+                              )
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("ตำแหน่ง", "Position")}
+                          />
+                        </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                            <div className="text-sm font-semibold text-zinc-900">
+                              {t("อาหารเฉพาะบุคคล", "Individual diet")}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={guest.halal}
+                                  onChange={(e) =>
+                                    handleGuestDietChange(index, "halal", e.target.checked)
+                                  }
+                                />
+                                <span>{t("ฮาลาล", "Halal")}</span>
+                              </label>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={guest.vegan}
+                                  onChange={(e) =>
+                                    handleGuestDietChange(index, "vegan", e.target.checked)
+                                  }
+                                />
+                                <span>{t("มังสวิรัติ", "Vegan")}</span>
+                              </label>
+                            </div>
                           </div>
+                          <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                            <div className="text-sm font-semibold text-zinc-900">
+                              {t("แพ้อาหาร", "Allergies")}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                              {allergyOptions.map((item) => (
+                                <label key={item.value} className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={guest.allergies.includes(item.value)}
+                                    onChange={(e) =>
+                                      handleGuestAllergyChange(index, item.value, e.target.checked)
+                                    }
+                                  />
+                                  <span>{optionLabel(item)}</span>
+                                </label>
+                              ))}
+                            </div>
+                            {guest.allergies.includes("อื่นๆ") && (
+                              <div className="mt-3 flex flex-col gap-1">
+                                <label className="text-sm font-medium">
+                                  {t("ระบุ (อื่นๆ)", "Specify (Other)")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={guest.allergyOther}
+                                  onChange={(e) =>
+                                    handleGuestChange(index, "allergyOther", e.target.value)
+                                  }
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t(
+                                    "เช่น กล้วย, กาแฟ, ถั่วเหลือง",
+                                    "e.g., banana, coffee, soy"
+                                  )}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
                         </div>
                       );
                     })}
@@ -2048,100 +2117,6 @@ export default function Home() {
                       </div>
                     )}
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                      <div className="text-sm font-semibold text-zinc-900">
-                        {t("อาหารพิเศษ", "Special diet")}
-                      </div>
-                      <div className="mt-3 space-y-3 text-sm">
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={form.halalEnabled}
-                              onChange={() => handleDietToggle("halal")}
-                            />
-                            <span>{t("ฮาลาล", "Halal")}</span>
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            name="halalCount"
-                            value={form.halalCount}
-                            onChange={handleChange}
-                            disabled={!form.halalEnabled}
-                            className={`w-28 rounded-md border px-3 py-2 text-sm outline-none ${form.halalEnabled
-                              ? "border-zinc-300 bg-white focus:border-zinc-900"
-                              : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                              }`}
-                            placeholder={t("จำนวนชุด", "Sets")}
-                          />
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={form.veganEnabled}
-                              onChange={() => handleDietToggle("vegan")}
-                            />
-                            <span>{t("วีแกน", "Vegan")}</span>
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            name="veganCount"
-                            value={form.veganCount}
-                            onChange={handleChange}
-                            disabled={!form.veganEnabled}
-                            className={`w-28 rounded-md border px-3 py-2 text-sm outline-none ${form.veganEnabled
-                              ? "border-zinc-300 bg-white focus:border-zinc-900"
-                              : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                              }`}
-                            placeholder={t("จำนวนชุด", "Sets")}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                      <div className="text-sm font-semibold text-zinc-900">
-                        {t("แพ้อาหาร", "Allergies")}
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-4 text-sm">
-                        {allergyOptions.map((item) => (
-                          <label key={item.value} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={form.allergies.includes(item.value)}
-                              onChange={(e) =>
-                                handleAllergyChange(item.value, e.target.checked)
-                              }
-                            />
-                            <span>{optionLabel(item)}</span>
-                          </label>
-                        ))}
-                      </div>
-
-                      {form.allergies.includes("อื่นๆ") && (
-                        <div className="mt-3 flex flex-col gap-1">
-                          <label className="text-sm font-medium">
-                            {t("ระบุ (อื่นๆ)", "Specify (Other)")}
-                          </label>
-                          <input
-                            type="text"
-                            name="allergyOther"
-                            value={form.allergyOther}
-                            onChange={handleChange}
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder={t(
-                              "เช่น กล้วย, กาแฟ, ถั่วเหลือง",
-                              "e.g., banana, coffee, soy"
-                            )}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
                 </div>
               )}
 
@@ -2292,8 +2267,8 @@ export default function Home() {
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
-                  "ผู้ถูกเข้าพบ ผู้บริหารดูแล วัตถุประสงค์ และผู้กรอกฟอร์ม",
-                  "Host, welcoming executive, purpose, and submitter."
+                  "ผู้ถูกเข้าพบ ผู้บริหารดูแล และผู้กรอกฟอร์ม",
+                  "Host, welcoming executive, and submitter."
                 )}
               </div>
 
@@ -2336,22 +2311,6 @@ export default function Home() {
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium">
-                    {t("วัตถุประสงค์ในการเข้าพบ", "Purpose of visit")}
-                  </label>
-                  <input
-                    type="text"
-                    name="purposeOfVisit"
-                    value={form.purposeOfVisit}
-                    onChange={handleChange}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    placeholder={t(
-                      "เช่น ประชุม ติดตามงาน ศึกษาดูงาน",
-                      "e.g., meeting, follow-up, site study"
-                    )}
-                  />
-                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -2408,6 +2367,8 @@ export default function Home() {
                     type: "error",
                     message: "",
                   });
+                  setPresentationFile(null);
+                  setRegistrationFile(null);
                 }}
                 disabled={submitting}
               >

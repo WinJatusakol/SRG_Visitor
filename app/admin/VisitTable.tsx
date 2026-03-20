@@ -83,12 +83,12 @@ const souvenirData = (value: unknown) => {
     return { giftSet, count, extra };
 };
 
-const renderPresentationFiles = (value: unknown) => {
+const renderFileList = (value: unknown, key: "presentationFile" | "registrationFile") => {
     let fileData: unknown = value;
-    if (Array.isArray(value) && value.length > 0 && isRecord(value[0]) && "presentationFile" in value[0]) {
-        fileData = (value[0] as Record<string, unknown>).presentationFile;
-    } else if (isRecord(value) && "presentationFile" in value) {
-        fileData = value.presentationFile;
+    if (Array.isArray(value) && value.length > 0 && isRecord(value[0]) && key in value[0]) {
+        fileData = (value[0] as Record<string, unknown>)[key];
+    } else if (isRecord(value) && key in value) {
+        fileData = value[key];
     }
 
     if (!fileData || (Array.isArray(fileData) && fileData.length === 0)) {
@@ -108,7 +108,7 @@ const renderPresentationFiles = (value: unknown) => {
                             : "";
                 const name =
                     isRecord(file) && (typeof file.name === "string" || typeof file.fileName === "string")
-                        ? String(file.name ?? file.fileName)
+                        ? String(file.name ?? file.fileName ?? file.originalName)
                         : `ไฟล์เอกสาร ${idx + 1}`;
                 if (!url) return null;
 
@@ -260,10 +260,17 @@ export function VisitDetailsModal({
                                                 </div>
                                                 <div className="overflow-hidden">
                                                     <div className="font-bold text-sm text-gray-900 truncate">
-                                                        {g.firstName || "-"} {g.middleName === "-" ? "" : g.middleName || ""}{" "}{g.lastName || ""}
+                                                        {[g.prefix, g.firstName, g.middleName === "-" ? "" : g.middleName, g.lastName].filter(Boolean).join(" ") || "-"}
                                                     </div>
                                                     <div className="text-xs text-gray-500 truncate mt-0.5">
-                                                        {g.position || "ไม่ระบุตำแหน่ง"} • {g.nationality || "ไม่ระบุสัญชาติ"}
+                                                        {[
+                                                            g.position || "ไม่ระบุตำแหน่ง",
+                                                            g.halal ? "ฮาลาล" : "",
+                                                            g.vegan ? "มังสวิรัติ" : "",
+                                                            Array.isArray(g.allergies) && g.allergies.length > 0
+                                                                ? `แพ้อาหาร: ${[...g.allergies.filter((x: string) => x && x !== "อื่นๆ"), g.allergyOther].filter(Boolean).join(", ")}`
+                                                                : "",
+                                                        ].filter(Boolean).join(" • ")}
                                                     </div>
                                                 </div>
                                             </div>
@@ -382,8 +389,10 @@ export function VisitDetailsModal({
                             </div>
 
                             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-blue-500" /> ไฟล์แนบ</dt>
-                                <dd className="text-sm">{renderPresentationFiles(selectedVisit.presentationFiles)}</dd>
+                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-blue-500" /> ไฟล์นำเสนอ</dt>
+                                <dd className="text-sm">{renderFileList(selectedVisit.presentationFiles, "presentationFile")}</dd>
+                                <dt className="mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-500" /> ไฟล์ลงทะเบียนรายชื่อ</dt>
+                                <dd className="text-sm">{renderFileList(selectedVisit.presentationFiles, "registrationFile")}</dd>
                             </div>
                         </div>
                     </div>
@@ -1132,10 +1141,17 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                                         </div>
                                                         <div className="overflow-hidden">
                                                             <div className="font-bold text-sm text-gray-900 truncate">
-                                                                {g.firstName || "-"} {g.middleName === "-" ? "" : g.middleName || ""}{" "} {g.lastName || ""}
+                                                                {[g.prefix, g.firstName, g.middleName === "-" ? "" : g.middleName, g.lastName].filter(Boolean).join(" ") || "-"}
                                                             </div>
                                                             <div className="text-xs text-gray-500 truncate mt-0.5">
-                                                                {g.position || "ไม่ระบุตำแหน่ง"} • {g.nationality || "ไม่ระบุสัญชาติ"}
+                                                                {[
+                                                                    g.position || "ไม่ระบุตำแหน่ง",
+                                                                    g.halal ? "ฮาลาล" : "",
+                                                                    g.vegan ? "มังสวิรัติ" : "",
+                                                                    Array.isArray(g.allergies) && g.allergies.length > 0
+                                                                        ? `แพ้อาหาร: ${[...g.allergies.filter((x: string) => x && x !== "อื่นๆ"), g.allergyOther].filter(Boolean).join(", ")}`
+                                                                        : "",
+                                                                ].filter(Boolean).join(" • ")}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1259,10 +1275,12 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         })()}
                                     </div>
 
-                                    {/* ไฟล์นำเสนอ */}
+                                    {/* ไฟล์แนบ */}
                                     <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                                         <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-purple-500" /> ไฟล์นำเสนอ</dt>
-                                        <dd>{renderPresentationFiles(selectedVisit.presentationFiles)}</dd>
+                                        <dd>{renderFileList(selectedVisit.presentationFiles, "presentationFile")}</dd>
+                                        <dt className="mt-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-500" /> ไฟล์ลงทะเบียนรายชื่อ</dt>
+                                        <dd>{renderFileList(selectedVisit.presentationFiles, "registrationFile")}</dd>
                                     </div>
                                 </div>
                             </div>

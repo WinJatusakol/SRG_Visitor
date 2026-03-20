@@ -215,12 +215,15 @@ export async function POST(request) {
       const rows = guests.map((g, index) => ({
         visitorId,
         sortIndex: index,
+        prefix: typeof g?.prefix === "string" ? g.prefix : "",
         firstName: typeof g?.firstName === "string" ? g.firstName : "",
         middleName: typeof g?.middleName === "string" ? g.middleName : "",
         lastName: typeof g?.lastName === "string" ? g.lastName : "",
-        company: typeof g?.company === "string" ? g.company : "",
         position: typeof g?.position === "string" ? g.position : "",
-        nationality: typeof g?.nationality === "string" ? g.nationality : "",
+        halal: typeof g?.halal === "boolean" ? g.halal : false,
+        vegan: typeof g?.vegan === "boolean" ? g.vegan : false,
+        allergies: Array.isArray(g?.allergies) ? g.allergies.filter(Boolean) : [],
+        allergyOther: typeof g?.allergyOther === "string" ? g.allergyOther : "",
       }));
       if (rows.length > 0) {
         const { error: insGuestError } = await supabase.from("vip_visitor_guests").insert(rows);

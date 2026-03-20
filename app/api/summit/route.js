@@ -12,15 +12,16 @@ export async function POST(request) {
             const formData = await request.formData();
             const raw = formData.get("data");
             const file = formData.get("presentationFile");
+            const registrationFile = formData.get("registrationFile");
             const data =
               typeof raw === "string"
                 ? JSON.parse(raw)
                 : raw && typeof raw === "object"
                   ? JSON.parse(String(raw))
                   : {};
-            return { data, file };
+            return { data, file, registrationFile };
           })()
-        : { data: await request.json(), file: null };
+        : { data: await request.json(), file: null, registrationFile: null };
 
     const data = parsed.data ?? {};
     const supabase = createServiceClient();
@@ -105,6 +106,7 @@ export async function POST(request) {
       guests.length > 0 ? guests.length : Number.isFinite(totalGuestsInput) ? totalGuestsInput : null;
 
     const presentationFileInput = parsed.file;
+    const registrationFileInput = parsed.registrationFile;
     const bucketName =
       process.env.SUPABASE_PRESENTATION_BUCKET || "vip_visitor_attachments";
     const toSafeFilename = (value) =>
@@ -193,6 +195,86 @@ export async function POST(request) {
       };
     }
 
+    let registrationFile = null;
+    if (registrationFileInput && registrationFileInput instanceof File) {
+      const maxSize = 10 * 1024 * 1024;
+      if (registrationFileInput.size > maxSize) {
+        return NextResponse.json(
+          { success: false, error: "ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)" },
+          { status: 400 }
+        );
+      }
+
+      const originalName = toSafeFilename(registrationFileInput.name);
+      const fileExt = originalName.includes(".")
+        ? originalName.split(".").pop()
+        : "";
+      const datedPrefix = new Date().toISOString().slice(0, 10);
+      const objectPath = `${datedPrefix}/registration-${randomUUID()}${
+        fileExt ? `.${fileExt}` : ""
+      }`;
+      const arrayBuffer = await registrationFileInput.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      const uploadOnce = async () =>
+        supabase.storage.from(bucketName).upload(objectPath, bytes, {
+          contentType: registrationFileInput.type || "application/octet-stream",
+          upsert: false,
+        });
+
+      let uploadResult = await uploadOnce();
+      if (uploadResult.error) {
+        const msg = String(uploadResult.error.message ?? "");
+        const isBucketNotFound =
+          msg.toLowerCase().includes("bucket not found") ||
+          msg.toLowerCase().includes("no such bucket");
+
+        if (isBucketNotFound) {
+          const createBucketResult = await supabase.storage.createBucket(
+            bucketName,
+            { public: true }
+          );
+          if (createBucketResult.error) {
+            const createMsg = String(createBucketResult.error.message ?? "");
+            const alreadyExists =
+              createMsg.toLowerCase().includes("already exists") ||
+              createMsg.toLowerCase().includes("duplicate");
+            if (!alreadyExists) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: `สร้าง bucket ไม่สำเร็จ: ${createBucketResult.error.message}`,
+                },
+                { status: 500 }
+              );
+            }
+          }
+
+          uploadResult = await uploadOnce();
+        }
+      }
+
+      if (uploadResult.error) {
+        return NextResponse.json(
+          { success: false, error: uploadResult.error.message },
+          { status: 500 }
+        );
+      }
+
+      const publicUrlResult = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(objectPath);
+
+      registrationFile = {
+        bucket: bucketName,
+        path: objectPath,
+        originalName,
+        mimeType: registrationFileInput.type || "",
+        size: registrationFileInput.size,
+        publicUrl: publicUrlResult?.data?.publicUrl ?? "",
+      };
+    }
+
     const insertPayload = {
       timestamp: data.timestamp ?? new Date().toISOString(),
       clientCompany: data.clientCompany ?? "",
@@ -263,12 +345,15 @@ export async function POST(request) {
       const guestRows = guests.map((guest, index) => ({
         visitorId,
         sortIndex: index,
+        prefix: guest?.prefix ?? "",
         firstName: guest?.firstName ?? "",
         middleName: guest?.middleName ?? "",
         lastName: guest?.lastName ?? "",
-        company: guest?.company ?? "",
         position: guest?.position ?? "",
-        nationality: guest?.nationality ?? "",
+        halal: !!guest?.halal,
+        vegan: !!guest?.vegan,
+        allergies: Array.isArray(guest?.allergies) ? guest.allergies : [],
+        allergyOther: guest?.allergyOther ?? "",
       }));
       const { error: guestError } = await supabase
         .from("vip_visitor_guests")
@@ -276,12 +361,12 @@ export async function POST(request) {
       if (guestError) {
         await rollback();
         const msg = String(guestError.message ?? "");
-        if (msg.includes('column "company"')) {
+        if (msg.includes('column "prefix"') || msg.includes('column "halal"') || msg.includes('column "allergies"')) {
           return NextResponse.json(
             {
               success: false,
               error:
-                'ฐานข้อมูลยังไม่มีคอลัมน์ company กรุณาเพิ่มคอลัมน์ company (text) ในตาราง vip_visitor_guests ก่อน',
+                'ฐานข้อมูลยังไม่มีคอลัมน์ใหม่ของผู้เข้าร่วม กรุณาเพิ่มคอลัมน์ prefix (text), halal (boolean), vegan (boolean), allergies (text[]), allergyOther (text) ในตาราง vip_visitor_guests ก่อน',
             },
             { status: 500 }
           );
@@ -351,12 +436,23 @@ export async function POST(request) {
       }
     }
 
-    if (presentationFile) {
+    if (presentationFile || registrationFile) {
       const { error: presentationFileError } = await supabase
         .from("vip_visitor_presentation_file")
-        .insert([{ visitorId, presentationFile }]);
+        .insert([{ visitorId, presentationFile, registrationFile }]);
       if (presentationFileError) {
         await rollback();
+        const msg = String(presentationFileError.message ?? "");
+        if (msg.includes('column "registrationFile"')) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                'ฐานข้อมูลยังไม่มีคอลัมน์ registrationFile กรุณาเพิ่มคอลัมน์ registrationFile (jsonb) ในตาราง vip_visitor_presentation_file ก่อน',
+            },
+            { status: 500 }
+          );
+        }
         return NextResponse.json(
           { success: false, error: presentationFileError.message },
           { status: 500 }

@@ -24,7 +24,7 @@ type CarRow = {
 type FoodRow = { foodPreferences?: unknown | null };
 type SiteVisitRow = { siteVisit?: unknown | null };
 type SouvenirRow = { souvenirPreferences?: unknown | null };
-type PresentationFileRow = { presentationFile?: unknown | null };
+type PresentationFileRow = { presentationFile?: unknown | null; registrationFile?: unknown | null };
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -135,7 +135,12 @@ export default async function AdminPage() {
       foodPreferences: foodRow?.foodPreferences ?? record.foodPreferences,
       siteVisit: siteVisitRow?.siteVisit ?? record.siteVisit,
       souvenirPreferences: souvenirRow?.souvenirPreferences ?? record.souvenirPreferences,
-      presentationFiles: presentationFileRow?.presentationFile ?? record.presentationFile,
+      presentationFiles: presentationFileRow
+        ? {
+            presentationFile: presentationFileRow.presentationFile ?? null,
+            registrationFile: presentationFileRow.registrationFile ?? null,
+          }
+        : record.presentationFile,
     };
 
     // ลบ Key ที่เป็น Table เก่าทิ้ง
