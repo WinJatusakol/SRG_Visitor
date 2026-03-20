@@ -437,9 +437,6 @@ export async function POST(request) {
     const smtpUser = process.env.SMTP_USER;
     const smtpPass = process.env.SMTP_PASS;
     const emailFrom = process.env.EMAIL_FROM;
-    const securityEmail = process.env.SECURITY_EMAIL;
-    const housekeepingEmail = process.env.HOUSEKEEPING_EMAIL;
-    const managerEmail = process.env.MANAGER_EMAIL;
 
     const missing = [];
     if (!smtpHost) missing.push("SMTP_HOST");
@@ -447,8 +444,40 @@ export async function POST(request) {
     if (!smtpUser) missing.push("SMTP_USER");
     if (!smtpPass) missing.push("SMTP_PASS");
     if (!emailFrom) missing.push("EMAIL_FROM");
-    if (!housekeepingEmail) missing.push("HOUSEKEEPING_EMAIL");
-    if (!managerEmail) missing.push("MANAGER_EMAIL");
+    const { data: recipientRows, error: recipientError } = await supabase
+      .from("vip_visitor_email_recipients")
+      .select("role,email,active")
+      .eq("active", true);
+    if (recipientError) {
+      const msg = String(recipientError.message ?? "");
+      if (msg.includes('relation "vip_visitor_email_recipients"')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "ฐานข้อมูลยังไม่มีตาราง vip_visitor_email_recipients กรุณาสร้างตารางสำหรับอีเมลผู้รับก่อน",
+          },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json(
+        { success: false, error: recipientError.message },
+        { status: 500 }
+      );
+    }
+    const recipientsByRole = { security: [], housekeeping: [], manager: [] };
+    if (Array.isArray(recipientRows)) {
+      for (const row of recipientRows) {
+        const role = typeof row?.role === "string" ? row.role.trim() : "";
+        const email = typeof row?.email === "string" ? row.email.trim() : "";
+        if (!role || !email) continue;
+        if (role in recipientsByRole) {
+          recipientsByRole[role].push(email);
+        }
+      }
+    }
+    if (recipientsByRole.housekeeping.length === 0) missing.push("EMAIL_RECIPIENTS:housekeeping");
+    if (recipientsByRole.manager.length === 0) missing.push("EMAIL_RECIPIENTS:manager");
 
     const formatDateTime = (value) => {
       if (!value) {
@@ -642,11 +671,11 @@ export async function POST(request) {
             .join("\n")
         : "-";
 
-    if (shouldSendSecurity && !securityEmail) {
+    if (shouldSendSecurity && recipientsByRole.security.length === 0) {
       return NextResponse.json(
         {
           success: true,
-          warning: "บันทึกสำเร็จ แต่ยังไม่ได้ตั้งค่า SECURITY_EMAIL",
+          warning: "บันทึกสำเร็จ แต่ยังไม่ได้ตั้งค่าอีเมลผู้รับสำหรับตำแหน่ง รปภ.",
         },
         { status: 200 }
       );
@@ -739,13 +768,13 @@ export async function POST(request) {
     const mailTasks = [
       transporter.sendMail({
         from: emailFrom,
-        to: housekeepingEmail,
+        to: recipientsByRole.housekeeping,
         subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (แม่บ้าน)",
         text: housekeepingText,
       }),
       transporter.sendMail({
         from: emailFrom,
-        to: managerEmail,
+        to: recipientsByRole.manager,
         subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ผู้จัดการ)",
         text: managerText,
       }),
@@ -767,7 +796,7 @@ export async function POST(request) {
       mailTasks.push(
         transporter.sendMail({
           from: emailFrom,
-          to: securityEmail,
+          to: recipientsByRole.security,
           subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ยาม)",
           text: securityText,
         })
