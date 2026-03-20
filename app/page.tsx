@@ -1379,40 +1379,40 @@ export default function Home() {
             </div>
             <div className="mt-1 text-xs leading-relaxed text-[#1b2a18]/75">
               {t(
-                "คลิกเพื่อเลื่อนไปยังหัวข้อ และกดส่งข้อมูลที่แถบด้านล่าง",
+                "คลิกเพื่อไปยังหัวข้อ และกดส่งข้อมูลที่แถบด้านล่าง",
                 "Click to jump to a section, then submit using the bottom bar."
               )}
             </div>
             <nav className="mt-4 space-y-2 text-sm">
               <a
                 href="#section-1"
-                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+                className="block whitespace-nowrap rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("1) ข้อมูลผู้เข้าเยี่ยมชมโรงงาน", "1) Invited Company")}
+                {t("1) ข้อมูลบริษัท/ผู้เข้าร่วม", "1) Invited Company")}
               </a>
               <a
                 href="#section-2"
-                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+                className="block whitespace-nowrap rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("2) กำหนดการเข้าเยี่ยมชมโรงงานและสถานที่", "2) Factory Visit Schedule & Locations")}
+                {t("2) กำหนดการเยี่ยมชม/สถานที่", "2) Visit Schedule & Locations")}
               </a>
               <a
                 href="#section-3"
-                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+                className="block whitespace-nowrap rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
                 {t("3) อาหารและของที่ระลึก", "3) Catering & Souvenirs")}
               </a>
               <a
                 href="#section-4"
-                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+                className="block whitespace-nowrap rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("4) ข้อความที่แสดงบน Welcome board", "4) Welcome Board Message")}
+                {t("4) ข้อความ Welcome board", "4) Welcome Board Message")}
               </a>
               <a
                 href="#section-5"
-                className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
+                className="block whitespace-nowrap rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("5) ผู้ดูแลภายในองค์กร", "5) Internal Contacts")}
+                {t("5) ข้อมูลภายในองค์กร EPAC", "5) Internal Information")}
               </a>
             </nav>
           </aside>
