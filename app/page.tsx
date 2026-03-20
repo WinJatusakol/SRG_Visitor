@@ -1388,7 +1388,7 @@ export default function Home() {
                 href="#section-1"
                 className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("1) ข้อมูลบริษัทที่เชิญมา", "1) Invited Company")}
+                {t("1) ข้อมูลผู้เข้าเยี่ยมชมโรงงาน", "1) Invited Company")}
               </a>
               <a
                 href="#section-2"
@@ -1429,11 +1429,11 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   1
                 </span>
-                <span>{t("ข้อมูลบริษัทที่เชิญมา", "Invited Company Information")}</span>
+                <span>{t("ข้อมูลผู้เข้าเยี่ยมชมโรงงาน", "Invited Company Information")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
-                  "ข้อมูลบริษัทที่เชิญมาและรายชื่อผู้เข้าร่วม",
+                  "ข้อมูลผู้เข้าเยี่ยมชมโรงงานและรายชื่อผู้เข้าร่วม",
                   "Invited company information and attendee list."
                 )}
               </div>
@@ -1441,7 +1441,7 @@ export default function Home() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("ชื่อบริษัทที่เชิญมา", "Invited company name")}
+                    {t("ชื่อบริษัท", "Invited company name")}
                   </label>
                   <input
                     type="text"
@@ -1455,7 +1455,7 @@ export default function Home() {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("ที่อยู่บริษัทที่เชิญมา", "Invited company address")}
+                    {t("ที่อยู่บริษัทที่เข้าเยี่ยมชมโรงงาน", "Invited company address")}
                   </label>
                   <input
                     type="text"
@@ -1471,7 +1471,7 @@ export default function Home() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("ประเทศของบริษัทที่เชิญมา", "Invited company country")}
+                    {t("ประเทศของบริษัทที่เข้าเยี่ยมชม", "Invited company country")}
                   </label>
                   <input
                     type="text"
@@ -1512,7 +1512,7 @@ export default function Home() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("วัตถุประสงค์ในการเข้าพบ", "Purpose of visit")}
+                  {t("วัตถุประสงค์ในการเข้าเยี่ยมชมโรงงาน", "Purpose of visit")}
                 </label>
                 <input
                   type="text"
@@ -2468,7 +2468,7 @@ export default function Home() {
                     </div>
                     <div className="flex flex-col gap-1 md:col-span-2">
                       <label className="text-sm font-medium">
-                        {t("เพิ่มของพิเศษ (ถ้ามี)", "Add extras (optional)")}
+                        {t("ของที่ระลึกพิเศษนอกเหนือจากรายการด้านบน (ถ้ามี)", "Add extras (optional)")}
                       </label>
                       <textarea
                         name="souvenirExtra"
@@ -2477,8 +2477,8 @@ export default function Home() {
                         rows={3}
                         className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                         placeholder={t(
-                          "ระบุของพิเศษเพิ่มเติม เช่น ใส่โลโก้, การ์ดข้อความ, ของเพิ่มอื่นๆ",
-                          "Describe extras, e.g., logo, message card, additional items"
+                          "โปรดระบุ....",
+                          "Please specify any extras."
                         )}
                       />
                     </div>
