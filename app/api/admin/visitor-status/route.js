@@ -35,7 +35,7 @@ export async function POST(request) {
 
     const { data: beforeRow } = await supabase
       .from("vip_visitor")
-      .select("id,status,visitDateTime,vipCompany,hostName")
+      .select("id,status,visitDateTime,clientCompany")
       .eq("id", visitorId)
       .maybeSingle();
 
@@ -43,7 +43,7 @@ export async function POST(request) {
       .from("vip_visitor")
       .update({ status })
       .eq("id", id)
-      .select("id,status,visitDateTime,vipCompany,hostName")
+      .select("id,status,visitDateTime,clientCompany")
       .single();
 
     if (error) {

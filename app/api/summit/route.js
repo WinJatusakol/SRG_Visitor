@@ -11,16 +11,16 @@ export async function POST(request) {
         ? await (async () => {
             const formData = await request.formData();
             const raw = formData.get("data");
-            const file = formData.get("presentationFile");
+            const registrationFile = formData.get("registrationFile");
             const data =
               typeof raw === "string"
                 ? JSON.parse(raw)
                 : raw && typeof raw === "object"
                   ? JSON.parse(String(raw))
                   : {};
-            return { data, file };
+            return { data, registrationFile };
           })()
-        : { data: await request.json(), file: null };
+        : { data: await request.json(), registrationFile: null };
 
     const data = parsed.data ?? {};
     const supabase = createServiceClient();
@@ -54,6 +54,9 @@ export async function POST(request) {
 
     const guests = Array.isArray(data.guests) ? data.guests : [];
     const cars = Array.isArray(data.cars) ? data.cars : [];
+    const shuttleSchedules = Array.isArray(data.shuttleSchedules)
+      ? data.shuttleSchedules
+      : [];
     const transportType = String(data.transportType ?? "").trim();
     const carCountInput =
       typeof data.carCount === "number" ? data.carCount : Number(data.carCount ?? 0);
@@ -73,18 +76,15 @@ export async function POST(request) {
       !Array.isArray(data.siteVisit)
         ? data.siteVisit
         : null;
-    const executiveHost =
-      data.executiveHost &&
-      typeof data.executiveHost === "object" &&
-      !Array.isArray(data.executiveHost)
-        ? data.executiveHost
-        : null;
     const submittedBy =
       data.submittedBy &&
       typeof data.submittedBy === "object" &&
       !Array.isArray(data.submittedBy)
         ? data.submittedBy
         : null;
+    const internalAttendees = Array.isArray(data.internalAttendees)
+      ? data.internalAttendees
+      : [];
     const foodPreferences =
       data.foodPreferences &&
       typeof data.foodPreferences === "object" &&
@@ -104,7 +104,7 @@ export async function POST(request) {
     const totalGuests =
       guests.length > 0 ? guests.length : Number.isFinite(totalGuestsInput) ? totalGuestsInput : null;
 
-    const presentationFileInput = parsed.file;
+    const registrationFileInput = parsed.registrationFile;
     const bucketName =
       process.env.SUPABASE_PRESENTATION_BUCKET || "vip_visitor_attachments";
     const toSafeFilename = (value) =>
@@ -113,30 +113,30 @@ export async function POST(request) {
         .replace(/\s+/g, " ")
         .trim();
 
-    let presentationFile = null;
-    if (presentationFileInput && presentationFileInput instanceof File) {
+    let registrationFile = null;
+    if (registrationFileInput && registrationFileInput instanceof File) {
       const maxSize = 10 * 1024 * 1024;
-      if (presentationFileInput.size > maxSize) {
+      if (registrationFileInput.size > maxSize) {
         return NextResponse.json(
           { success: false, error: "ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)" },
           { status: 400 }
         );
       }
 
-      const originalName = toSafeFilename(presentationFileInput.name);
+      const originalName = toSafeFilename(registrationFileInput.name);
       const fileExt = originalName.includes(".")
         ? originalName.split(".").pop()
         : "";
       const datedPrefix = new Date().toISOString().slice(0, 10);
-      const objectPath = `${datedPrefix}/${randomUUID()}${
+      const objectPath = `${datedPrefix}/registration-${randomUUID()}${
         fileExt ? `.${fileExt}` : ""
       }`;
-      const arrayBuffer = await presentationFileInput.arrayBuffer();
+      const arrayBuffer = await registrationFileInput.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
 
       const uploadOnce = async () =>
         supabase.storage.from(bucketName).upload(objectPath, bytes, {
-          contentType: presentationFileInput.type || "application/octet-stream",
+          contentType: registrationFileInput.type || "application/octet-stream",
           upsert: false,
         });
 
@@ -183,12 +183,12 @@ export async function POST(request) {
         .from(bucketName)
         .getPublicUrl(objectPath);
 
-      presentationFile = {
+      registrationFile = {
         bucket: bucketName,
         path: objectPath,
         originalName,
-        mimeType: presentationFileInput.type || "",
-        size: presentationFileInput.size,
+        mimeType: registrationFileInput.type || "",
+        size: registrationFileInput.size,
         publicUrl: publicUrlResult?.data?.publicUrl ?? "",
       };
     }
@@ -196,17 +196,17 @@ export async function POST(request) {
     const insertPayload = {
       timestamp: data.timestamp ?? new Date().toISOString(),
       clientCompany: data.clientCompany ?? "",
-      vipCompany: data.vipCompany ?? "",
-      nationality: data.nationality ?? "",
+      companyAddress: data.companyAddress ?? "",
+      country: data.country ?? "",
+      visitorType: data.visitorType ?? "",
+      visitorTypeOther: data.visitorTypeOther ?? "",
       contactPhone: data.contactPhone ?? "",
-      visitTopic: data.visitTopic ?? "",
-      visitDetail: data.visitDetail ?? "",
+      purposeOfVisit: data.purposeOfVisit ?? "",
+      welcomeMessage: data.welcomeMessage ?? "",
       visitDateTime: visitDateTimeIso || null,
       status: 1,
       meetingRoomSelection,
-      executiveHost,
       transportType,
-      hostName: data.hostName ?? "",
       submittedBy,
     };
 
@@ -220,15 +220,20 @@ export async function POST(request) {
       const msg = String(insertError.message ?? "");
       if (
         msg.includes('column "meetingRoomSelection"') ||
-        msg.includes('column "executiveHost"') ||
         msg.includes('column "submittedBy"') ||
-        msg.includes('column "status"')
+        msg.includes('column "status"') ||
+        msg.includes('column "companyAddress"') ||
+        msg.includes('column "country"') ||
+        msg.includes('column "visitorType"') ||
+        msg.includes('column "visitorTypeOther"') ||
+        msg.includes('column "purposeOfVisit"') ||
+        msg.includes('column "welcomeMessage"')
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb), status (int2) ในตาราง vip_visitor ก่อน',
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ companyAddress (text), country (text), visitorType (text), visitorTypeOther (text), purposeOfVisit (text), welcomeMessage (text), meetingRoomSelection (text), submittedBy (jsonb), status (int2) ในตาราง vip_visitor ก่อน',
           },
           { status: 500 }
         );
@@ -257,12 +262,15 @@ export async function POST(request) {
       const guestRows = guests.map((guest, index) => ({
         visitorId,
         sortIndex: index,
+        prefix: guest?.prefix ?? "",
         firstName: guest?.firstName ?? "",
         middleName: guest?.middleName ?? "",
         lastName: guest?.lastName ?? "",
-        company: guest?.company ?? "",
         position: guest?.position ?? "",
-        nationality: guest?.nationality ?? "",
+        halal: !!guest?.halal,
+        vegan: !!guest?.vegan,
+        allergies: Array.isArray(guest?.allergies) ? guest.allergies : [],
+        allergyOther: guest?.allergyOther ?? "",
       }));
       const { error: guestError } = await supabase
         .from("vip_visitor_guests")
@@ -270,18 +278,49 @@ export async function POST(request) {
       if (guestError) {
         await rollback();
         const msg = String(guestError.message ?? "");
-        if (msg.includes('column "company"')) {
+        if (msg.includes('column "prefix"') || msg.includes('column "halal"') || msg.includes('column "allergies"')) {
           return NextResponse.json(
             {
               success: false,
               error:
-                'ฐานข้อมูลยังไม่มีคอลัมน์ company กรุณาเพิ่มคอลัมน์ company (text) ในตาราง vip_visitor_guests ก่อน',
+                'ฐานข้อมูลยังไม่มีคอลัมน์ใหม่ของผู้เข้าร่วม กรุณาเพิ่มคอลัมน์ prefix (text), halal (boolean), vegan (boolean), allergies (text[]), allergyOther (text) ในตาราง vip_visitor_guests ก่อน',
             },
             { status: 500 }
           );
         }
         return NextResponse.json(
           { success: false, error: guestError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (internalAttendees.length > 0) {
+      const internalRows = internalAttendees.map((attendee, index) => ({
+        visitorId,
+        sortIndex: index,
+        firstName: attendee?.firstName ?? "",
+        lastName: attendee?.lastName ?? "",
+        position: attendee?.position ?? "",
+      }));
+      const { error: internalError } = await supabase
+        .from("vip_visitor_internal_attendees")
+        .insert(internalRows);
+      if (internalError) {
+        await rollback();
+        const msg = String(internalError.message ?? "");
+        if (msg.includes('relation "vip_visitor_internal_attendees"')) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "ฐานข้อมูลยังไม่มีตาราง vip_visitor_internal_attendees กรุณาสร้างตารางสำหรับผู้เข้าร่วมภายในก่อน",
+            },
+            { status: 500 }
+          );
+        }
+        return NextResponse.json(
+          { success: false, error: internalError.message },
           { status: 500 }
         );
       }
@@ -301,6 +340,30 @@ export async function POST(request) {
         await rollback();
         return NextResponse.json(
           { success: false, error: carError.message },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (transportType === "shuttle" && shuttleSchedules.length > 0) {
+      const { error: shuttleError } = await supabase
+        .from("vip_visitor_shuttle")
+        .insert([{ visitorId, schedules: shuttleSchedules }]);
+      if (shuttleError) {
+        await rollback();
+        const msg = String(shuttleError.message ?? "");
+        if (msg.includes('relation "vip_visitor_shuttle"')) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "ฐานข้อมูลยังไม่มีตาราง vip_visitor_shuttle กรุณาสร้างตารางสำหรับเก็บกำหนดการรถรับ-ส่งก่อน",
+            },
+            { status: 500 }
+          );
+        }
+        return NextResponse.json(
+          { success: false, error: shuttleError.message },
           { status: 500 }
         );
       }
@@ -345,14 +408,25 @@ export async function POST(request) {
       }
     }
 
-    if (presentationFile) {
-      const { error: presentationFileError } = await supabase
-        .from("vip_visitor_presentation_file")
-        .insert([{ visitorId, presentationFile }]);
-      if (presentationFileError) {
+    if (registrationFile) {
+      const { error: registrationFileError } = await supabase
+        .from("vip_visitor_registration_file")
+        .insert([{ visitorId, registrationFile }]);
+      if (registrationFileError) {
         await rollback();
+        const msg = String(registrationFileError.message ?? "");
+        if (msg.includes('column "registrationFile"')) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                'ฐานข้อมูลยังไม่มีคอลัมน์ registrationFile กรุณาเพิ่มคอลัมน์ registrationFile (jsonb) ในตาราง vip_visitor_registration_file ก่อน',
+            },
+            { status: 500 }
+          );
+        }
         return NextResponse.json(
-          { success: false, error: presentationFileError.message },
+          { success: false, error: registrationFileError.message },
           { status: 500 }
         );
       }
@@ -366,7 +440,6 @@ export async function POST(request) {
     const securityEmail = process.env.SECURITY_EMAIL;
     const housekeepingEmail = process.env.HOUSEKEEPING_EMAIL;
     const managerEmail = process.env.MANAGER_EMAIL;
-    const hostEmailMapRaw = process.env.HOST_EMAIL_MAP;
 
     const missing = [];
     if (!smtpHost) missing.push("SMTP_HOST");
@@ -395,8 +468,8 @@ export async function POST(request) {
     const transportTypeText =
       transportType === "personal"
         ? "รถส่วนตัว"
-        : transportType === "public"
-          ? "รถสาธารณะ"
+        : transportType === "shuttle"
+          ? "รถรับ-ส่ง"
           : "-";
     const yesNo = (value) => (value ? "ต้องการ" : "ไม่ต้องการ");
     const visitDateTime = formatDateTime(data.visitDateTime);
@@ -429,6 +502,10 @@ export async function POST(request) {
     const siteVisitApproverText =
       svAreas.length > 0
         ? `${svApproverName || "-"} / ${svApproverPosition || "-"}`
+        : "-";
+    const welcomeMessageText =
+      typeof data.welcomeMessage === "string" && data.welcomeMessage.trim()
+        ? data.welcomeMessage.trim()
         : "-";
 
     const sp = souvenirPreferences;
@@ -520,6 +597,17 @@ export async function POST(request) {
             )
             .join("\n")
         : "-";
+    const shuttleSchedulesText =
+      shuttleSchedules.length > 0
+        ? shuttleSchedules
+            .map(
+              (item, index) =>
+                `- รายการที่ ${index + 1}: ${item?.date ?? "-"} ${item?.time ?? "-"} | ${
+                  item?.pickup ?? "-"
+                } -> ${item?.destination ?? "-"}`
+            )
+            .join("\n")
+        : "-";
 
     const guestsText =
       guests.length > 0
@@ -537,6 +625,19 @@ export async function POST(request) {
               return `- คนที่ ${index + 1}: ${fullName || "-"} / ${
                 company || "-"
               } / ${guest?.position ?? "-"} / ${guest?.nationality ?? "-"}`;
+            })
+            .join("\n")
+        : "-";
+    const internalAttendeesText =
+      internalAttendees.length > 0
+        ? internalAttendees
+            .map((attendee, index) => {
+              const fullName = [attendee?.firstName, attendee?.lastName]
+                .filter(Boolean)
+                .join(" ");
+              return `- คนที่ ${index + 1}: ${fullName || "-"} / ${
+                attendee?.position ?? "-"
+              }`;
             })
             .join("\n")
         : "-";
@@ -571,22 +672,6 @@ export async function POST(request) {
       },
     });
 
-    let hostEmailMap = null;
-    if (hostEmailMapRaw && String(hostEmailMapRaw).trim()) {
-      try {
-        const parsed = JSON.parse(String(hostEmailMapRaw));
-        if (parsed && typeof parsed === "object") {
-          hostEmailMap = parsed;
-        }
-      } catch {}
-    }
-
-    const hostName = String(data.hostName ?? "").trim();
-    const hostEmail =
-      hostEmailMap && hostName && typeof hostEmailMap[hostName] === "string"
-        ? String(hostEmailMap[hostName]).trim()
-        : "";
-
     const sbName =
       submittedBy && typeof submittedBy.name === "string"
         ? submittedBy.name.trim()
@@ -599,47 +684,10 @@ export async function POST(request) {
       ? `${sbName} / ${sbPosition || "-"}`
       : "-";
 
-    const exType =
-      executiveHost && typeof executiveHost.type === "string"
-        ? executiveHost.type
-        : "";
-    const executiveHostText = (() => {
-      if (exType === "other") {
-        const firstName =
-          typeof executiveHost.firstName === "string"
-            ? executiveHost.firstName.trim()
-            : "";
-        const middleName =
-          typeof executiveHost.middleName === "string"
-            ? executiveHost.middleName.trim()
-            : "";
-        const lastName =
-          typeof executiveHost.lastName === "string"
-            ? executiveHost.lastName.trim()
-            : "";
-        const position =
-          typeof executiveHost.position === "string"
-            ? executiveHost.position.trim()
-            : "";
-        const fullName = [firstName, middleName, lastName]
-          .filter(Boolean)
-          .join(" ");
-        if (!fullName && !position) return "-";
-        return `${fullName || "-"} / ${position || "-"}`;
-      }
-
-      const presetName =
-        executiveHost && typeof executiveHost.name === "string"
-          ? executiveHost.name.trim()
-          : "";
-      return presetName || "-";
-    })();
-
     const housekeepingText = [
       "แจ้งงานสำหรับแม่บ้าน",
-      `เข้ามาพบ: ${data.hostName ?? "-"}`,
-      `ผู้บริหารต้อนรับ: ${executiveHostText}`,
-      `หัวข้อ: ${data.visitTopic ?? "-"}`,
+      `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
+      `ข้อความ Welcome board: ${welcomeMessageText}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
       `มื้ออาหาร: ${meals}`,
@@ -649,62 +697,35 @@ export async function POST(request) {
       `การเข้าชม: ${siteVisitText}`,
       `ผู้อนุญาต: ${siteVisitApproverText}`,
       `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
+      `ผู้เข้าร่วมภายใน:\n${internalAttendeesText}`,
       `ของที่ระลึก: ${souvenirText}`,
       `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
       `ผู้กรอกฟอร์ม: ${submittedByText}`,
     ].join("\n");
 
     const managerText = [
-      "แจ้งการเข้าพบแขก VIP",
+      "แจ้งการเข้าพบผู้เข้าเยี่ยมชม",
       `เวลาแจ้ง: ${submittedAt}`,
-      `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
-      `บริษัทแขก VIP: ${data.vipCompany ?? "-"}`,
-      `สัญชาติ: ${data.nationality ?? "-"}`,
+      `ชื่อบริษัทที่เชิญมา: ${data.clientCompany ?? "-"}`,
+      `ที่อยู่บริษัทที่เชิญมา: ${data.companyAddress ?? "-"}`,
+      `ประเทศของบริษัทที่เชิญมา: ${data.country ?? "-"}`,
+      `ประเภทผู้เข้าเยี่ยมชม: ${data.visitorType ?? "-"}${data.visitorTypeOther ? ` - ${data.visitorTypeOther}` : ""}`,
       `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
       `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
-      `เข้ามาพบ: ${data.hostName ?? "-"}`,
-      `หัวข้อ: ${data.visitTopic ?? "-"}`,
-      `รายละเอียด: ${data.visitDetail ?? "-"}`,
+      `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
+      `ข้อความ Welcome board: ${welcomeMessageText}`,
       `รายชื่อผู้เข้าร่วม:\n${guestsText}`,
+      `ผู้เข้าร่วมภายใน:\n${internalAttendeesText}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการห้องประชุม: ${meetingRoomText}`,
       `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
       `การเข้าชม: ${siteVisitText}`,
       `ผู้อนุญาต: ${siteVisitApproverText}`,
-      `ผู้บริหารต้อนรับ: ${executiveHostText}`,
       `ประเภทรถ: ${transportTypeText}`,
       `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
       `ข้อมูลรถ:\n${carsText}`,
+      `กำหนดการรถรับ-ส่ง:\n${shuttleSchedulesText}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
-      `มื้ออาหาร: ${meals}`,
-      `เมนู: \n${foodMenuText}`,
-      `อาหารพิเศษ: ${specialDietText}`,
-      `แพ้อาหาร: ${allergyText}`,
-      `ของที่ระลึก: ${souvenirText}`,
-      `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
-      `ผู้กรอกฟอร์ม: ${submittedByText}`,
-    ].join("\n");
-
-    const hostText = [
-      "แจ้งการเข้าพบ (ผู้ถูกเข้าพบ)",
-      `เวลาแจ้ง: ${submittedAt}`,
-      `เข้ามาพบ: ${data.hostName ?? "-"}`,
-      `หัวข้อ: ${data.visitTopic ?? "-"}`,
-      `รายละเอียด: ${data.visitDetail ?? "-"}`,
-      `เวลาที่มาถึง: ${visitDateTime}`,
-      `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
-      `บริษัทแขก VIP: ${data.vipCompany ?? "-"}`,
-      `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
-      `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
-      `รายชื่อผู้เข้าร่วม:\n${guestsText}`,
-      `ประเภทรถ: ${transportTypeText}`,
-      `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
-      `ข้อมูลรถ:\n${carsText}`,
-      `ต้องการห้องประชุม: ${meetingRoomText}`,
-      `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
-      `การเข้าชม: ${siteVisitText}`,
-      `ผู้อนุญาต: ${siteVisitApproverText}`,
-      `ผู้บริหารต้อนรับ: ${executiveHostText}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
       `มื้ออาหาร: ${meals}`,
       `เมนู: \n${foodMenuText}`,
@@ -719,40 +740,27 @@ export async function POST(request) {
       transporter.sendMail({
         from: emailFrom,
         to: housekeepingEmail,
-        subject: "แจ้งการเข้าพบ VIP (แม่บ้าน)",
+        subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (แม่บ้าน)",
         text: housekeepingText,
       }),
       transporter.sendMail({
         from: emailFrom,
         to: managerEmail,
-        subject: "แจ้งการเข้าพบ VIP (ผู้จัดการ)",
+        subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ผู้จัดการ)",
         text: managerText,
       }),
     ];
 
-    if (hostEmail) {
-      mailTasks.push(
-        transporter.sendMail({
-          from: emailFrom,
-          to: hostEmail,
-          subject: "แจ้งการเข้าพบ VIP (ผู้ถูกเข้าพบ)",
-          text: hostText,
-        })
-      );
-    }
-
     if (shouldSendSecurity) {
       const securityText = [
-        "แจ้งการเข้าพบแขก VIP (รถส่วนตัว)",
-        `เข้ามาพบ: ${data.hostName ?? "-"}`,
-        `ผู้บริหารต้อนรับ: ${executiveHostText}`,
-        `หัวข้อ: ${data.visitTopic ?? "-"}`,
+        "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (รถส่วนตัว)",
+        `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
         `เวลาที่มาถึง: ${visitDateTime}`,
         `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
         `ข้อมูลรถ:\n${carsText}`,
         `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
         `ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
-        `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
+        `ชื่อบริษัทที่เชิญมา: ${data.clientCompany ?? "-"}`,
         `ผู้กรอกฟอร์ม: ${submittedByText}`,
       ].join("\n");
 
@@ -760,7 +768,7 @@ export async function POST(request) {
         transporter.sendMail({
           from: emailFrom,
           to: securityEmail,
-          subject: "แจ้งการเข้าพบ VIP (ยาม)",
+          subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ยาม)",
           text: securityText,
         })
       );

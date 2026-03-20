@@ -44,6 +44,20 @@ const guestSummary = (items) => {
   return text.length > 220 ? `${text.slice(0, 220)}…` : text;
 };
 
+const internalAttendeeSummary = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return "-";
+  const parts = items
+    .map((g, index) => {
+      const fullName = [asText(g.firstName), asText(g.lastName)].filter(Boolean).join(" ");
+      const position = asText(g.position);
+      const line = [fullName, position].filter(Boolean).join(" / ");
+      return line || `คนที่ ${index + 1}`;
+    })
+    .filter(Boolean);
+  const text = parts.join(", ");
+  return text.length > 220 ? `${text.slice(0, 220)}…` : text;
+};
+
 const carSummary = (items) => {
   if (!Array.isArray(items) || items.length === 0) return "-";
   const parts = items
@@ -52,6 +66,24 @@ const carSummary = (items) => {
       const license = asText(c.license);
       const line = [brand, license].filter(Boolean).join(" / ");
       return line || `คันที่ ${index + 1}`;
+    })
+    .filter(Boolean);
+  const text = parts.join(", ");
+  return text.length > 220 ? `${text.slice(0, 220)}…` : text;
+};
+
+const shuttleSummary = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return "-";
+  const parts = items
+    .map((s, index) => {
+      const date = asText(s.date);
+      const time = asText(s.time);
+      const pickup = asText(s.pickup);
+      const destination = asText(s.destination);
+      const line = [date, time, pickup && destination ? `${pickup} -> ${destination}` : ""]
+        .filter(Boolean)
+        .join(" | ");
+      return line || `รายการที่ ${index + 1}`;
     })
     .filter(Boolean);
   const text = parts.join(", ");
@@ -70,6 +102,8 @@ export async function POST(request) {
     const data = isRecord(body?.data) ? body.data : null;
     const guests = Array.isArray(body?.guests) ? body.guests : null;
     const cars = Array.isArray(body?.cars) ? body.cars : null;
+    const internalAttendees = Array.isArray(body?.internalAttendees) ? body.internalAttendees : null;
+    const shuttleSchedules = Array.isArray(body?.shuttleSchedules) ? body.shuttleSchedules : null;
     const foodPreferences = body?.foodPreferences === null ? null : isRecord(body?.foodPreferences) ? body.foodPreferences : undefined;
     const siteVisit = body?.siteVisit === null ? null : isRecord(body?.siteVisit) ? body.siteVisit : undefined;
     const souvenirPreferences =
@@ -85,16 +119,16 @@ export async function POST(request) {
     const updatePayload = {};
     const allowedKeys = [
       "clientCompany",
-      "vipCompany",
-      "nationality",
+      "companyAddress",
+      "country",
+      "visitorType",
+      "visitorTypeOther",
       "contactPhone",
-      "visitTopic",
-      "visitDetail",
+      "purposeOfVisit",
+      "welcomeMessage",
       "visitDateTime",
       "meetingRoomSelection",
       "transportType",
-      "hostName",
-      "executiveHost",
       "submittedBy",
       "status",
     ];
@@ -108,20 +142,24 @@ export async function POST(request) {
     const { data: beforeRow } = await supabase
       .from("vip_visitor")
       .select(
-        "id,status,visitDateTime,vipCompany,clientCompany,nationality,contactPhone,visitTopic,visitDetail,meetingRoomSelection,transportType,hostName,executiveHost,submittedBy"
+        "id,status,visitDateTime,clientCompany,companyAddress,country,visitorType,visitorTypeOther,contactPhone,purposeOfVisit,welcomeMessage,meetingRoomSelection,transportType,submittedBy"
       )
       .eq("id", id)
       .maybeSingle();
 
     const shouldLoadGuests = Array.isArray(guests);
+    const shouldLoadInternalAttendees = Array.isArray(internalAttendees);
     const shouldLoadCars = Array.isArray(cars);
+    const shouldLoadShuttle = Array.isArray(shuttleSchedules);
     const shouldLoadFood = foodPreferences !== undefined;
     const shouldLoadSiteVisit = siteVisit !== undefined;
     const shouldLoadSouvenir = souvenirPreferences !== undefined;
 
     const [
       { data: beforeGuestRows },
+      { data: beforeInternalRows },
       { data: beforeCarRows },
+      { data: beforeShuttleRow },
       { data: beforeFoodRow },
       { data: beforeSiteVisitRow },
       { data: beforeSouvenirRow },
@@ -133,12 +171,22 @@ export async function POST(request) {
             .eq("visitorId", id)
             .order("sortIndex", { ascending: true })
         : Promise.resolve({ data: null }),
+      shouldLoadInternalAttendees
+        ? supabase
+            .from("vip_visitor_internal_attendees")
+            .select("sortIndex,firstName,lastName,position")
+            .eq("visitorId", id)
+            .order("sortIndex", { ascending: true })
+        : Promise.resolve({ data: null }),
       shouldLoadCars
         ? supabase
             .from("vip_visitor_cars")
             .select("sortIndex,brand,license")
             .eq("visitorId", id)
             .order("sortIndex", { ascending: true })
+        : Promise.resolve({ data: null }),
+      shouldLoadShuttle
+        ? supabase.from("vip_visitor_shuttle").select("schedules").eq("visitorId", id).maybeSingle()
         : Promise.resolve({ data: null }),
       shouldLoadFood ? supabase.from("vip_visitor_food").select("foodPreferences").eq("visitorId", id).maybeSingle() : Promise.resolve({ data: null }),
       shouldLoadSiteVisit ? supabase.from("vip_visitor_site_visit").select("siteVisit").eq("visitorId", id).maybeSingle() : Promise.resolve({ data: null }),
@@ -193,7 +241,7 @@ export async function POST(request) {
       .update(updatePayload)
       .eq("id", id)
       .select(
-        "id,status,visitDateTime,vipCompany,clientCompany,nationality,contactPhone,visitTopic,visitDetail,meetingRoomSelection,transportType,hostName,executiveHost,submittedBy"
+        "id,status,visitDateTime,clientCompany,companyAddress,country,visitorType,visitorTypeOther,contactPhone,purposeOfVisit,welcomeMessage,meetingRoomSelection,transportType,submittedBy"
       )
       .single();
 
@@ -214,17 +262,45 @@ export async function POST(request) {
       const rows = guests.map((g, index) => ({
         visitorId,
         sortIndex: index,
+        prefix: typeof g?.prefix === "string" ? g.prefix : "",
         firstName: typeof g?.firstName === "string" ? g.firstName : "",
         middleName: typeof g?.middleName === "string" ? g.middleName : "",
         lastName: typeof g?.lastName === "string" ? g.lastName : "",
-        company: typeof g?.company === "string" ? g.company : "",
         position: typeof g?.position === "string" ? g.position : "",
-        nationality: typeof g?.nationality === "string" ? g.nationality : "",
+        halal: typeof g?.halal === "boolean" ? g.halal : false,
+        vegan: typeof g?.vegan === "boolean" ? g.vegan : false,
+        allergies: Array.isArray(g?.allergies) ? g.allergies.filter(Boolean) : [],
+        allergyOther: typeof g?.allergyOther === "string" ? g.allergyOther : "",
       }));
       if (rows.length > 0) {
         const { error: insGuestError } = await supabase.from("vip_visitor_guests").insert(rows);
         if (insGuestError) {
           return NextResponse.json({ success: false, error: insGuestError.message }, { status: 500 });
+        }
+      }
+    }
+
+    if (internalAttendees) {
+      const { error: delInternalError } = await supabase
+        .from("vip_visitor_internal_attendees")
+        .delete()
+        .eq("visitorId", visitorId);
+      if (delInternalError) {
+        return NextResponse.json({ success: false, error: delInternalError.message }, { status: 500 });
+      }
+      const rows = internalAttendees.map((a, index) => ({
+        visitorId,
+        sortIndex: index,
+        firstName: typeof a?.firstName === "string" ? a.firstName : "",
+        lastName: typeof a?.lastName === "string" ? a.lastName : "",
+        position: typeof a?.position === "string" ? a.position : "",
+      }));
+      if (rows.length > 0) {
+        const { error: insInternalError } = await supabase
+          .from("vip_visitor_internal_attendees")
+          .insert(rows);
+        if (insInternalError) {
+          return NextResponse.json({ success: false, error: insInternalError.message }, { status: 500 });
         }
       }
     }
@@ -244,6 +320,21 @@ export async function POST(request) {
         const { error: insCarError } = await supabase.from("vip_visitor_cars").insert(rows);
         if (insCarError) {
           return NextResponse.json({ success: false, error: insCarError.message }, { status: 500 });
+        }
+      }
+    }
+
+    if (shuttleSchedules !== null) {
+      const { error: delShuttleError } = await supabase.from("vip_visitor_shuttle").delete().eq("visitorId", visitorId);
+      if (delShuttleError) {
+        return NextResponse.json({ success: false, error: delShuttleError.message }, { status: 500 });
+      }
+      if (shuttleSchedules.length > 0) {
+        const { error: insShuttleError } = await supabase
+          .from("vip_visitor_shuttle")
+          .insert([{ visitorId, schedules: shuttleSchedules }]);
+        if (insShuttleError) {
+          return NextResponse.json({ success: false, error: insShuttleError.message }, { status: 500 });
         }
       }
     }
@@ -321,6 +412,29 @@ export async function POST(request) {
         changes.push({ field: "guests", from: guestSummary(beforeGuests), to: guestSummary(afterGuests) });
       }
     }
+    if (shouldLoadInternalAttendees) {
+      const beforeInternal = Array.isArray(beforeInternalRows)
+        ? beforeInternalRows.map((g) => ({
+            firstName: asText(g?.firstName),
+            lastName: asText(g?.lastName),
+            position: asText(g?.position),
+          }))
+        : [];
+      const afterInternal = Array.isArray(internalAttendees)
+        ? internalAttendees.map((g) => ({
+            firstName: asText(g?.firstName),
+            lastName: asText(g?.lastName),
+            position: asText(g?.position),
+          }))
+        : [];
+      if (!valuesEqual(beforeInternal, afterInternal)) {
+        changes.push({
+          field: "internalAttendees",
+          from: internalAttendeeSummary(beforeInternal),
+          to: internalAttendeeSummary(afterInternal),
+        });
+      }
+    }
     if (shouldLoadCars) {
       const beforeCars = Array.isArray(beforeCarRows)
         ? beforeCarRows.map((c) => ({
@@ -336,6 +450,15 @@ export async function POST(request) {
         : [];
       if (!valuesEqual(beforeCars, afterCars)) {
         changes.push({ field: "cars", from: carSummary(beforeCars), to: carSummary(afterCars) });
+      }
+    }
+    if (shouldLoadShuttle) {
+      const beforeSchedules = isRecord(beforeShuttleRow) && Array.isArray(beforeShuttleRow.schedules)
+        ? beforeShuttleRow.schedules
+        : [];
+      const afterSchedules = Array.isArray(shuttleSchedules) ? shuttleSchedules : [];
+      if (!valuesEqual(beforeSchedules, afterSchedules)) {
+        changes.push({ field: "shuttleSchedules", from: shuttleSummary(beforeSchedules), to: shuttleSummary(afterSchedules) });
       }
     }
     if (shouldLoadFood) {

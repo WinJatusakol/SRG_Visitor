@@ -4,16 +4,19 @@ import Image from "next/image";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type TransportType = "personal" | "public";
+type TransportType = "personal" | "shuttle";
 type YesNo = "yes" | "no";
 
 type Guest = {
+  prefix: string;
   firstName: string;
   middleName: string;
   lastName: string;
-  company: string;
   position: string;
-  nationality: string;
+  halal: boolean;
+  vegan: boolean;
+  allergies: string[];
+  allergyOther: string;
 };
 
 type Car = {
@@ -21,25 +24,43 @@ type Car = {
   license: string;
 };
 
+type InternalAttendee = {
+  firstName: string;
+  lastName: string;
+  position: string;
+};
+
+type ShuttleSchedule = {
+  date: string;
+  pickup: string;
+  destination: string;
+  time: string;
+};
+
 type VisitFormState = {
   clientCompany: string;
-  vipCompany: string;
-  nationality: string;
-  contactPhone: string;
+  companyAddress: string;
+  country: string;
+  visitorType: string;
+  visitorTypeOther: string;
   totalGuests: string;
   guests: Guest[];
-  visitTopic: string;
-  visitDetail: string;
+  purposeOfVisit: string;
+  welcomeMessage: string;
+  internalAttendeeCount: string;
+  internalAttendees: InternalAttendee[];
   visitDate: string;
   visitTime: string;
   meetingRoom: YesNo | "";
   meetingRoomSelection: string;
   siteVisitAreas: string[];
+  siteVisitAffiliateCompanies: string[];
   siteVisitApproverName: string;
   siteVisitApproverPosition: string;
   transportType: TransportType | "";
   carCount: string;
   cars: Car[];
+  shuttleSchedules: ShuttleSchedule[];
   foodRequired: YesNo | "";
   meals: string[];
   breakfastMenu: string;
@@ -52,21 +73,15 @@ type VisitFormState = {
   dinnerMenuOther: string;
   dinnerDessert: string;
   dinnerDessertOther: string;
-  halalEnabled: boolean;
-  halalCount: string;
-  veganEnabled: boolean;
-  veganCount: string;
-  allergies: string[];
-  allergyOther: string;
   souvenir: YesNo | "";
   souvenirGiftSet: string;
   souvenirGiftSetCount: string;
   souvenirExtra: string;
   submittedByName: string;
   submittedByPosition: string;
-  hostName: string;
-  executiveHostChoice: string;
+  submittedByPhone: string;
 };
+
 
 type DialogType = "success" | "error";
 
@@ -109,17 +124,33 @@ for (let hour = 6; hour <= 21; hour += 1) {
 
 
 const createEmptyGuest = (): Guest => ({
+  prefix: "",
   firstName: "",
   middleName: "",
   lastName: "",
-  company: "",
   position: "",
-  nationality: "",
+  halal: false,
+  vegan: false,
+  allergies: [],
+  allergyOther: "",
 });
 
 const createEmptyCar = (): Car => ({
   brand: "",
   license: "",
+});
+
+const createEmptyInternalAttendee = (): InternalAttendee => ({
+  firstName: "",
+  lastName: "",
+  position: "",
+});
+
+const createEmptyShuttleSchedule = (): ShuttleSchedule => ({
+  date: "",
+  pickup: "",
+  destination: "",
+  time: "",
 });
 
 const THAI_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -132,23 +163,28 @@ const buildVisitDateTimeIso = (date: string, time: string) => {
 
 const initialState: VisitFormState = {
   clientCompany: "",
-  vipCompany: "",
-  nationality: "",
-  contactPhone: "",
+  companyAddress: "",
+  country: "",
+  visitorType: "",
+  visitorTypeOther: "",
   totalGuests: "",
   guests: [],
-  visitTopic: "",
-  visitDetail: "",
+  purposeOfVisit: "",
+  welcomeMessage: "Warmly welcome (Mr. A / Company name)",
+  internalAttendeeCount: "",
+  internalAttendees: [],
   visitDate: "",
   visitTime: "",
   meetingRoom: "",
   meetingRoomSelection: "",
   siteVisitAreas: [],
+  siteVisitAffiliateCompanies: [],
   siteVisitApproverName: "",
   siteVisitApproverPosition: "",
   transportType: "",
   carCount: "",
   cars: [],
+  shuttleSchedules: [],
   foodRequired: "",
   meals: [],
   breakfastMenu: "",
@@ -161,26 +197,19 @@ const initialState: VisitFormState = {
   dinnerMenuOther: "",
   dinnerDessert: "",
   dinnerDessertOther: "",
-  halalEnabled: false,
-  halalCount: "",
-  veganEnabled: false,
-  veganCount: "",
-  allergies: [],
-  allergyOther: "",
   souvenir: "",
   souvenirGiftSet: "",
   souvenirGiftSetCount: "",
   souvenirExtra: "",
   submittedByName: "",
   submittedByPosition: "",
-  hostName: "",
-  executiveHostChoice: "",
+  submittedByPhone: "",
 };
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>("th");
   const [form, setForm] = useState<VisitFormState>(initialState);
-  const [presentationFile, setPresentationFile] = useState<File | null>(null);
+  const [registrationFile, setRegistrationFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [dialog, setDialog] = useState<DialogState>({
     open: false,
@@ -189,10 +218,9 @@ export default function Home() {
   });
   const minVisitDate = new Date().toISOString().split("T")[0];
 
-  const [hostOptions, setHostOptions] = useState<RefOptionRow[]>([]);
-  const [executiveHostOptions, setExecutiveHostOptions] = useState<RefOptionRow[]>([]);
   const [meetingRoomOptions, setMeetingRoomOptions] = useState<MeetingRoomRow[]>([]);
   const [siteVisitAreaOptions, setSiteVisitAreaOptions] = useState<RefOptionRow[]>([]);
+  const [affiliateCompanyOptions, setAffiliateCompanyOptions] = useState<RefOptionRow[]>([]);
   const [souvenirGiftSetOptions, setSouvenirGiftSetOptions] = useState<RefOptionRow[]>([]);
   const [breakfastMenuOptions, setBreakfastMenuOptions] = useState<RefOptionRow[]>([]);
   const [lunchMenuOptions, setLunchMenuOptions] = useState<RefOptionRow[]>([]);
@@ -235,20 +263,8 @@ export default function Home() {
   useEffect(() => {
     const supabase = createClient();
     const load = async () => {
-      const [hosts, executives, rooms, areas, giftSets, foodMenus, allergies] =
+      const [rooms, siteAreas, affiliateCompanies, giftSets, foodMenus, allergies] =
         await Promise.all([
-          supabase
-            .from("hosts")
-            .select("value,label_th,label_en,sort_index,active")
-            .eq("active", true)
-            .order("sort_index", { ascending: true })
-            .order("value", { ascending: true }),
-          supabase
-            .from("executive_hosts")
-            .select("value,label_th,label_en,sort_index,active")
-            .eq("active", true)
-            .order("sort_index", { ascending: true })
-            .order("value", { ascending: true }),
           supabase
             .from("meeting_rooms")
             .select(
@@ -259,6 +275,12 @@ export default function Home() {
             .order("code", { ascending: true }),
           supabase
             .from("site_visit_areas")
+            .select("value,label_th,label_en,sort_index,active")
+            .eq("active", true)
+            .order("sort_index", { ascending: true })
+            .order("value", { ascending: true }),
+          supabase
+            .from("affiliate_companies")
             .select("value,label_th,label_en,sort_index,active")
             .eq("active", true)
             .order("sort_index", { ascending: true })
@@ -284,19 +306,18 @@ export default function Home() {
             .order("value", { ascending: true }),
         ]);
 
-      setHostOptions(
-        !hosts.error && Array.isArray(hosts.data) ? (hosts.data as RefOptionRow[]) : []
-      );
-      setExecutiveHostOptions(
-        !executives.error && Array.isArray(executives.data)
-          ? (executives.data as RefOptionRow[])
-          : []
-      );
       setMeetingRoomOptions(
         !rooms.error && Array.isArray(rooms.data) ? (rooms.data as MeetingRoomRow[]) : []
       );
       setSiteVisitAreaOptions(
-        !areas.error && Array.isArray(areas.data) ? (areas.data as RefOptionRow[]) : []
+        !siteAreas.error && Array.isArray(siteAreas.data)
+          ? (siteAreas.data as RefOptionRow[])
+          : []
+      );
+      setAffiliateCompanyOptions(
+        !affiliateCompanies.error && Array.isArray(affiliateCompanies.data)
+          ? (affiliateCompanies.data as RefOptionRow[])
+          : []
       );
       setSouvenirGiftSetOptions(
         !giftSets.error && Array.isArray(giftSets.data)
@@ -358,7 +379,7 @@ export default function Home() {
       setDinnerMenuOptions(readFoodGroup("dinner_main"));
       setDinnerDessertOptions(readFoodGroup("dinner_dessert"));
 
-      setAllergyOptions(
+      const allergyItems =
         !allergies.error && Array.isArray(allergies.data)
           ? (allergies.data as RefOptionRow[])
               .map((row) => ({
@@ -369,8 +390,8 @@ export default function Home() {
                 active: row.active ?? null,
               }))
               .filter((row) => row.value)
-          : []
-      );
+          : [];
+      setAllergyOptions(sortOtherLast(ensureOtherOption(allergyItems)));
     };
 
     void load();
@@ -384,7 +405,7 @@ export default function Home() {
     const { name } = event.target;
     let { value } = event.target;
 
-    if (name === "contactPhone") {
+    if (name === "submittedByPhone") {
       value = value.replace(/\D/g, "");
     }
 
@@ -404,9 +425,6 @@ export default function Home() {
       });
     }
 
-    if (name === "halalCount" || name === "veganCount") {
-      value = value.replace(/\D/g, "");
-    }
     if (name === "souvenirGiftSetCount") {
       value = value.replace(/\D/g, "");
     }
@@ -452,12 +470,14 @@ export default function Home() {
         dinnerMenuOther: value === "yes" ? prev.dinnerMenuOther : "",
         dinnerDessert: value === "yes" ? prev.dinnerDessert : "",
         dinnerDessertOther: value === "yes" ? prev.dinnerDessertOther : "",
-        halalEnabled: value === "yes" ? prev.halalEnabled : false,
-        halalCount: value === "yes" ? prev.halalCount : "",
-        veganEnabled: value === "yes" ? prev.veganEnabled : false,
-        veganCount: value === "yes" ? prev.veganCount : "",
-        allergies: value === "yes" ? prev.allergies : [],
-        allergyOther: value === "yes" ? prev.allergyOther : "",
+      }));
+    }
+
+    if (name === "visitorType") {
+      return setForm((prev) => ({
+        ...prev,
+        visitorType: value,
+        visitorTypeOther: value === "อื่นๆ" ? prev.visitorTypeOther : "",
       }));
     }
 
@@ -477,6 +497,7 @@ export default function Home() {
         transportType: value as TransportType,
         carCount: value === "personal" ? prev.carCount : "",
         cars: value === "personal" ? prev.cars : [],
+        shuttleSchedules: value === "shuttle" ? prev.shuttleSchedules : [],
       }));
     }
 
@@ -496,9 +517,65 @@ export default function Home() {
       });
     }
 
+    if (name === "internalAttendeeCount") {
+      value = value.replace(/\D/g, "");
+      return setForm((prev) => {
+        const count = Number(value || 0);
+        const nextAttendees = Array.from(
+          { length: Math.max(0, count) },
+          (_, index) => prev.internalAttendees[index] ?? createEmptyInternalAttendee()
+        );
+        return {
+          ...prev,
+          internalAttendeeCount: value,
+          internalAttendees: nextAttendees,
+        };
+      });
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]: value,
+    }));
+  };
+
+  const handleInternalAttendeeChange = (
+    index: number,
+    field: keyof InternalAttendee,
+    value: string
+  ) => {
+    setForm((prev) => {
+      const nextAttendees = prev.internalAttendees.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      );
+      return { ...prev, internalAttendees: nextAttendees };
+    });
+  };
+
+  const handleShuttleScheduleChange = (
+    index: number,
+    field: keyof ShuttleSchedule,
+    value: string
+  ) => {
+    setForm((prev) => {
+      const nextSchedules = prev.shuttleSchedules.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      );
+      return { ...prev, shuttleSchedules: nextSchedules };
+    });
+  };
+
+  const addShuttleSchedule = () => {
+    setForm((prev) => ({
+      ...prev,
+      shuttleSchedules: [...prev.shuttleSchedules, createEmptyShuttleSchedule()],
+    }));
+  };
+
+  const removeShuttleSchedule = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      shuttleSchedules: prev.shuttleSchedules.filter((_, i) => i !== index),
     }));
   };
 
@@ -514,43 +591,22 @@ export default function Home() {
       return {
         ...prev,
         siteVisitAreas: nextAreas,
+        siteVisitAffiliateCompanies:
+          value === "บริษัทในเครือ" ? [] : prev.siteVisitAffiliateCompanies,
         siteVisitApproverName: nextAreas.length > 0 ? prev.siteVisitApproverName : "",
         siteVisitApproverPosition: nextAreas.length > 0 ? prev.siteVisitApproverPosition : "",
       };
     });
   };
 
-  const handleDietToggle = (key: "halal" | "vegan") => {
+  const handleAffiliateCompanyChange = (company: string, checked: boolean) => {
     setForm((prev) => {
-      if (key === "halal") {
-        const nextEnabled = !prev.halalEnabled;
-        return {
-          ...prev,
-          halalEnabled: nextEnabled,
-          halalCount: nextEnabled ? prev.halalCount : "",
-        };
-      }
-      const nextEnabled = !prev.veganEnabled;
-      return {
-        ...prev,
-        veganEnabled: nextEnabled,
-        veganCount: nextEnabled ? prev.veganCount : "",
-      };
-    });
-  };
-
-  const handleAllergyChange = (value: string, checked: boolean) => {
-    setForm((prev) => {
-      const next = checked
-        ? prev.allergies.includes(value)
-          ? prev.allergies
-          : [...prev.allergies, value]
-        : prev.allergies.filter((item) => item !== value);
-      return {
-        ...prev,
-        allergies: next,
-        allergyOther: next.includes("อื่นๆ") ? prev.allergyOther : "",
-      };
+      const nextCompanies = checked
+        ? prev.siteVisitAffiliateCompanies.includes(company)
+          ? prev.siteVisitAffiliateCompanies
+          : [...prev.siteVisitAffiliateCompanies, company]
+        : prev.siteVisitAffiliateCompanies.filter((item) => item !== company);
+      return { ...prev, siteVisitAffiliateCompanies: nextCompanies };
     });
   };
 
@@ -563,6 +619,42 @@ export default function Home() {
       const nextGuests = prev.guests.map((guest, i) =>
         i === index ? { ...guest, [field]: value } : guest
       );
+      return { ...prev, guests: nextGuests };
+    });
+  };
+
+  const handleGuestDietChange = (
+    index: number,
+    field: "halal" | "vegan",
+    checked: boolean
+  ) => {
+    setForm((prev) => {
+      const nextGuests = prev.guests.map((guest, i) =>
+        i === index ? { ...guest, [field]: checked } : guest
+      );
+      return { ...prev, guests: nextGuests };
+    });
+  };
+
+  const handleGuestAllergyChange = (
+    index: number,
+    value: string,
+    checked: boolean
+  ) => {
+    setForm((prev) => {
+      const nextGuests = prev.guests.map((guest, i) => {
+        if (i !== index) return guest;
+        const nextAllergies = checked
+          ? guest.allergies.includes(value)
+            ? guest.allergies
+            : [...guest.allergies, value]
+          : guest.allergies.filter((item) => item !== value);
+        return {
+          ...guest,
+          allergies: nextAllergies,
+          allergyOther: nextAllergies.includes("อื่นๆ") ? guest.allergyOther : "",
+        };
+      });
       return { ...prev, guests: nextGuests };
     });
   };
@@ -603,34 +695,32 @@ export default function Home() {
 
   const validate = () => {
     const messages: string[] = [];
-    const maxPresentationFileSize = 10 * 1024 * 1024;
+    const maxRegistrationFileSize = 10 * 1024 * 1024;
 
     if (!form.clientCompany.trim()) {
       messages.push(
         t(
-          "กรุณากรอกบริษัทของคุณ",
-          "Please enter your company."
+          "กรุณากรอกชื่อบริษัทที่เชิญมา",
+          "Please enter the invited company name."
         )
       );
     }
-    if (!form.vipCompany.trim()) {
+    if (!form.companyAddress.trim()) {
       messages.push(
         t(
-          "กรุณากรอกบริษัทของแขก VIP",
-          "Please enter the VIP guest company."
+          "กรุณากรอกที่อยู่ของบริษัทที่เชิญมา",
+          "Please enter the invited company address."
         )
       );
     }
-    if (!form.nationality.trim()) {
-      messages.push(t("กรุณากรอกสัญชาติบริษัท", "Please enter the company nationality."));
+    if (!form.country.trim()) {
+      messages.push(t("กรุณากรอกประเทศของบริษัทที่เชิญมา", "Please enter the invited company country."));
     }
-    if (!form.contactPhone.trim()) {
-      messages.push(
-        t(
-          "กรุณากรอกเบอร์ผู้ประสานงาน",
-          "Please enter the contact phone number."
-        )
-      );
+    if (!form.visitorType.trim()) {
+      messages.push(t("กรุณาเลือกประเภทผู้เข้าเยี่ยมชม", "Please select the visitor type."));
+    }
+    if (form.visitorType === "อื่นๆ" && !form.visitorTypeOther.trim()) {
+      messages.push(t("กรุณาระบุประเภทผู้เข้าเยี่ยมชมอื่นๆ", "Please specify the visitor type."));
     }
     if (!form.totalGuests.trim()) {
       messages.push(
@@ -677,11 +767,11 @@ export default function Home() {
             )
           );
         }
-        if (!guest.nationality.trim()) {
+        if (guest.allergies.includes("อื่นๆ") && !guest.allergyOther.trim()) {
           messages.push(
             t(
-              `กรุณากรอกสัญชาติผู้เข้าร่วมคนที่ ${index + 1}`,
-              `Please enter attendee #${index + 1} nationality.`
+              `กรุณาระบุการแพ้อาหารผู้เข้าร่วมคนที่ ${index + 1}`,
+              `Please specify attendee #${index + 1} allergy (Other).`
             )
           );
         }
@@ -692,25 +782,26 @@ export default function Home() {
           messages.push(t("กรุณาระบุของหวาน (เย็น) (อื่นๆ)", "Please specify the dinner dessert other menu."));
         }
       }
-    }
-    if (!form.visitTopic.trim()) {
+    if (expectedCount > 20 && !registrationFile) {
       messages.push(
-        t("กรุณากรอกหัวข้อที่จะเข้ามา", "Please enter the visit topic.")
+        t(
+          "หากเกิน 20 คน กรุณาแนบไฟล์ PDF เพื่อลงทะเบียนรายชื่อ",
+          "If more than 20 attendees, please attach a PDF roster."
+        )
       );
     }
-    if (!form.visitDetail.trim()) {
-      messages.push(
-        t("กรุณากรอกรายละเอียด", "Please enter the visit details.")
-      );
+    }
+    if (!form.purposeOfVisit.trim()) {
+      messages.push(t("กรุณากรอกวัตถุประสงค์ในการเข้าพบ", "Please enter the purpose of visit."));
     }
     if (!form.visitDate.trim()) {
       messages.push(
-        t("กรุณาเลือกวันที่มาถึง", "Please select the arrival date.")
+        t("กรุณาเลือกวันที่เข้าเยี่ยมชม", "Please select the arrival date.")
       );
     }
     if (!form.visitTime.trim()) {
       messages.push(
-        t("กรุณาเลือกเวลาที่มาถึง", "Please select the arrival time.")
+        t("กรุณาเลือกเวลาเข้าเยี่ยมชม", "Please select the arrival time.")
       );
     }
     if (form.visitDate && form.visitTime) {
@@ -740,6 +831,17 @@ export default function Home() {
       );
     }
     if (form.siteVisitAreas.length > 0) {
+      if (
+        form.siteVisitAreas.includes("บริษัทในเครือ") &&
+        form.siteVisitAffiliateCompanies.length === 0
+      ) {
+        messages.push(
+          t(
+            "กรุณาเลือกบริษัทในเครืออย่างน้อย 1 แห่ง",
+            "Please select at least one affiliate company."
+          )
+        );
+      }
       if (!form.siteVisitApproverName.trim()) {
         messages.push(
           t(
@@ -802,6 +904,27 @@ export default function Home() {
         }
       }
     }
+    if (form.transportType === "shuttle") {
+      if (form.shuttleSchedules.length === 0) {
+        messages.push(
+          t(
+            "กรุณาเพิ่มกำหนดการรถรับ-ส่งอย่างน้อย 1 รายการ",
+            "Please add at least one shuttle schedule."
+          )
+        );
+      } else {
+        form.shuttleSchedules.forEach((item, index) => {
+          if (!item.date.trim() || !item.pickup.trim() || !item.destination.trim() || !item.time.trim()) {
+            messages.push(
+              t(
+                `กรุณากรอกข้อมูลรถรับ-ส่งวันที่ ${index + 1} ให้ครบ`,
+                `Please complete shuttle schedule #${index + 1}.`
+              )
+            );
+          }
+        });
+      }
+    }
     if (!form.foodRequired) {
       messages.push(
         t(
@@ -858,30 +981,6 @@ export default function Home() {
           );
         }
       }
-      if (form.halalEnabled && Number(form.halalCount || 0) <= 0) {
-        messages.push(
-          t(
-            "กรุณาระบุจำนวนชุดอาหารฮาลาล",
-            "Please specify the number of Halal meal sets."
-          )
-        );
-      }
-      if (form.veganEnabled && Number(form.veganCount || 0) <= 0) {
-        messages.push(
-          t(
-            "กรุณาระบุจำนวนชุดอาหารวีแกน",
-            "Please specify the number of Vegan meal sets."
-          )
-        );
-      }
-      if (form.allergies.includes("อื่นๆ") && !form.allergyOther.trim()) {
-        messages.push(
-          t(
-            "กรุณาระบุรายการแพ้อาหาร (อื่นๆ)",
-            "Please specify allergy item(s) (Other)."
-          )
-        );
-      }
     }
     if (!form.souvenir) {
       messages.push(
@@ -907,19 +1006,6 @@ export default function Home() {
         );
       }
     }
-    if (!form.hostName.trim()) {
-      messages.push(
-        t("กรุณาเลือกผู้ที่จะเข้ามาพบ", "Please select the person to visit.")
-      );
-    }
-    if (!form.executiveHostChoice.trim()) {
-      messages.push(
-        t(
-          "กรุณาเลือกผู้บริหารที่จะมาดูแลต้อนรับแขก",
-          "Please select the welcoming executive."
-        )
-      );
-    }
     if (!form.submittedByName.trim()) {
       messages.push(
         t(
@@ -936,7 +1022,61 @@ export default function Home() {
         )
       );
     }
-    if (presentationFile && presentationFile.size > maxPresentationFileSize) {
+    if (!form.submittedByPhone.trim()) {
+      messages.push(
+        t(
+          "กรุณากรอกเบอร์ผู้ประสานงาน",
+          "Please enter the contact phone number."
+        )
+      );
+    }
+    const internalCount = Number(form.internalAttendeeCount || 0);
+    if (!form.internalAttendeeCount.trim() || internalCount <= 0) {
+      messages.push(
+        t(
+          "กรุณาระบุจำนวนผู้เข้าร่วมภายในองค์กร",
+          "Please enter the number of internal attendees."
+        )
+      );
+    } else {
+      for (let index = 0; index < internalCount; index += 1) {
+        const attendee = form.internalAttendees[index];
+        if (!attendee) {
+          messages.push(
+            t(
+              `กรุณากรอกข้อมูลผู้เข้าร่วมภายในคนที่ ${index + 1} ให้ครบ`,
+              `Please complete internal attendee #${index + 1}.`
+            )
+          );
+          continue;
+        }
+        if (!attendee.firstName.trim()) {
+          messages.push(
+            t(
+              `กรุณากรอกชื่อผู้เข้าร่วมภายในคนที่ ${index + 1}`,
+              `Please enter internal attendee #${index + 1} first name.`
+            )
+          );
+        }
+        if (!attendee.lastName.trim()) {
+          messages.push(
+            t(
+              `กรุณากรอกนามสกุลผู้เข้าร่วมภายในคนที่ ${index + 1}`,
+              `Please enter internal attendee #${index + 1} last name.`
+            )
+          );
+        }
+        if (!attendee.position.trim()) {
+          messages.push(
+            t(
+              `กรุณากรอกตำแหน่งผู้เข้าร่วมภายในคนที่ ${index + 1}`,
+              `Please enter internal attendee #${index + 1} position.`
+            )
+          );
+        }
+      }
+    }
+    if (registrationFile && registrationFile.size > maxRegistrationFileSize) {
       messages.push(
         t(
           "ไฟล์แนบใหญ่เกินไป (สูงสุด 10MB)",
@@ -963,11 +1103,14 @@ export default function Home() {
     }
 
     const cars = form.transportType === "personal" ? form.cars : [];
+    const shuttleSchedules =
+      form.transportType === "shuttle" ? form.shuttleSchedules : [];
 
     const siteVisit =
       form.siteVisitAreas.length > 0
         ? {
           areas: form.siteVisitAreas,
+          affiliateCompanies: form.siteVisitAffiliateCompanies,
           approverName: form.siteVisitApproverName,
           approverPosition: form.siteVisitApproverPosition,
         }
@@ -1004,14 +1147,6 @@ export default function Home() {
               }
               : { main: "", dessert: "", otherMain: "", otherDessert: "" },
           },
-          specialDiet: {
-            halalSets: form.halalEnabled ? Number(form.halalCount || 0) : 0,
-            veganSets: form.veganEnabled ? Number(form.veganCount || 0) : 0,
-          },
-          allergies: {
-            items: form.allergies,
-            other: form.allergyOther,
-          },
         }
         : null;
 
@@ -1024,25 +1159,25 @@ export default function Home() {
         }
         : null;
 
-    const executiveHost = {
-      type: "preset",
-      name: form.executiveHostChoice,
-    };
-
     const submittedBy = {
       name: form.submittedByName,
       position: form.submittedByPosition,
+      phone: form.submittedByPhone,
     };
+    const internalAttendees = form.internalAttendees;
 
     const payload = {
       timestamp: new Date().toISOString(),
       clientCompany: form.clientCompany,
-      vipCompany: form.vipCompany,
-      nationality: form.nationality,
-      contactPhone: form.contactPhone,
+      companyAddress: form.companyAddress,
+      country: form.country,
+      visitorType: form.visitorType,
+      visitorTypeOther: form.visitorType === "อื่นๆ" ? form.visitorTypeOther : "",
+      contactPhone: form.submittedByPhone,
       guests: form.guests,
-      visitTopic: form.visitTopic,
-      visitDetail: form.visitDetail,
+      purposeOfVisit: form.purposeOfVisit,
+      welcomeMessage: form.welcomeMessage,
+      internalAttendees,
       visitDateTime:
         form.visitDate && form.visitTime
           ? buildVisitDateTimeIso(form.visitDate, form.visitTime)
@@ -1051,10 +1186,9 @@ export default function Home() {
       siteVisit,
       transportType: form.transportType,
       cars,
+      shuttleSchedules,
       foodPreferences,
       souvenirPreferences,
-      executiveHost,
-      hostName: form.hostName,
       submittedBy,
     };
 
@@ -1080,8 +1214,8 @@ export default function Home() {
       }
 
       setSubmitting(true);
-      const response = await (async () => {
-        if (!presentationFile) {
+    const response = await (async () => {
+        if (!registrationFile) {
           return fetch("/api/summit", {
             method: "POST",
             headers: {
@@ -1093,7 +1227,7 @@ export default function Home() {
 
         const formData = new FormData();
         formData.append("data", JSON.stringify(payload));
-        formData.append("presentationFile", presentationFile);
+        if (registrationFile) formData.append("registrationFile", registrationFile);
         return fetch("/api/summit", {
           method: "POST",
           body: formData,
@@ -1113,7 +1247,7 @@ export default function Home() {
       }
 
       setForm(initialState);
-      setPresentationFile(null);
+      setRegistrationFile(null);
       setDialog({
         open: true,
         type: "success",
@@ -1144,6 +1278,7 @@ export default function Home() {
 
   const meetingRoomYes = form.meetingRoom === "yes";
   const transportPersonal = form.transportType === "personal";
+  const transportShuttle = form.transportType === "shuttle";
   const foodRequiredYes = form.foodRequired === "yes";
   const guestsCount = Number(form.totalGuests || 0);
 
@@ -1228,7 +1363,7 @@ export default function Home() {
           </div>
         </div>
         <h1 className="text-center text-2xl font-semibold tracking-tight text-[#2F3B2B] md:text-2xl">
-          {t("แบบฟอร์มแจ้งเข้าพบแขก VIP", "VIP Visitor Notification Form")}
+          {t("แบบฟอร์มลงทะเบียนผู้เข้าชมโรงงาน", "Visitor Registration Form")}
         </h1>
         <p className="mt-3 text-center text-sm text-[#2F3B2B]/80">
           {t(
@@ -1253,13 +1388,13 @@ export default function Home() {
                 href="#section-1"
                 className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("1) ข้อมูลลูกค้าและแขก", "1) Client & Guests")}
+                {t("1) ข้อมูลผู้เข้าเยี่ยมชมโรงงาน", "1) Invited Company")}
               </a>
               <a
                 href="#section-2"
                 className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("2) กำหนดการและสถานที่", "2) Schedule & Location")}
+                {t("2) กำหนดการเข้าเยี่ยมชมโรงงานและสถานที่", "2) Factory Visit Schedule & Locations")}
               </a>
               <a
                 href="#section-3"
@@ -1271,7 +1406,7 @@ export default function Home() {
                 href="#section-4"
                 className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("4) ไฟล์สำหรับการประชุม", "4) Meeting File")}
+                {t("4) ข้อความที่แสดงบน Welcome board", "4) Welcome Board Message")}
               </a>
               <a
                 href="#section-5"
@@ -1294,22 +1429,19 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   1
                 </span>
-                <span>{t("ข้อมูลลูกค้าและแขก VIP", "Client & VIP Guest Info")}</span>
+                <span>{t("ข้อมูลผู้เข้าเยี่ยมชมโรงงาน", "Invited Company Information")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
-                  "ข้อมูลบริษัทและรายชื่อผู้เข้าร่วม",
-                  "Company information and attendee list."
+                  "ข้อมูลผู้เข้าเยี่ยมชมโรงงานและรายชื่อผู้เข้าร่วม",
+                  "Invited company information and attendee list."
                 )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t(
-                      "บริษัทของคุณ",
-                      "Your company (bringing VIP guest)"
-                    )}
+                    {t("ชื่อบริษัท", "Invited company name")}
                   </label>
                   <input
                     type="text"
@@ -1323,15 +1455,15 @@ export default function Home() {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("แขก VIP มาจากบริษัท", "VIP guest company")}
+                    {t("ที่อยู่บริษัทที่เข้าเยี่ยมชมโรงงาน", "Invited company address")}
                   </label>
                   <input
                     type="text"
-                    name="vipCompany"
-                    value={form.vipCompany}
+                    name="companyAddress"
+                    value={form.companyAddress}
                     onChange={handleChange}
                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    placeholder={t("เช่น บริษัท XYZ จำกัด", "e.g., XYZ Co., Ltd.")}
+                    placeholder={t("เช่น 123 ถนนตัวอย่าง กรุงเทพฯ", "e.g., 123 Example Rd, Bangkok")}
                   />
                 </div>
               </div>
@@ -1339,34 +1471,63 @@ export default function Home() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("สัญชาติ", "Nationality")}
+                    {t("ประเทศของบริษัทที่เข้าเยี่ยมชม", "Invited company country")}
                   </label>
                   <input
                     type="text"
-                    name="nationality"
-                    value={form.nationality}
+                    name="country"
+                    value={form.country}
                     onChange={handleChange}
                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    placeholder={t("เช่น Thai, Japanese", "e.g., Thai, Japanese")}
+                    placeholder={t("เช่น ไทย, ญี่ปุ่น", "e.g., Thailand, Japan")}
                   />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("ประเภทผู้เข้าเยี่ยมชม", "Visitor type")}
+                  </label>
+                  <select
+                    name="visitorType"
+                    value={form.visitorType}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  >
+                    <option value="">{t("เลือกประเภท", "Select type")}</option>
+                    <option value="ลูกค้า">{t("ลูกค้า", "Customer")}</option>
+                    <option value="หน่วยงานราชการ">{t("หน่วยงานราชการ", "Government agency")}</option>
+                    <option value="อื่นๆ">{t("อื่นๆ", "Other")}</option>
+                  </select>
+                  {form.visitorType === "อื่นๆ" && (
+                    <input
+                      type="text"
+                      name="visitorTypeOther"
+                      value={form.visitorTypeOther}
+                      onChange={handleChange}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                      placeholder={t("ระบุประเภทอื่นๆ", "Specify other type")}
+                    />
+                  )}
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium">
-                    {t("เบอร์ผู้ประสานงาน", "Contact phone")}
-                  </label>
-                  <input
-                    type="tel"
-                    name="contactPhone"
-                    value={form.contactPhone}
-                    onChange={handleChange}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    placeholder={t("เช่น 08x-xxx-xxxx", "e.g., +66 xx xxx xxxx")}
-                  />
-                </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">
+                  {t("วัตถุประสงค์ในการเข้าเยี่ยมชมโรงงาน", "Purpose of visit")}
+                </label>
+                <input
+                  type="text"
+                  name="purposeOfVisit"
+                  value={form.purposeOfVisit}
+                  onChange={handleChange}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  placeholder={t(
+                    "เช่น ประชุม ติดตามงาน ศึกษาดูงาน",
+                    "e.g., meeting, follow-up, site study"
+                  )}
+                />
+              </div>
 
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
                     {t("จำนวนผู้เข้าร่วมทั้งหมด", "Total attendees")}
@@ -1380,7 +1541,41 @@ export default function Home() {
                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                     placeholder={t("เช่น 5", "e.g., 5")}
                   />
+                  <div className="text-xs text-[#1b2a18]/60">
+                    {t("หากเกิน 20 คน ให้แนบไฟล์ PDF เพื่อลงทะเบียนรายชื่อ", "If more than 20 attendees, attach a PDF roster.")}
+                  </div>
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">
+                  {t("ไฟล์ลงทะเบียนรายชื่อ (PDF)", "Registration roster file (PDF)")}
+                </label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    setRegistrationFile(file);
+                  }}
+                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                />
+                {registrationFile && (
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
+                    <div>
+                      {t("ไฟล์ที่เลือก", "Selected file")}: {registrationFile.name} (
+                      {Math.ceil(registrationFile.size / 1024)} KB)
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                      onClick={() => setRegistrationFile(null)}
+                      disabled={submitting}
+                    >
+                      {t("เอาออก", "Remove")}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {guestsCount > 0 && (
@@ -1399,86 +1594,141 @@ export default function Home() {
                           <div className="text-sm font-semibold text-zinc-900">
                             {t("ผู้เข้าร่วมคนที่", "Attendee")} {index + 1}
                           </div>
-                          <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                            <input
-                              type="text"
-                              value={guest.firstName}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "firstName",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("ชื่อ", "First name")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.middleName}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "middleName",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("ชื่อกลาง (ถ้ามี)", "Middle name (optional)")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.lastName}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "lastName",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("นามสกุล", "Last name")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.company}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "company",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("บริษัท", "Company")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.position}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "position",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("ตำแหน่ง", "Position")}
-                            />
-                            <input
-                              type="text"
-                              value={guest.nationality}
-                              onChange={(e) =>
-                                handleGuestChange(
-                                  index,
-                                  "nationality",
-                                  e.target.value
-                                )
-                              }
-                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("สัญชาติ", "Nationality")}
-                            />
+                        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                          <select
+                            value={guest.prefix}
+                            onChange={(e) =>
+                              handleGuestChange(index, "prefix", e.target.value)
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                          >
+                            <option value="">{t("คำนำหน้า", "Prefix")}</option>
+                            <option value="นาย">{t("นาย", "Mr.")}</option>
+                            <option value="นาง">{t("นาง", "Mrs.")}</option>
+                            <option value="นางสาว">{t("นางสาว", "Ms.")}</option>
+                            <option value="MR.">MR.</option>
+                            <option value="MS.">MS.</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={guest.firstName}
+                            onChange={(e) =>
+                              handleGuestChange(
+                                index,
+                                "firstName",
+                                e.target.value
+                              )
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("ชื่อ", "First name")}
+                          />
+                          <input
+                            type="text"
+                            value={guest.middleName}
+                            onChange={(e) =>
+                              handleGuestChange(
+                                index,
+                                "middleName",
+                                e.target.value
+                              )
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("ชื่อกลาง (ถ้ามี)", "Middle name (optional)")}
+                          />
+                          <input
+                            type="text"
+                            value={guest.lastName}
+                            onChange={(e) =>
+                              handleGuestChange(
+                                index,
+                                "lastName",
+                                e.target.value
+                              )
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("นามสกุล", "Last name")}
+                          />
+                          <input
+                            type="text"
+                            value={guest.position}
+                            onChange={(e) =>
+                              handleGuestChange(
+                                index,
+                                "position",
+                                e.target.value
+                              )
+                            }
+                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            placeholder={t("ตำแหน่ง", "Position")}
+                          />
+                        </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                            <div className="text-sm font-semibold text-zinc-900">
+                              {t("อาหารเฉพาะบุคคล", "Individual diet")}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={guest.halal}
+                                  onChange={(e) =>
+                                    handleGuestDietChange(index, "halal", e.target.checked)
+                                  }
+                                />
+                                <span>{t("ฮาลาล", "Halal")}</span>
+                              </label>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={guest.vegan}
+                                  onChange={(e) =>
+                                    handleGuestDietChange(index, "vegan", e.target.checked)
+                                  }
+                                />
+                                <span>{t("มังสวิรัติ", "Vegan")}</span>
+                              </label>
+                            </div>
                           </div>
+                          <div className="rounded-lg border border-zinc-200 bg-white p-3">
+                            <div className="text-sm font-semibold text-zinc-900">
+                              {t("แพ้อาหาร", "Allergies")}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                              {allergyOptions.map((item) => (
+                                <label key={item.value} className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={guest.allergies.includes(item.value)}
+                                    onChange={(e) =>
+                                      handleGuestAllergyChange(index, item.value, e.target.checked)
+                                    }
+                                  />
+                                  <span>{optionLabel(item)}</span>
+                                </label>
+                              ))}
+                            </div>
+                            {guest.allergies.includes("อื่นๆ") && (
+                              <div className="mt-3 flex flex-col gap-1">
+                                <label className="text-sm font-medium">
+                                  {t("ระบุ (อื่นๆ)", "Specify (Other)")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={guest.allergyOther}
+                                  onChange={(e) =>
+                                    handleGuestChange(index, "allergyOther", e.target.value)
+                                  }
+                                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                                  placeholder={t(
+                                    "เช่น กล้วย, กาแฟ, ถั่วเหลือง",
+                                    "e.g., banana, coffee, soy"
+                                  )}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
                         </div>
                       );
                     })}
@@ -1495,7 +1745,7 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   2
                 </span>
-                <span>{t("กำหนดการเข้าพบและสถานที่", "Schedule & Location")}</span>
+                <span>{t("กำหนดการเข้าเยี่ยมชมโรงงานและสถานที่", "Factory Visit Schedule & Locations")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
@@ -1507,7 +1757,7 @@ export default function Home() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("วันที่มาถึง", "Arrival date")}
+                    {t("วันที่", "Arrival date")}
                   </label>
                   <input
                     type="date"
@@ -1521,7 +1771,7 @@ export default function Home() {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("เวลาที่มาถึง", "Arrival time")}
+                    {t("เวลา", "Arrival time")}
                   </label>
                   <select
                     name="visitTime"
@@ -1529,7 +1779,7 @@ export default function Home() {
                     onChange={handleChange}
                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                   >
-                    <option value="">{t("เลือกเวลาที่มาถึง", "Select arrival time")}</option>
+                    <option value="">{t("เวลา", "Select arrival time")}</option>
                     {timeSlots.map((slot) => (
                       <option key={slot} value={slot}>
                         {slot}
@@ -1609,9 +1859,7 @@ export default function Home() {
                       {t("เลือกประเภทรถ", "Select transport type")}
                     </option>
                     <option value="personal">{t("รถส่วนตัว", "Private car")}</option>
-                    <option value="public">
-                      {t("รถสาธารณะ", "Public transport")}
-                    </option>
+                    <option value="shuttle">{t("รถรับ-ส่ง", "Shuttle service")}</option>
                   </select>
                 </div>
 
@@ -1637,6 +1885,27 @@ export default function Home() {
 
                     {form.siteVisitAreas.length > 0 && (
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        {form.siteVisitAreas.includes("บริษัทในเครือ") && (
+                          <div className="flex flex-col gap-2 md:col-span-2">
+                            <label className="text-sm font-medium">
+                              {t("เลือกบริษัทในเครือ", "Select affiliate companies")}
+                            </label>
+                            <div className="flex flex-wrap gap-4 text-sm">
+                              {affiliateCompanyOptions.map((company) => (
+                                <label key={company.value} className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={form.siteVisitAffiliateCompanies.includes(company.value)}
+                                    onChange={(e) =>
+                                      handleAffiliateCompanyChange(company.value, e.target.checked)
+                                    }
+                                  />
+                                  <span>{optionLabel(company)}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex flex-col gap-1">
                           <label className="text-sm font-medium">
                             {t("ชื่อผู้อนุญาตให้เข้าชม", "Site visit approver")}
@@ -1741,6 +2010,109 @@ export default function Home() {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {transportShuttle && (
+                  <div className="space-y-3 md:col-span-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-sm font-semibold text-zinc-900">
+                        {t("กำหนดการรถรับ-ส่ง", "Shuttle schedules")}
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                        onClick={addShuttleSchedule}
+                      >
+                        {t("เพิ่มวัน", "Add day")}
+                      </button>
+                    </div>
+                    {form.shuttleSchedules.length === 0 && (
+                      <div className="rounded-lg border border-dashed border-zinc-200 bg-white/80 p-4 text-sm text-zinc-500">
+                        {t("ยังไม่มีข้อมูลรถรับ-ส่ง", "No shuttle schedules yet.")}
+                      </div>
+                    )}
+                    {form.shuttleSchedules.map((item, index) => (
+                      <div
+                        key={`${item.date}-${index}`}
+                        className="rounded-lg border border-zinc-200 bg-white p-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-zinc-900">
+                            {t("วันที่", "Schedule")} {index + 1}
+                          </div>
+                          <button
+                            type="button"
+                            className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                            onClick={() => removeShuttleSchedule(index)}
+                          >
+                            {t("ลบ", "Remove")}
+                          </button>
+                        </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium">
+                              {t("วันที่", "Date")}
+                            </label>
+                            <input
+                              type="date"
+                              value={item.date}
+                              onChange={(e) =>
+                                handleShuttleScheduleChange(index, "date", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium">
+                              {t("เวลา", "Time")}
+                            </label>
+                            <select
+                              value={item.time}
+                              onChange={(e) =>
+                                handleShuttleScheduleChange(index, "time", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            >
+                              <option value="">{t("เลือกเวลา", "Select time")}</option>
+                              {timeSlots.map((slot) => (
+                                <option key={slot} value={slot}>
+                                  {slot}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium">
+                              {t("จุดที่รับ", "Pickup point")}
+                            </label>
+                            <input
+                              type="text"
+                              value={item.pickup}
+                              onChange={(e) =>
+                                handleShuttleScheduleChange(index, "pickup", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("เช่น สนามบิน", "e.g., Airport")}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium">
+                              {t("จุดหมาย", "Destination")}
+                            </label>
+                            <input
+                              type="text"
+                              value={item.destination}
+                              onChange={(e) =>
+                                handleShuttleScheduleChange(index, "destination", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("เช่น โรงงาน EPAC", "e.g., EPAC Factory")}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -2025,100 +2397,6 @@ export default function Home() {
                       </div>
                     )}
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                      <div className="text-sm font-semibold text-zinc-900">
-                        {t("อาหารพิเศษ", "Special diet")}
-                      </div>
-                      <div className="mt-3 space-y-3 text-sm">
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={form.halalEnabled}
-                              onChange={() => handleDietToggle("halal")}
-                            />
-                            <span>{t("ฮาลาล", "Halal")}</span>
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            name="halalCount"
-                            value={form.halalCount}
-                            onChange={handleChange}
-                            disabled={!form.halalEnabled}
-                            className={`w-28 rounded-md border px-3 py-2 text-sm outline-none ${form.halalEnabled
-                              ? "border-zinc-300 bg-white focus:border-zinc-900"
-                              : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                              }`}
-                            placeholder={t("จำนวนชุด", "Sets")}
-                          />
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={form.veganEnabled}
-                              onChange={() => handleDietToggle("vegan")}
-                            />
-                            <span>{t("วีแกน", "Vegan")}</span>
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            name="veganCount"
-                            value={form.veganCount}
-                            onChange={handleChange}
-                            disabled={!form.veganEnabled}
-                            className={`w-28 rounded-md border px-3 py-2 text-sm outline-none ${form.veganEnabled
-                              ? "border-zinc-300 bg-white focus:border-zinc-900"
-                              : "border-zinc-200 bg-zinc-100 text-zinc-400 cursor-not-allowed"
-                              }`}
-                            placeholder={t("จำนวนชุด", "Sets")}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-                      <div className="text-sm font-semibold text-zinc-900">
-                        {t("แพ้อาหาร", "Allergies")}
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-4 text-sm">
-                        {allergyOptions.map((item) => (
-                          <label key={item.value} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={form.allergies.includes(item.value)}
-                              onChange={(e) =>
-                                handleAllergyChange(item.value, e.target.checked)
-                              }
-                            />
-                            <span>{optionLabel(item)}</span>
-                          </label>
-                        ))}
-                      </div>
-
-                      {form.allergies.includes("อื่นๆ") && (
-                        <div className="mt-3 flex flex-col gap-1">
-                          <label className="text-sm font-medium">
-                            {t("ระบุ (อื่นๆ)", "Specify (Other)")}
-                          </label>
-                          <input
-                            type="text"
-                            name="allergyOther"
-                            value={form.allergyOther}
-                            onChange={handleChange}
-                            className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                            placeholder={t(
-                              "เช่น กล้วย, กาแฟ, ถั่วเหลือง",
-                              "e.g., banana, coffee, soy"
-                            )}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
                 </div>
               )}
 
@@ -2190,7 +2468,7 @@ export default function Home() {
                     </div>
                     <div className="flex flex-col gap-1 md:col-span-2">
                       <label className="text-sm font-medium">
-                        {t("เพิ่มของพิเศษ (ถ้ามี)", "Add extras (optional)")}
+                        {t("ของที่ระลึกพิเศษนอกเหนือจากรายการด้านบน (ถ้ามี)", "Add extras (optional)")}
                       </label>
                       <textarea
                         name="souvenirExtra"
@@ -2199,8 +2477,8 @@ export default function Home() {
                         rows={3}
                         className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                         placeholder={t(
-                          "ระบุของพิเศษเพิ่มเติม เช่น ใส่โลโก้, การ์ดข้อความ, ของเพิ่มอื่นๆ",
-                          "Describe extras, e.g., logo, message card, additional items"
+                          "โปรดระบุ....",
+                          "Please specify any extras."
                         )}
                       />
                     </div>
@@ -2217,43 +2495,26 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   4
                 </span>
-                <span>{t("ไฟล์สำหรับการประชุม", "Meeting File")}</span>
+                <span>{t("ข้อความที่แสดงบน Welcome board", "Welcome board message")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
-                  "แนบไฟล์ได้ไม่เกิน 10MB (ไม่บังคับ)",
-                  "Attach a file up to 10MB (optional)."
+                  "ข้อความที่จะนำไปแสดงบนป้ายต้อนรับ",
+                  "Message to display on the welcome board."
                 )}
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("แนบไฟล์นำเสนอ (ไม่บังคับ)", "Attach presentation file (optional)")}
+                  {t("ข้อความ Welcome board", "Welcome board text")}
                 </label>
                 <input
-                  type="file"
-                  name="presentationFile"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] ?? null;
-                    setPresentationFile(file);
-                  }}
-                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  type="text"
+                  name="welcomeMessage"
+                  value={form.welcomeMessage}
+                  onChange={handleChange}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  placeholder="Warmly welcome (Mr. A / Company name)"
                 />
-                {presentationFile && (
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
-                    <div>
-                      {t("ไฟล์ที่เลือก", "Selected file")}: {presentationFile.name} (
-                      {Math.ceil(presentationFile.size / 1024)} KB)
-                    </div>
-                    <button
-                      type="button"
-                      className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
-                      onClick={() => setPresentationFile(null)}
-                      disabled={submitting}
-                    >
-                      {t("เอาออก", "Remove")}
-                    </button>
-                  </div>
-                )}
               </div>
             </section>
 
@@ -2265,87 +2526,13 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   5
                 </span>
-                <span>{t("ข้อมูลผู้ดูแลภายในองค์กร", "Internal Contacts")}</span>
+                <span>{t("ข้อมูลภายในองค์กร EPAC", "EPAC Internal Information")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
-                  "ผู้ถูกเข้าพบ ผู้บริหารดูแล หัวข้อ และผู้กรอกฟอร์ม",
-                  "Host, welcoming executive, topic, and submitter."
+                  "ข้อมูลผู้กรอกฟอร์มและรายชื่อผู้เข้าร่วมภายใน",
+                  "Submitter information and internal attendees."
                 )}
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium">
-                    {t("บุคคลที่ลูกค้าต้องการเข้าพบ", "Host to visit")}
-                  </label>
-                  <select
-                    name="hostName"
-                    value={form.hostName}
-                    onChange={handleChange}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  >
-                    <option value="">{t("เลือกผู้ที่จะเข้าพบ", "Select host")}</option>
-                    {hostOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {optionLabel(option)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium">
-                    {t("ผู้บริหารดูแลต้อนรับแขก", "Welcoming executive")}
-                  </label>
-                  <select
-                    name="executiveHostChoice"
-                    value={form.executiveHostChoice}
-                    onChange={handleChange}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  >
-                    <option value="">{t("เลือกผู้บริหาร", "Select executive")}</option>
-                    {executiveHostOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {optionLabel(option)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium">
-                    {t("หัวข้อที่เกี่ยวข้อง", "Topic")}
-                  </label>
-                  <input
-                    type="text"
-                    name="visitTopic"
-                    value={form.visitTopic}
-                    onChange={handleChange}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    placeholder={t(
-                      "เช่น ประชุม, เยี่ยมชม, นำเสนอ",
-                      "e.g., meeting, site visit, presentation"
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">
-                  {t("รายละเอียดการเข้าพบ", "Visit details")}
-                </label>
-                <textarea
-                  name="visitDetail"
-                  value={form.visitDetail}
-                  onChange={handleChange}
-                  rows={3}
-                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  placeholder={t(
-                    "ระบุรายละเอียดเพิ่มเติม เช่น จุดประสงค์",
-                    "Add details, e.g., objectives"
-                  )}
-                />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -2375,7 +2562,87 @@ export default function Home() {
                     placeholder={t("เช่น Officer", "e.g., Officer")}
                   />
                 </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("เบอร์ผู้ประสานงาน", "Contact phone")}
+                  </label>
+                  <input
+                    type="tel"
+                    name="submittedByPhone"
+                    value={form.submittedByPhone}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t("เช่น 08x-xxx-xxxx", "e.g., +66 xx xxx xxxx")}
+                  />
+                </div>
               </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("จำนวนผู้เข้าร่วมภายใน", "Number of internal attendees")}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    name="internalAttendeeCount"
+                    value={form.internalAttendeeCount}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t("เช่น 3", "e.g., 3")}
+                  />
+                </div>
+              </div>
+
+              {Number(form.internalAttendeeCount || 0) > 0 && (
+                <div className="space-y-4">
+                  {Array.from(
+                    { length: Number(form.internalAttendeeCount || 0) },
+                    (_, index) => {
+                      const attendee = form.internalAttendees[index] ?? createEmptyInternalAttendee();
+                      return (
+                        <div
+                          key={String(index)}
+                          className="rounded-lg border border-zinc-200 bg-white p-4"
+                        >
+                          <div className="text-sm font-semibold text-zinc-900">
+                            {t("ผู้เข้าร่วมภายในคนที่", "Internal attendee")} {index + 1}
+                          </div>
+                          <div className="mt-3 grid gap-3 md:grid-cols-3">
+                            <input
+                              type="text"
+                              value={attendee.firstName}
+                              onChange={(e) =>
+                                handleInternalAttendeeChange(index, "firstName", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("ชื่อ", "First name")}
+                            />
+                            <input
+                              type="text"
+                              value={attendee.lastName}
+                              onChange={(e) =>
+                                handleInternalAttendeeChange(index, "lastName", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("นามสกุล", "Last name")}
+                            />
+                            <input
+                              type="text"
+                              value={attendee.position}
+                              onChange={(e) =>
+                                handleInternalAttendeeChange(index, "position", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("ตำแหน่ง", "Position")}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
             </section>
 
             <div className="sticky bottom-4 z-10 flex items-center justify-end gap-3 rounded-2xl border border-[#E2CCA8] bg-[#FAEFCC]/95 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur">
@@ -2389,6 +2656,7 @@ export default function Home() {
                     type: "error",
                     message: "",
                   });
+                  setRegistrationFile(null);
                 }}
                 disabled={submitting}
               >
