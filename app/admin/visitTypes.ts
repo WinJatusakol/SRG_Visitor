@@ -4,9 +4,10 @@ export type Visit = {
   created_at?: string | null;
   status?: number | null;
   clientCompany?: string | null;
-  vipCompany?: string | null;
-  vipPosition?: string | null;
-  nationality?: string | null;
+  companyAddress?: string | null;
+  country?: string | null;
+  visitorType?: string | null;
+  visitorTypeOther?: string | null;
   contactPhone?: string | null;
   totalGuests?: number | null;
   hostName?: string | null;
@@ -19,8 +20,7 @@ export type Visit = {
   foodRequired?: boolean | null;
   meals?: string | null;
   souvenir?: boolean | null;
-  visitTopic?: string | null;
-  visitDetail?: string | null;
+  purposeOfVisit?: string | null;
   guests?: unknown[] | null;
   carCount?: number | null;
   cars?: unknown[] | null;

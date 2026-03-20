@@ -226,15 +226,16 @@ export default function EditBookingModal({
   const [allergyOptions, setAllergyOptions] = useState<RefOptionRow[]>([]);
 
   const [clientCompany, setClientCompany] = useState("");
-  const [vipCompany, setVipCompany] = useState("");
-  const [nationality, setNationality] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [country, setCountry] = useState("");
+  const [visitorType, setVisitorType] = useState("");
+  const [visitorTypeOther, setVisitorTypeOther] = useState("");
+  const [submittedByPhone, setSubmittedByPhone] = useState("");
   const [hostName, setHostName] = useState("");
   const [executiveHostChoice, setExecutiveHostChoice] = useState("");
   const [submittedByName, setSubmittedByName] = useState("");
   const [submittedByPosition, setSubmittedByPosition] = useState("");
-  const [visitTopic, setVisitTopic] = useState("");
-  const [visitDetail, setVisitDetail] = useState("");
+  const [purposeOfVisit, setPurposeOfVisit] = useState("");
   const [visitDate, setVisitDate] = useState("");
   const [visitTime, setVisitTime] = useState("");
   const [meetingRoom, setMeetingRoom] = useState<YesNo | "">("");
@@ -449,13 +450,14 @@ export default function EditBookingModal({
 
     setLoading(true);
 
+    const visitRecord = asRecord(visit);
     setClientCompany(visit.clientCompany || "");
-    setVipCompany(visit.vipCompany || "");
-    setNationality(visit.nationality || "");
-    setContactPhone(visit.contactPhone || "");
+    setCompanyAddress(asString(visitRecord?.companyAddress));
+    setCountry(asString(visitRecord?.country));
+    setVisitorType(asString(visitRecord?.visitorType));
+    setVisitorTypeOther(asString(visitRecord?.visitorTypeOther));
     setHostName(visit.hostName || "");
-    setVisitTopic(visit.visitTopic || "");
-    setVisitDetail(visit.visitDetail || "");
+    setPurposeOfVisit(asString(visitRecord?.purposeOfVisit));
 
     const baseIso = visit.visitDateTime || visit.created_at || "";
     setVisitDate(toIsoDateInput(baseIso));
@@ -470,6 +472,7 @@ export default function EditBookingModal({
     const sub = asRecord(unwrapKey(visit.submittedBy, "submittedBy"));
     setSubmittedByName(asString(sub?.name));
     setSubmittedByPosition(asString(sub?.position));
+    setSubmittedByPhone(asString(sub?.phone) || visit.contactPhone || "");
 
     const ex = asRecord(unwrapKey(visit.executiveHost, "executiveHost"));
     setExecutiveHostChoice(asString(ex?.name));
@@ -632,16 +635,20 @@ export default function EditBookingModal({
       setErrorMessage("กรุณาเลือกวันและเวลา");
       return false;
     }
-    if (!clientCompany.trim() || !vipCompany.trim() || !nationality.trim() || !contactPhone.trim()) {
-      setErrorMessage("กรุณากรอกข้อมูลให้ครบ (บริษัทลูกค้า/บริษัท VIP/สัญชาติ/เบอร์โทร)");
+    if (!clientCompany.trim() || !companyAddress.trim() || !country.trim()) {
+      setErrorMessage("กรุณากรอกข้อมูลบริษัทที่เชิญมาให้ครบ (ชื่อบริษัท/ที่อยู่/ประเทศ)");
       return false;
     }
-    if (!hostName.trim() || !executiveHostChoice.trim() || !submittedByName.trim() || !submittedByPosition.trim()) {
+    if (!visitorType.trim() || (visitorType === "อื่นๆ" && !visitorTypeOther.trim())) {
+      setErrorMessage("กรุณาเลือกประเภทผู้เข้าเยี่ยมชม");
+      return false;
+    }
+    if (!hostName.trim() || !executiveHostChoice.trim() || !submittedByName.trim() || !submittedByPosition.trim() || !submittedByPhone.trim()) {
       setErrorMessage("กรุณากรอกข้อมูลผู้ดูแลภายในองค์กรให้ครบ");
       return false;
     }
-    if (!visitTopic.trim() || !visitDetail.trim()) {
-      setErrorMessage("กรุณากรอกหัวข้อและรายละเอียด");
+    if (!purposeOfVisit.trim()) {
+      setErrorMessage("กรุณากรอกวัตถุประสงค์ในการเข้าพบ");
       return false;
     }
     if (!meetingRoom) {
@@ -802,7 +809,7 @@ export default function EditBookingModal({
           : null;
 
       const executiveHostPayload = { type: "preset", name: executiveHostChoice };
-      const submittedByPayload = { name: submittedByName, position: submittedByPosition };
+      const submittedByPayload = { name: submittedByName, position: submittedByPosition, phone: submittedByPhone };
       const meetingRoomSelectionPayload = meetingRoom === "yes" ? meetingRoomSelection : "";
 
       const response = await fetch("/api/admin/visitor-update", {
@@ -812,12 +819,13 @@ export default function EditBookingModal({
           id: visit.id,
           data: {
             clientCompany,
-            vipCompany,
-            nationality,
-            contactPhone,
+            companyAddress,
+            country,
+            visitorType,
+            visitorTypeOther: visitorType === "อื่นๆ" ? visitorTypeOther : "",
+            contactPhone: submittedByPhone,
+            purposeOfVisit,
             hostName,
-            visitTopic,
-            visitDetail,
             visitDateTime,
             meetingRoomSelection: meetingRoomSelectionPayload,
             transportType,
@@ -939,29 +947,34 @@ export default function EditBookingModal({
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="flex flex-col gap-1">
-                      <label className={labelClass}>บริษัทลูกค้า</label>
+                      <label className={labelClass}>ชื่อบริษัทที่เชิญมา</label>
                       <input value={clientCompany} onChange={(e) => setClientCompany(e.target.value)} className={controlClass} placeholder="เช่น ABC" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className={labelClass}>บริษัทแขก VIP</label>
-                      <input value={vipCompany} onChange={(e) => setVipCompany(e.target.value)} className={controlClass} placeholder="เช่น KAI" />
+                      <label className={labelClass}>ที่อยู่บริษัทที่เชิญมา</label>
+                      <input value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} className={controlClass} placeholder="เช่น 123 ถนนสุขุมวิท" />
                     </div>
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="flex flex-col gap-1">
-                      <label className={labelClass}>สัญชาติ</label>
-                      <input value={nationality} onChange={(e) => setNationality(e.target.value)} className={controlClass} placeholder="เช่น ไทย" />
+                      <label className={labelClass}>ประเทศของบริษัทที่เชิญมา</label>
+                      <input value={country} onChange={(e) => setCountry(e.target.value)} className={controlClass} placeholder="เช่น ไทย" />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className={labelClass}>เบอร์โทรศัพท์</label>
-                      <input
-                        type="tel"
-                        inputMode="tel"
-                        value={contactPhone}
-                        onChange={(e) => setContactPhone(e.target.value)}
-                        className={controlClass}
-                        placeholder="0XXXXXXXXX"
-                      />
+                      <label className={labelClass}>ประเภทผู้เข้าเยี่ยมชม</label>
+                      <select value={visitorType} onChange={(e) => {
+                        const v = e.target.value;
+                        setVisitorType(v);
+                        if (v !== "อื่นๆ") setVisitorTypeOther("");
+                      }} className={controlClass}>
+                        <option value="">เลือกประเภท</option>
+                        <option value="ลูกค้า">ลูกค้า</option>
+                        <option value="หน่วยงานราชการ">หน่วยงานราชการ</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                      </select>
+                      {visitorType === "อื่นๆ" && (
+                        <input value={visitorTypeOther} onChange={(e) => setVisitorTypeOther(e.target.value)} className={controlClass} placeholder="ระบุประเภทอื่นๆ" />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1010,25 +1023,26 @@ export default function EditBookingModal({
                         placeholder="ตำแหน่งผู้กรอก"
                       />
                     </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>เบอร์ผู้ประสานงาน</label>
+                      <input
+                        type="tel"
+                        inputMode="tel"
+                        value={submittedByPhone}
+                        onChange={(e) => setSubmittedByPhone(e.target.value)}
+                        className={controlClass}
+                        placeholder="0XXXXXXXXX"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <div className={cardClass}>
-                  <div className="text-sm font-bold text-gray-900">รายละเอียดการเข้าพบ</div>
+                  <div className="text-sm font-bold text-gray-900">วัตถุประสงค์ในการเข้าพบ</div>
                   <div className="mt-4 grid gap-3">
                     <div className="flex flex-col gap-1">
-                      <label className={labelClass}>หัวข้อ</label>
-                      <input value={visitTopic} onChange={(e) => setVisitTopic(e.target.value)} className={controlClass} placeholder="หัวข้อการเข้าพบ" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className={labelClass}>รายละเอียด</label>
-                      <textarea
-                        value={visitDetail}
-                        onChange={(e) => setVisitDetail(e.target.value)}
-                        rows={4}
-                        className={controlClass}
-                        placeholder="รายละเอียดเพิ่มเติม"
-                      />
+                      <label className={labelClass}>วัตถุประสงค์</label>
+                      <input value={purposeOfVisit} onChange={(e) => setPurposeOfVisit(e.target.value)} className={controlClass} placeholder="เช่น ประชุม ติดตามงาน" />
                     </div>
                   </div>
                 </div>

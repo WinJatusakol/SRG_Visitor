@@ -28,6 +28,7 @@ import {
     CheckCircle2,
     XCircle,
     MapPin,
+    Tag,
     UserCheck,
     PenLine
 } from "lucide-react";
@@ -171,10 +172,10 @@ export function VisitDetailsModal({
                     <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
                     <div className="relative z-10 flex justify-between items-start">
                         <div className="flex items-center gap-4">
-                            <CompanyAvatar name={selectedVisit.vipCompany} size="lg" />
+                            <CompanyAvatar name={selectedVisit.clientCompany} size="lg" />
                             <div>
                                 <h2 className="text-2xl font-bold text-gray-900 leading-tight">
-                                    {selectedVisit.vipCompany || "ไม่ระบุบริษัท"}
+                                    {selectedVisit.clientCompany || "ไม่ระบุบริษัท"}
                                 </h2>
                                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                                     <p className="text-sm text-blue-600 font-semibold flex items-center gap-1.5">
@@ -210,34 +211,31 @@ export function VisitDetailsModal({
                     <div className="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden">
                         <div className="bg-blue-50/50 px-5 sm:px-6 py-4 border-b border-blue-100 flex items-center gap-2">
                             <MessageSquareText className="w-5 h-5 text-blue-600" />
-                            <h3 className="text-base font-bold text-blue-900">ข้อมูลทั่วไปและการเข้าพบ</h3>
+                            <h3 className="text-base font-bold text-blue-900">ข้อมูลผู้เข้าเยี่ยมชม</h3>
                         </div>
                         <div className="p-5 sm:p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                                <InfoCard icon={<Phone className="w-4 h-4 text-blue-500" />} label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} />
-                                <InfoCard icon={<Globe2 className="w-4 h-4 text-blue-500" />} label="สัญชาติ" value={selectedVisit.nationality} />
+                                <InfoCard icon={<Phone className="w-4 h-4 text-blue-500" />} label="เบอร์ผู้ประสานงาน" value={(selectedVisit.submittedBy as any)?.phone || selectedVisit.contactPhone} />
+                                <InfoCard icon={<Globe2 className="w-4 h-4 text-blue-500" />} label="ประเทศ" value={selectedVisit.country} />
+                                <InfoCard icon={<MapPin className="w-4 h-4 text-blue-500" />} label="ที่อยู่บริษัท" value={selectedVisit.companyAddress} />
+                                <InfoCard icon={<Tag className="w-4 h-4 text-blue-500" />} label="ประเภทผู้เข้าเยี่ยมชม" value={(() => {
+                                    const type = selectedVisit.visitorType;
+                                    const other = selectedVisit.visitorTypeOther;
+                                    if (type && other && type === "อื่นๆ") return `${type} - ${other}`;
+                                    return type;
+                                })()} />
                                 <InfoCard icon={<UserCircle2 className="w-4 h-4 text-blue-500" />} label="บุคคลที่ลูกค้าขอเข้าพบ (Host)" value={selectedVisit.hostName} />
                                 <InfoCard icon={<UserCheck className="w-4 h-4 text-blue-500" />} label="ผู้ดูแล ต้อนรับแขก" value={(selectedVisit.executiveHost as unknown as { name?: string })?.name || "-"} />
                             </div>
 
-                            {(selectedVisit.visitTopic || selectedVisit.visitDetail) && (
+                            {selectedVisit.purposeOfVisit && (
                                 <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
-                                    {selectedVisit.visitTopic && (
-                                        <div className="mb-4">
-                                            <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                                <Briefcase className="w-3.5 h-3.5" /> หัวข้อการเข้าพบ
-                                            </dt>
-                                            <dd className="text-base font-bold text-gray-900">{selectedVisit.visitTopic}</dd>
-                                        </div>
-                                    )}
-                                    {selectedVisit.visitDetail && (
-                                        <div>
-                                            <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                                <Info className="w-3.5 h-3.5" /> รายละเอียดเพิ่มเติม
-                                            </dt>
-                                            <dd className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{selectedVisit.visitDetail}</dd>
-                                        </div>
-                                    )}
+                                    <div>
+                                        <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <Briefcase className="w-3.5 h-3.5" /> วัตถุประสงค์ในการเข้าพบ
+                                        </dt>
+                                        <dd className="text-base font-bold text-gray-900">{selectedVisit.purposeOfVisit}</dd>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -699,9 +697,8 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             }
 
             if (qCompany) {
-                const vip = typeof v.vipCompany === "string" ? v.vipCompany.toLowerCase() : "";
                 const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
-                if (!vip.includes(qCompany) && !client.includes(qCompany)) return false;
+                if (!client.includes(qCompany)) return false;
             }
 
             return true;
@@ -728,9 +725,8 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             }
 
             if (qCompany) {
-                const vip = typeof v.vipCompany === "string" ? v.vipCompany.toLowerCase() : "";
                 const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
-                if (!vip.includes(qCompany) && !client.includes(qCompany)) return false;
+                if (!client.includes(qCompany)) return false;
             }
 
             return true;
@@ -810,13 +806,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 id: String(v.id ?? ""),
                 วันและเวลา: formatExportDateTime(dt),
                 สถานะ: statusText(v.status),
-                บริษัทลูกค้า: typeof v.clientCompany === "string" ? v.clientCompany : "",
-                บริษัทแขกVIP: typeof v.vipCompany === "string" ? v.vipCompany : "",
+                ชื่อบริษัทที่เชิญมา: typeof v.clientCompany === "string" ? v.clientCompany : "",
+                ที่อยู่บริษัทที่เชิญมา: typeof v.companyAddress === "string" ? v.companyAddress : "",
+                ประเทศของบริษัทที่เชิญมา: typeof v.country === "string" ? v.country : "",
+                ประเภทผู้เข้าเยี่ยมชม: (() => {
+                    const type = v.visitorType;
+                    const other = v.visitorTypeOther;
+                    if (type && other && type === "อื่นๆ") return `${type} - ${other}`;
+                    return typeof type === "string" ? type : "";
+                })(),
                 Host: typeof v.hostName === "string" ? v.hostName : "",
-                หัวข้อ: typeof v.visitTopic === "string" ? v.visitTopic : "",
+                วัตถุประสงค์: typeof v.purposeOfVisit === "string" ? v.purposeOfVisit : "",
                 จำนวนผู้เข้าร่วม: String((v.guests?.length ?? v.totalGuests ?? 0) || 0),
-                เบอร์โทรศัพท์: typeof v.contactPhone === "string" ? v.contactPhone : "",
-                สัญชาติ: typeof v.nationality === "string" ? v.nationality : "",
+                เบอร์ผู้ประสานงาน: typeof v.contactPhone === "string" ? v.contactPhone : "",
             };
         });
     }, [exportableVisits]);
@@ -948,11 +950,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         </select>
                     </div>
                     <div className="flex flex-col gap-1 lg:col-span-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">บริษัท (ลูกค้า/แขก VIP)</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ชื่อบริษัทที่เชิญมา</label>
                         <input
                             value={filterCompany}
                             onChange={(e) => setFilterCompany(e.target.value)}
-                            placeholder="พิมพ์ชื่อบริษัทเพื่อค้นหา"
+                            placeholder="พิมพ์ชื่อบริษัทที่เชิญมาเพื่อค้นหา"
                             className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                         />
                     </div>
@@ -1018,10 +1020,10 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         </td>
                                         <td className="px-6 py-5 align-top">
                                             <div className="flex items-start gap-3">
-                                                <CompanyAvatar name={visit.vipCompany} idx={index} />
+                                                <CompanyAvatar name={visit.clientCompany} idx={index} />
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.95rem] font-bold text-gray-900 line-clamp-1 group-hover:text-blue-700 transition-colors">{visit.vipCompany || "ไม่ระบุบริษัท"}</span>
-                                                    <span className="text-sm text-gray-500 flex items-center gap-1.5 mt-1"><Briefcase className="w-3.5 h-3.5 text-gray-400" /><span className="line-clamp-1">{visit.visitTopic || "-"}</span></span>
+                                                    <span className="text-[0.95rem] font-bold text-gray-900 line-clamp-1 group-hover:text-blue-700 transition-colors">{visit.clientCompany || "ไม่ระบุบริษัท"}</span>
+                                                    <span className="text-sm text-gray-500 flex items-center gap-1.5 mt-1"><Briefcase className="w-3.5 h-3.5 text-gray-400" /><span className="line-clamp-1">{(visit as any).purposeOfVisit || "-"}</span></span>
                                                 </div>
                                             </div>
                                         </td>
@@ -1051,10 +1053,10 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
                             <div className="relative z-10 flex justify-between items-start">
                                 <div className="flex items-center gap-4">
-                                    <CompanyAvatar name={selectedVisit.vipCompany} size="lg" />
+                                    <CompanyAvatar name={selectedVisit.clientCompany} size="lg" />
                                     <div>
                                         <h2 className="text-2xl font-bold text-gray-900 leading-tight">
-                                            {selectedVisit.vipCompany || "ไม่ระบุบริษัท"}
+                                            {selectedVisit.clientCompany || "ไม่ระบุบริษัท"}
                                         </h2>
                                         <p className="text-sm text-blue-600 font-semibold flex items-center gap-1.5 mt-1.5">
                                             <CalendarClock className="w-4 h-4" />
@@ -1075,12 +1077,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             <div className="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden">
                                 <div className="bg-blue-50/50 px-5 sm:px-6 py-4 border-b border-blue-100 flex items-center gap-2">
                                     <MessageSquareText className="w-5 h-5 text-blue-600" />
-                                    <h3 className="text-base font-bold text-blue-900">ข้อมูลทั่วไปและการเข้าพบ</h3>
+                                    <h3 className="text-base font-bold text-blue-900">ข้อมูลผู้เข้าเยี่ยมชม</h3>
                                 </div>
                                 <div className="p-5 sm:p-6">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                                        <InfoCard icon={<Phone className="w-4 h-4 text-blue-500" />} label="เบอร์โทรศัพท์" value={selectedVisit.contactPhone} />
-                                        <InfoCard icon={<Globe2 className="w-4 h-4 text-blue-500" />} label="สัญชาติ" value={selectedVisit.nationality} />
+                                        <InfoCard icon={<Phone className="w-4 h-4 text-blue-500" />} label="เบอร์ผู้ประสานงาน" value={(selectedVisit.submittedBy as any)?.phone || selectedVisit.contactPhone} />
+                                        <InfoCard icon={<Globe2 className="w-4 h-4 text-blue-500" />} label="ประเทศ" value={selectedVisit.country} />
+                                        <InfoCard icon={<MapPin className="w-4 h-4 text-blue-500" />} label="ที่อยู่บริษัท" value={selectedVisit.companyAddress} />
+                                        <InfoCard icon={<Tag className="w-4 h-4 text-blue-500" />} label="ประเภทผู้เข้าเยี่ยมชม" value={(() => {
+                                            const type = selectedVisit.visitorType;
+                                            const other = selectedVisit.visitorTypeOther;
+                                            if (type && other && type === "อื่นๆ") return `${type} - ${other}`;
+                                            return type;
+                                        })()} />
                                         <InfoCard icon={<UserCircle2 className="w-4 h-4 text-blue-500" />} label="บุคคลที่ลูกค้าขอเข้าพบ (Host)" value={selectedVisit.hostName} />
                                         
                                         {/* ข้อมูล Executive Host & Submitted By */}
@@ -1091,20 +1100,12 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         />
                                     </div>
 
-                                    {(selectedVisit.visitTopic || selectedVisit.visitDetail) && (
+                                    {selectedVisit.purposeOfVisit && (
                                         <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
-                                            {selectedVisit.visitTopic && (
-                                                <div className="mb-4">
-                                                    <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5" /> หัวข้อการเข้าพบ</dt>
-                                                    <dd className="text-base font-bold text-gray-900">{selectedVisit.visitTopic}</dd>
-                                                </div>
-                                            )}
-                                            {selectedVisit.visitDetail && (
-                                                <div>
-                                                    <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Info className="w-3.5 h-3.5" /> รายละเอียดเพิ่มเติม</dt>
-                                                    <dd className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{selectedVisit.visitDetail}</dd>
-                                                </div>
-                                            )}
+                                            <div>
+                                                <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5" /> วัตถุประสงค์ในการเข้าพบ</dt>
+                                                <dd className="text-base font-bold text-gray-900">{selectedVisit.purposeOfVisit}</dd>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -1562,7 +1563,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     </select>
                                 </div>
                                 <div className="flex flex-col gap-1 md:col-span-2">
-                                    <label className="text-sm font-semibold text-gray-700">บริษัท (ลูกค้า/แขก VIP)</label>
+                                    <label className="text-sm font-semibold text-gray-700">ชื่อบริษัทที่เชิญมา</label>
                                     <input
                                         value={exportCompany}
                                         onChange={(e) => setExportCompany(e.target.value)}

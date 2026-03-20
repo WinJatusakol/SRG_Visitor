@@ -196,11 +196,12 @@ export async function POST(request) {
     const insertPayload = {
       timestamp: data.timestamp ?? new Date().toISOString(),
       clientCompany: data.clientCompany ?? "",
-      vipCompany: data.vipCompany ?? "",
-      nationality: data.nationality ?? "",
+      companyAddress: data.companyAddress ?? "",
+      country: data.country ?? "",
+      visitorType: data.visitorType ?? "",
+      visitorTypeOther: data.visitorTypeOther ?? "",
       contactPhone: data.contactPhone ?? "",
-      visitTopic: data.visitTopic ?? "",
-      visitDetail: data.visitDetail ?? "",
+      purposeOfVisit: data.purposeOfVisit ?? "",
       visitDateTime: visitDateTimeIso || null,
       status: 1,
       meetingRoomSelection,
@@ -222,13 +223,18 @@ export async function POST(request) {
         msg.includes('column "meetingRoomSelection"') ||
         msg.includes('column "executiveHost"') ||
         msg.includes('column "submittedBy"') ||
-        msg.includes('column "status"')
+        msg.includes('column "status"') ||
+        msg.includes('column "companyAddress"') ||
+        msg.includes('column "country"') ||
+        msg.includes('column "visitorType"') ||
+        msg.includes('column "visitorTypeOther"') ||
+        msg.includes('column "purposeOfVisit"')
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb), status (int2) ในตาราง vip_visitor ก่อน',
+              'ฐานข้อมูลยังไม่มีคอลัมน์สำหรับข้อมูลเพิ่มเติม กรุณาเพิ่มคอลัมน์ companyAddress (text), country (text), visitorType (text), visitorTypeOther (text), purposeOfVisit (text), meetingRoomSelection (text), executiveHost (jsonb), submittedBy (jsonb), status (int2) ในตาราง vip_visitor ก่อน',
           },
           { status: 500 }
         );
@@ -639,7 +645,7 @@ export async function POST(request) {
       "แจ้งงานสำหรับแม่บ้าน",
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
       `ผู้บริหารต้อนรับ: ${executiveHostText}`,
-      `หัวข้อ: ${data.visitTopic ?? "-"}`,
+      `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
       `มื้ออาหาร: ${meals}`,
@@ -655,16 +661,16 @@ export async function POST(request) {
     ].join("\n");
 
     const managerText = [
-      "แจ้งการเข้าพบแขก VIP",
+      "แจ้งการเข้าพบผู้เข้าเยี่ยมชม",
       `เวลาแจ้ง: ${submittedAt}`,
-      `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
-      `บริษัทแขก VIP: ${data.vipCompany ?? "-"}`,
-      `สัญชาติ: ${data.nationality ?? "-"}`,
+      `ชื่อบริษัทที่เชิญมา: ${data.clientCompany ?? "-"}`,
+      `ที่อยู่บริษัทที่เชิญมา: ${data.companyAddress ?? "-"}`,
+      `ประเทศของบริษัทที่เชิญมา: ${data.country ?? "-"}`,
+      `ประเภทผู้เข้าเยี่ยมชม: ${data.visitorType ?? "-"}${data.visitorTypeOther ? ` - ${data.visitorTypeOther}` : ""}`,
       `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
       `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
+      `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
-      `หัวข้อ: ${data.visitTopic ?? "-"}`,
-      `รายละเอียด: ${data.visitDetail ?? "-"}`,
       `รายชื่อผู้เข้าร่วม:\n${guestsText}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
       `ต้องการห้องประชุม: ${meetingRoomText}`,
@@ -689,11 +695,10 @@ export async function POST(request) {
       "แจ้งการเข้าพบ (ผู้ถูกเข้าพบ)",
       `เวลาแจ้ง: ${submittedAt}`,
       `เข้ามาพบ: ${data.hostName ?? "-"}`,
-      `หัวข้อ: ${data.visitTopic ?? "-"}`,
-      `รายละเอียด: ${data.visitDetail ?? "-"}`,
+      `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
       `เวลาที่มาถึง: ${visitDateTime}`,
-      `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
-      `บริษัทแขก VIP: ${data.vipCompany ?? "-"}`,
+      `ชื่อบริษัทที่เชิญมา: ${data.clientCompany ?? "-"}`,
+      `ประเภทผู้เข้าเยี่ยมชม: ${data.visitorType ?? "-"}${data.visitorTypeOther ? ` - ${data.visitorTypeOther}` : ""}`,
       `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
       `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
       `รายชื่อผู้เข้าร่วม:\n${guestsText}`,
@@ -719,13 +724,13 @@ export async function POST(request) {
       transporter.sendMail({
         from: emailFrom,
         to: housekeepingEmail,
-        subject: "แจ้งการเข้าพบ VIP (แม่บ้าน)",
+        subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (แม่บ้าน)",
         text: housekeepingText,
       }),
       transporter.sendMail({
         from: emailFrom,
         to: managerEmail,
-        subject: "แจ้งการเข้าพบ VIP (ผู้จัดการ)",
+        subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ผู้จัดการ)",
         text: managerText,
       }),
     ];
@@ -735,7 +740,7 @@ export async function POST(request) {
         transporter.sendMail({
           from: emailFrom,
           to: hostEmail,
-          subject: "แจ้งการเข้าพบ VIP (ผู้ถูกเข้าพบ)",
+          subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ผู้ถูกเข้าพบ)",
           text: hostText,
         })
       );
@@ -743,16 +748,16 @@ export async function POST(request) {
 
     if (shouldSendSecurity) {
       const securityText = [
-        "แจ้งการเข้าพบแขก VIP (รถส่วนตัว)",
+        "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (รถส่วนตัว)",
         `เข้ามาพบ: ${data.hostName ?? "-"}`,
         `ผู้บริหารต้อนรับ: ${executiveHostText}`,
-        `หัวข้อ: ${data.visitTopic ?? "-"}`,
+        `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
         `เวลาที่มาถึง: ${visitDateTime}`,
         `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
         `ข้อมูลรถ:\n${carsText}`,
         `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
         `ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
-        `บริษัทลูกค้า: ${data.clientCompany ?? "-"}`,
+        `ชื่อบริษัทที่เชิญมา: ${data.clientCompany ?? "-"}`,
         `ผู้กรอกฟอร์ม: ${submittedByText}`,
       ].join("\n");
 
@@ -760,7 +765,7 @@ export async function POST(request) {
         transporter.sendMail({
           from: emailFrom,
           to: securityEmail,
-          subject: "แจ้งการเข้าพบ VIP (ยาม)",
+          subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ยาม)",
           text: securityText,
         })
       );

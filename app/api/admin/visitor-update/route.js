@@ -85,11 +85,12 @@ export async function POST(request) {
     const updatePayload = {};
     const allowedKeys = [
       "clientCompany",
-      "vipCompany",
-      "nationality",
+      "companyAddress",
+      "country",
+      "visitorType",
+      "visitorTypeOther",
       "contactPhone",
-      "visitTopic",
-      "visitDetail",
+      "purposeOfVisit",
       "visitDateTime",
       "meetingRoomSelection",
       "transportType",
@@ -108,7 +109,7 @@ export async function POST(request) {
     const { data: beforeRow } = await supabase
       .from("vip_visitor")
       .select(
-        "id,status,visitDateTime,vipCompany,clientCompany,nationality,contactPhone,visitTopic,visitDetail,meetingRoomSelection,transportType,hostName,executiveHost,submittedBy"
+        "id,status,visitDateTime,clientCompany,companyAddress,country,visitorType,visitorTypeOther,contactPhone,purposeOfVisit,meetingRoomSelection,transportType,hostName,executiveHost,submittedBy"
       )
       .eq("id", id)
       .maybeSingle();
@@ -193,7 +194,7 @@ export async function POST(request) {
       .update(updatePayload)
       .eq("id", id)
       .select(
-        "id,status,visitDateTime,vipCompany,clientCompany,nationality,contactPhone,visitTopic,visitDetail,meetingRoomSelection,transportType,hostName,executiveHost,submittedBy"
+        "id,status,visitDateTime,clientCompany,companyAddress,country,visitorType,visitorTypeOther,contactPhone,purposeOfVisit,meetingRoomSelection,transportType,hostName,executiveHost,submittedBy"
       )
       .single();
 

@@ -87,9 +87,8 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
       }
 
       if (qCompany) {
-        const vip = typeof v.vipCompany === "string" ? v.vipCompany.toLowerCase() : "";
         const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
-        if (!vip.includes(qCompany) && !client.includes(qCompany)) return false;
+        if (!client.includes(qCompany)) return false;
       }
 
       return true;
@@ -204,11 +203,11 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                       </select>
                     </div>
                     <div className="flex flex-col gap-1 lg:col-span-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">บริษัท (ลูกค้า/แขก VIP)</label>
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ชื่อบริษัทที่เชิญมา</label>
                       <input
                         value={filterCompany}
                         onChange={(e) => setFilterCompany(e.target.value)}
-                        placeholder="พิมพ์ชื่อบริษัทเพื่อค้นหา"
+                        placeholder="พิมพ์ชื่อบริษัทที่เชิญมาเพื่อค้นหา"
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                       />
                     </div>
@@ -226,13 +225,13 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                           วันและเวลา
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
-                          บริษัทแขก VIP
+                          ชื่อบริษัทที่เชิญมา
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
                           ผู้ถูกเข้าพบ
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
-                          หัวข้อ
+                          วัตถุประสงค์
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
                           สถานะ
@@ -252,13 +251,13 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                               {formatDateTime(visit.visitDateTime || visit.created_at || null)}
                             </td>
                             <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
-                              {visit.vipCompany || "-"}
+                              {visit.clientCompany || "-"}
                             </td>
                             <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
                               {visit.hostName || "-"}
                             </td>
                             <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
-                              {visit.visitTopic || "-"}
+                              {visit.purposeOfVisit || "-"}
                             </td>
                             <td className="px-3 py-2 text-sm whitespace-nowrap">
                               <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${label.className}`}>
