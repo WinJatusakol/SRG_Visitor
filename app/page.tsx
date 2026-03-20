@@ -24,6 +24,12 @@ type Car = {
   license: string;
 };
 
+type InternalAttendee = {
+  firstName: string;
+  lastName: string;
+  position: string;
+};
+
 type ShuttleSchedule = {
   date: string;
   pickup: string;
@@ -41,6 +47,8 @@ type VisitFormState = {
   guests: Guest[];
   purposeOfVisit: string;
   welcomeMessage: string;
+  internalAttendeeCount: string;
+  internalAttendees: InternalAttendee[];
   visitDate: string;
   visitTime: string;
   meetingRoom: YesNo | "";
@@ -72,8 +80,6 @@ type VisitFormState = {
   submittedByName: string;
   submittedByPosition: string;
   submittedByPhone: string;
-  hostName: string;
-  executiveHostChoice: string;
 };
 
 
@@ -134,6 +140,12 @@ const createEmptyCar = (): Car => ({
   license: "",
 });
 
+const createEmptyInternalAttendee = (): InternalAttendee => ({
+  firstName: "",
+  lastName: "",
+  position: "",
+});
+
 const createEmptyShuttleSchedule = (): ShuttleSchedule => ({
   date: "",
   pickup: "",
@@ -159,6 +171,8 @@ const initialState: VisitFormState = {
   guests: [],
   purposeOfVisit: "",
   welcomeMessage: "Warmly welcome (Mr. A / Company name)",
+  internalAttendeeCount: "",
+  internalAttendees: [],
   visitDate: "",
   visitTime: "",
   meetingRoom: "",
@@ -190,8 +204,6 @@ const initialState: VisitFormState = {
   submittedByName: "",
   submittedByPosition: "",
   submittedByPhone: "",
-  hostName: "",
-  executiveHostChoice: "",
 };
 
 export default function Home() {
@@ -206,8 +218,6 @@ export default function Home() {
   });
   const minVisitDate = new Date().toISOString().split("T")[0];
 
-  const [hostOptions, setHostOptions] = useState<RefOptionRow[]>([]);
-  const [executiveHostOptions, setExecutiveHostOptions] = useState<RefOptionRow[]>([]);
   const [meetingRoomOptions, setMeetingRoomOptions] = useState<MeetingRoomRow[]>([]);
   const [siteVisitAreaOptions, setSiteVisitAreaOptions] = useState<RefOptionRow[]>([]);
   const [affiliateCompanyOptions, setAffiliateCompanyOptions] = useState<RefOptionRow[]>([]);
@@ -253,20 +263,8 @@ export default function Home() {
   useEffect(() => {
     const supabase = createClient();
     const load = async () => {
-        const [hosts, executives, rooms, siteAreas, affiliateCompanies, giftSets, foodMenus, allergies] =
+      const [rooms, siteAreas, affiliateCompanies, giftSets, foodMenus, allergies] =
         await Promise.all([
-          supabase
-            .from("hosts")
-            .select("value,label_th,label_en,sort_index,active")
-            .eq("active", true)
-            .order("sort_index", { ascending: true })
-            .order("value", { ascending: true }),
-          supabase
-            .from("executive_hosts")
-            .select("value,label_th,label_en,sort_index,active")
-            .eq("active", true)
-            .order("sort_index", { ascending: true })
-            .order("value", { ascending: true }),
           supabase
             .from("meeting_rooms")
             .select(
@@ -308,14 +306,6 @@ export default function Home() {
             .order("value", { ascending: true }),
         ]);
 
-      setHostOptions(
-        !hosts.error && Array.isArray(hosts.data) ? (hosts.data as RefOptionRow[]) : []
-      );
-      setExecutiveHostOptions(
-        !executives.error && Array.isArray(executives.data)
-          ? (executives.data as RefOptionRow[])
-          : []
-      );
       setMeetingRoomOptions(
         !rooms.error && Array.isArray(rooms.data) ? (rooms.data as MeetingRoomRow[]) : []
       );
@@ -527,10 +517,39 @@ export default function Home() {
       });
     }
 
+    if (name === "internalAttendeeCount") {
+      value = value.replace(/\D/g, "");
+      return setForm((prev) => {
+        const count = Number(value || 0);
+        const nextAttendees = Array.from(
+          { length: Math.max(0, count) },
+          (_, index) => prev.internalAttendees[index] ?? createEmptyInternalAttendee()
+        );
+        return {
+          ...prev,
+          internalAttendeeCount: value,
+          internalAttendees: nextAttendees,
+        };
+      });
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleInternalAttendeeChange = (
+    index: number,
+    field: keyof InternalAttendee,
+    value: string
+  ) => {
+    setForm((prev) => {
+      const nextAttendees = prev.internalAttendees.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      );
+      return { ...prev, internalAttendees: nextAttendees };
+    });
   };
 
   const handleShuttleScheduleChange = (
@@ -987,19 +1006,6 @@ export default function Home() {
         );
       }
     }
-    if (!form.hostName.trim()) {
-      messages.push(
-        t("กรุณาเลือกผู้ที่จะเข้ามาพบ", "Please select the person to visit.")
-      );
-    }
-    if (!form.executiveHostChoice.trim()) {
-      messages.push(
-        t(
-          "กรุณาเลือกผู้บริหารที่จะมาดูแลต้อนรับแขก",
-          "Please select the welcoming executive."
-        )
-      );
-    }
     if (!form.submittedByName.trim()) {
       messages.push(
         t(
@@ -1023,6 +1029,52 @@ export default function Home() {
           "Please enter the contact phone number."
         )
       );
+    }
+    const internalCount = Number(form.internalAttendeeCount || 0);
+    if (!form.internalAttendeeCount.trim() || internalCount <= 0) {
+      messages.push(
+        t(
+          "กรุณาระบุจำนวนผู้เข้าร่วมภายในองค์กร",
+          "Please enter the number of internal attendees."
+        )
+      );
+    } else {
+      for (let index = 0; index < internalCount; index += 1) {
+        const attendee = form.internalAttendees[index];
+        if (!attendee) {
+          messages.push(
+            t(
+              `กรุณากรอกข้อมูลผู้เข้าร่วมภายในคนที่ ${index + 1} ให้ครบ`,
+              `Please complete internal attendee #${index + 1}.`
+            )
+          );
+          continue;
+        }
+        if (!attendee.firstName.trim()) {
+          messages.push(
+            t(
+              `กรุณากรอกชื่อผู้เข้าร่วมภายในคนที่ ${index + 1}`,
+              `Please enter internal attendee #${index + 1} first name.`
+            )
+          );
+        }
+        if (!attendee.lastName.trim()) {
+          messages.push(
+            t(
+              `กรุณากรอกนามสกุลผู้เข้าร่วมภายในคนที่ ${index + 1}`,
+              `Please enter internal attendee #${index + 1} last name.`
+            )
+          );
+        }
+        if (!attendee.position.trim()) {
+          messages.push(
+            t(
+              `กรุณากรอกตำแหน่งผู้เข้าร่วมภายในคนที่ ${index + 1}`,
+              `Please enter internal attendee #${index + 1} position.`
+            )
+          );
+        }
+      }
     }
     if (registrationFile && registrationFile.size > maxRegistrationFileSize) {
       messages.push(
@@ -1107,16 +1159,12 @@ export default function Home() {
         }
         : null;
 
-    const executiveHost = {
-      type: "preset",
-      name: form.executiveHostChoice,
-    };
-
     const submittedBy = {
       name: form.submittedByName,
       position: form.submittedByPosition,
       phone: form.submittedByPhone,
     };
+    const internalAttendees = form.internalAttendees;
 
     const payload = {
       timestamp: new Date().toISOString(),
@@ -1129,6 +1177,7 @@ export default function Home() {
       guests: form.guests,
       purposeOfVisit: form.purposeOfVisit,
       welcomeMessage: form.welcomeMessage,
+      internalAttendees,
       visitDateTime:
         form.visitDate && form.visitTime
           ? buildVisitDateTimeIso(form.visitDate, form.visitTime)
@@ -1140,8 +1189,6 @@ export default function Home() {
       shuttleSchedules,
       foodPreferences,
       souvenirPreferences,
-      executiveHost,
-      hostName: form.hostName,
       submittedBy,
     };
 
@@ -2479,54 +2526,13 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   5
                 </span>
-                <span>{t("ข้อมูลผู้ดูแลภายในองค์กร", "Internal Contacts")}</span>
+                <span>{t("ข้อมูลภายในองค์กร EPAC", "EPAC Internal Information")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
-                  "ผู้ถูกเข้าพบ ผู้บริหารดูแล และผู้กรอกฟอร์ม",
-                  "Host, welcoming executive, and submitter."
+                  "ข้อมูลผู้กรอกฟอร์มและรายชื่อผู้เข้าร่วมภายใน",
+                  "Submitter information and internal attendees."
                 )}
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium">
-                    {t("บุคคลที่ลูกค้าต้องการเข้าพบ", "Host to visit")}
-                  </label>
-                  <select
-                    name="hostName"
-                    value={form.hostName}
-                    onChange={handleChange}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  >
-                    <option value="">{t("เลือกผู้ที่จะเข้าพบ", "Select host")}</option>
-                    {hostOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {optionLabel(option)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium">
-                    {t("ผู้บริหารดูแลต้อนรับแขก", "Welcoming executive")}
-                  </label>
-                  <select
-                    name="executiveHostChoice"
-                    value={form.executiveHostChoice}
-                    onChange={handleChange}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  >
-                    <option value="">{t("เลือกผู้บริหาร", "Select executive")}</option>
-                    {executiveHostOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {optionLabel(option)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -2570,6 +2576,73 @@ export default function Home() {
                   />
                 </div>
               </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">
+                    {t("จำนวนผู้เข้าร่วมภายใน", "Number of internal attendees")}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    name="internalAttendeeCount"
+                    value={form.internalAttendeeCount}
+                    onChange={handleChange}
+                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    placeholder={t("เช่น 3", "e.g., 3")}
+                  />
+                </div>
+              </div>
+
+              {Number(form.internalAttendeeCount || 0) > 0 && (
+                <div className="space-y-4">
+                  {Array.from(
+                    { length: Number(form.internalAttendeeCount || 0) },
+                    (_, index) => {
+                      const attendee = form.internalAttendees[index] ?? createEmptyInternalAttendee();
+                      return (
+                        <div
+                          key={String(index)}
+                          className="rounded-lg border border-zinc-200 bg-white p-4"
+                        >
+                          <div className="text-sm font-semibold text-zinc-900">
+                            {t("ผู้เข้าร่วมภายในคนที่", "Internal attendee")} {index + 1}
+                          </div>
+                          <div className="mt-3 grid gap-3 md:grid-cols-3">
+                            <input
+                              type="text"
+                              value={attendee.firstName}
+                              onChange={(e) =>
+                                handleInternalAttendeeChange(index, "firstName", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("ชื่อ", "First name")}
+                            />
+                            <input
+                              type="text"
+                              value={attendee.lastName}
+                              onChange={(e) =>
+                                handleInternalAttendeeChange(index, "lastName", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("นามสกุล", "Last name")}
+                            />
+                            <input
+                              type="text"
+                              value={attendee.position}
+                              onChange={(e) =>
+                                handleInternalAttendeeChange(index, "position", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("ตำแหน่ง", "Position")}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
             </section>
 
             <div className="sticky bottom-4 z-10 flex items-center justify-end gap-3 rounded-2xl border border-[#E2CCA8] bg-[#FAEFCC]/95 px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.12)] backdrop-blur">

@@ -3,10 +3,9 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 const isAllowedTable = (table) =>
   [
-    "hosts",
-    "executive_hosts",
     "meeting_rooms",
     "site_visit_areas",
+    "affiliate_companies",
     "souvenir_gift_sets",
     "food_menu_options",
     "allergy_options",

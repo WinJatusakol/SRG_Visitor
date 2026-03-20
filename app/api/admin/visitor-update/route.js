@@ -44,6 +44,20 @@ const guestSummary = (items) => {
   return text.length > 220 ? `${text.slice(0, 220)}…` : text;
 };
 
+const internalAttendeeSummary = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return "-";
+  const parts = items
+    .map((g, index) => {
+      const fullName = [asText(g.firstName), asText(g.lastName)].filter(Boolean).join(" ");
+      const position = asText(g.position);
+      const line = [fullName, position].filter(Boolean).join(" / ");
+      return line || `คนที่ ${index + 1}`;
+    })
+    .filter(Boolean);
+  const text = parts.join(", ");
+  return text.length > 220 ? `${text.slice(0, 220)}…` : text;
+};
+
 const carSummary = (items) => {
   if (!Array.isArray(items) || items.length === 0) return "-";
   const parts = items
@@ -88,6 +102,7 @@ export async function POST(request) {
     const data = isRecord(body?.data) ? body.data : null;
     const guests = Array.isArray(body?.guests) ? body.guests : null;
     const cars = Array.isArray(body?.cars) ? body.cars : null;
+    const internalAttendees = Array.isArray(body?.internalAttendees) ? body.internalAttendees : null;
     const shuttleSchedules = Array.isArray(body?.shuttleSchedules) ? body.shuttleSchedules : null;
     const foodPreferences = body?.foodPreferences === null ? null : isRecord(body?.foodPreferences) ? body.foodPreferences : undefined;
     const siteVisit = body?.siteVisit === null ? null : isRecord(body?.siteVisit) ? body.siteVisit : undefined;
@@ -114,8 +129,6 @@ export async function POST(request) {
       "visitDateTime",
       "meetingRoomSelection",
       "transportType",
-      "hostName",
-      "executiveHost",
       "submittedBy",
       "status",
     ];
@@ -129,12 +142,13 @@ export async function POST(request) {
     const { data: beforeRow } = await supabase
       .from("vip_visitor")
       .select(
-        "id,status,visitDateTime,clientCompany,companyAddress,country,visitorType,visitorTypeOther,contactPhone,purposeOfVisit,meetingRoomSelection,transportType,hostName,executiveHost,submittedBy"
+        "id,status,visitDateTime,clientCompany,companyAddress,country,visitorType,visitorTypeOther,contactPhone,purposeOfVisit,welcomeMessage,meetingRoomSelection,transportType,submittedBy"
       )
       .eq("id", id)
       .maybeSingle();
 
     const shouldLoadGuests = Array.isArray(guests);
+    const shouldLoadInternalAttendees = Array.isArray(internalAttendees);
     const shouldLoadCars = Array.isArray(cars);
     const shouldLoadShuttle = Array.isArray(shuttleSchedules);
     const shouldLoadFood = foodPreferences !== undefined;
@@ -143,6 +157,7 @@ export async function POST(request) {
 
     const [
       { data: beforeGuestRows },
+      { data: beforeInternalRows },
       { data: beforeCarRows },
       { data: beforeShuttleRow },
       { data: beforeFoodRow },
@@ -153,6 +168,13 @@ export async function POST(request) {
         ? supabase
             .from("vip_visitor_guests")
             .select("sortIndex,firstName,middleName,lastName,company,position,nationality")
+            .eq("visitorId", id)
+            .order("sortIndex", { ascending: true })
+        : Promise.resolve({ data: null }),
+      shouldLoadInternalAttendees
+        ? supabase
+            .from("vip_visitor_internal_attendees")
+            .select("sortIndex,firstName,lastName,position")
             .eq("visitorId", id)
             .order("sortIndex", { ascending: true })
         : Promise.resolve({ data: null }),
@@ -219,7 +241,7 @@ export async function POST(request) {
       .update(updatePayload)
       .eq("id", id)
       .select(
-        "id,status,visitDateTime,clientCompany,companyAddress,country,visitorType,visitorTypeOther,contactPhone,purposeOfVisit,meetingRoomSelection,transportType,hostName,executiveHost,submittedBy"
+        "id,status,visitDateTime,clientCompany,companyAddress,country,visitorType,visitorTypeOther,contactPhone,purposeOfVisit,welcomeMessage,meetingRoomSelection,transportType,submittedBy"
       )
       .single();
 
@@ -254,6 +276,31 @@ export async function POST(request) {
         const { error: insGuestError } = await supabase.from("vip_visitor_guests").insert(rows);
         if (insGuestError) {
           return NextResponse.json({ success: false, error: insGuestError.message }, { status: 500 });
+        }
+      }
+    }
+
+    if (internalAttendees) {
+      const { error: delInternalError } = await supabase
+        .from("vip_visitor_internal_attendees")
+        .delete()
+        .eq("visitorId", visitorId);
+      if (delInternalError) {
+        return NextResponse.json({ success: false, error: delInternalError.message }, { status: 500 });
+      }
+      const rows = internalAttendees.map((a, index) => ({
+        visitorId,
+        sortIndex: index,
+        firstName: typeof a?.firstName === "string" ? a.firstName : "",
+        lastName: typeof a?.lastName === "string" ? a.lastName : "",
+        position: typeof a?.position === "string" ? a.position : "",
+      }));
+      if (rows.length > 0) {
+        const { error: insInternalError } = await supabase
+          .from("vip_visitor_internal_attendees")
+          .insert(rows);
+        if (insInternalError) {
+          return NextResponse.json({ success: false, error: insInternalError.message }, { status: 500 });
         }
       }
     }
@@ -363,6 +410,29 @@ export async function POST(request) {
         : [];
       if (!valuesEqual(beforeGuests, afterGuests)) {
         changes.push({ field: "guests", from: guestSummary(beforeGuests), to: guestSummary(afterGuests) });
+      }
+    }
+    if (shouldLoadInternalAttendees) {
+      const beforeInternal = Array.isArray(beforeInternalRows)
+        ? beforeInternalRows.map((g) => ({
+            firstName: asText(g?.firstName),
+            lastName: asText(g?.lastName),
+            position: asText(g?.position),
+          }))
+        : [];
+      const afterInternal = Array.isArray(internalAttendees)
+        ? internalAttendees.map((g) => ({
+            firstName: asText(g?.firstName),
+            lastName: asText(g?.lastName),
+            position: asText(g?.position),
+          }))
+        : [];
+      if (!valuesEqual(beforeInternal, afterInternal)) {
+        changes.push({
+          field: "internalAttendees",
+          from: internalAttendeeSummary(beforeInternal),
+          to: internalAttendeeSummary(afterInternal),
+        });
       }
     }
     if (shouldLoadCars) {

@@ -26,6 +26,7 @@ type SiteVisitRow = { siteVisit?: unknown | null };
 type SouvenirRow = { souvenirPreferences?: unknown | null };
 type ShuttleRow = { schedules?: unknown | null };
 type RegistrationFileRow = { registrationFile?: unknown | null };
+type InternalAttendeeRow = { sortIndex?: number | null; firstName?: string | null; lastName?: string | null; position?: string | null };
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -55,6 +56,7 @@ export default async function AdminPage() {
   const joinedSelect = `
     *,
     vip_visitor_guests(*),
+    vip_visitor_internal_attendees(*),
     vip_visitor_cars(*),
     vip_visitor_shuttle(*),
     vip_visitor_food(*),
@@ -87,6 +89,7 @@ export default async function AdminPage() {
         : 0;
     
     const guestRowsRaw = record.vip_visitor_guests;
+    const internalRowsRaw = record.vip_visitor_internal_attendees;
     const carRowsRaw = record.vip_visitor_cars;
     const shuttleRowsRaw = record.vip_visitor_shuttle;
     const foodRowsRaw = record.vip_visitor_food;
@@ -96,6 +99,7 @@ export default async function AdminPage() {
 
     // แขกและรถ เป็นความสัมพันธ์แบบ 1:Many (Supabase จะส่งมาเป็น Array แน่นอน)
     const guestRows = Array.isArray(guestRowsRaw) ? (guestRowsRaw as GuestRow[]) : null;
+    const internalRows = Array.isArray(internalRowsRaw) ? (internalRowsRaw as InternalAttendeeRow[]) : null;
     const carRows = Array.isArray(carRowsRaw) ? (carRowsRaw as CarRow[]) : null;
 
     // 🌟 ส่วนที่แก้ไข 🌟
@@ -129,12 +133,22 @@ export default async function AdminPage() {
             license: c?.license ?? "",
           }))
       : record.cars;
+    const normalizedInternalAttendees = internalRows
+      ? [...internalRows]
+          .sort((a, b) => Number(a?.sortIndex ?? 0) - Number(b?.sortIndex ?? 0))
+          .map((a) => ({
+            firstName: a?.firstName ?? "",
+            lastName: a?.lastName ?? "",
+            position: a?.position ?? "",
+          }))
+      : record.internalAttendees;
 
     // รวบรวมข้อมูลให้อยู่ในรูปแบบที่ VisitTable ต้องการ
     const normalized: Record<string, unknown> = {
       ...record,
       id: normalizedId,
       guests: normalizedGuests,
+      internalAttendees: normalizedInternalAttendees,
       cars: normalizedCars,
       shuttleSchedules: shuttleRow?.schedules ?? record.shuttleSchedules,
       foodPreferences: foodRow?.foodPreferences ?? record.foodPreferences,
@@ -149,6 +163,7 @@ export default async function AdminPage() {
 
     // ลบ Key ที่เป็น Table เก่าทิ้ง
     delete normalized.vip_visitor_guests;
+    delete normalized.vip_visitor_internal_attendees;
     delete normalized.vip_visitor_cars;
     delete normalized.vip_visitor_food;
     delete normalized.vip_visitor_site_visit;

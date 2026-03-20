@@ -10,9 +10,7 @@ export type Visit = {
   visitorTypeOther?: string | null;
   contactPhone?: string | null;
   totalGuests?: number | null;
-  hostName?: string | null;
   submittedBy?: unknown | null;
-  executiveHost?: unknown | null;
   transportType?: string | null;
   carLicense?: string | null;
   carBrand?: string | null;
@@ -23,6 +21,7 @@ export type Visit = {
   purposeOfVisit?: string | null;
   welcomeMessage?: string | null;
   guests?: unknown[] | null;
+  internalAttendees?: unknown[] | null;
   carCount?: number | null;
   cars?: unknown[] | null;
   shuttleSchedules?: unknown[] | null;

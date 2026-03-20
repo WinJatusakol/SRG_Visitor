@@ -69,10 +69,9 @@ const knownFields = [
   "welcomeMessage",
   "meetingRoomSelection",
   "transportType",
-  "hostName",
-  "executiveHost",
   "submittedBy",
   "guests",
+  "internalAttendees",
   "cars",
   "shuttleSchedules",
   "foodPreferences",
@@ -94,10 +93,9 @@ const labelFor = (field: string) => {
     welcomeMessage: "ข้อความ Welcome board",
     meetingRoomSelection: "ห้องประชุม",
     transportType: "การเดินทาง",
-    hostName: "ชื่อผู้ถูกเข้าพบ",
-    executiveHost: "ชื่อผู้ดูแลต้อนรับ",
     submittedBy: "ชื่อผู้ยื่นคำร้อง",
     guests: "ผู้เข้าร่วม",
+    internalAttendees: "ผู้เข้าร่วมภายใน",
     cars: "รถยนต์",
     shuttleSchedules: "รถรับ-ส่ง",
     foodPreferences: "อาหาร",
@@ -276,22 +274,6 @@ const formatSouvenirPreferences = (value: unknown) => {
   return lines.map((x) => limitText(x, 260)).join("\n");
 };
 
-const formatExecutiveHost = (value: unknown) => {
-  const exRaw = parseJsonDeep(value);
-  const ex = isRecord(exRaw) ? exRaw : null;
-  if (!ex) return "-";
-  const type = asString(ex.type);
-  if (type === "preset") return asString(ex.name) || "-";
-  if (type === "other") {
-    const fullName = [asString(ex.firstName), asString(ex.middleName), asString(ex.lastName)].filter(Boolean).join(" ");
-    const position = asString(ex.position);
-    const text = [fullName, position].filter(Boolean).join(" / ");
-    return text || "-";
-  }
-  const text = asString(ex.name);
-  return text || "-";
-};
-
 const formatSubmittedBy = (value: unknown) => {
   const sbRaw = parseJsonDeep(value);
   const sb = isRecord(sbRaw) ? sbRaw : null;
@@ -316,7 +298,6 @@ const formatValue = (field: string, value: unknown) => {
   if (field === "foodPreferences") return formatFoodPreferences(v);
   if (field === "siteVisit") return formatSiteVisit(v);
   if (field === "souvenirPreferences") return formatSouvenirPreferences(v);
-  if (field === "executiveHost") return formatExecutiveHost(v);
   if (field === "submittedBy") return formatSubmittedBy(v);
   if (typeof v === "boolean") return v ? "ใช่" : "ไม่";
   if (typeof v === "number") return String(v);

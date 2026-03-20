@@ -29,7 +29,6 @@ import {
     XCircle,
     MapPin,
     Tag,
-    UserCheck,
     PenLine
 } from "lucide-react";
 
@@ -224,8 +223,6 @@ export function VisitDetailsModal({
                                     if (type && other && type === "อื่นๆ") return `${type} - ${other}`;
                                     return type;
                                 })()} />
-                                <InfoCard icon={<UserCircle2 className="w-4 h-4 text-blue-500" />} label="บุคคลที่ลูกค้าขอเข้าพบ (Host)" value={selectedVisit.hostName} />
-                                <InfoCard icon={<UserCheck className="w-4 h-4 text-blue-500" />} label="ผู้ดูแล ต้อนรับแขก" value={(selectedVisit.executiveHost as unknown as { name?: string })?.name || "-"} />
                             </div>
 
                             {selectedVisit.purposeOfVisit && (
@@ -288,6 +285,39 @@ export function VisitDetailsModal({
                                     </div>
                                 ) : (
                                     <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วม</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden h-full flex flex-col">
+                            <div className="bg-indigo-50/50 px-5 sm:px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Users className="w-5 h-5 text-indigo-600" />
+                                    <h3 className="text-base font-bold text-indigo-900">ผู้เข้าร่วมภายใน EPAC</h3>
+                                </div>
+                                <span className="text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-md">{selectedVisit.internalAttendees?.length || 0} ท่าน</span>
+                            </div>
+                            <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
+                                {selectedVisit.internalAttendees && selectedVisit.internalAttendees.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {selectedVisit.internalAttendees.map((g: any, i: number) => (
+                                            <div key={i} className="flex items-center gap-4 p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-colors">
+                                                <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500 shrink-0">
+                                                    <UserCircle2 className="w-5 h-5" />
+                                                </div>
+                                                <div className="overflow-hidden">
+                                                    <div className="font-bold text-sm text-gray-900 truncate">
+                                                        {[g.firstName, g.lastName].filter(Boolean).join(" ") || "-"}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                        {g.position || "ไม่ระบุตำแหน่ง"}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วมภายใน</div>
                                 )}
                             </div>
                         </div>
@@ -661,13 +691,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [editVisit, setEditVisit] = useState<Visit | null>(null);
     const [filterDateFrom, setFilterDateFrom] = useState("");
     const [filterDateTo, setFilterDateTo] = useState("");
-    const [filterHost, setFilterHost] = useState("");
     const [filterCompany, setFilterCompany] = useState("");
     const [exportOpen, setExportOpen] = useState(false);
     const [exportFrom, setExportFrom] = useState("");
     const [exportTo, setExportTo] = useState("");
     const [exportStatus, setExportStatus] = useState<"active" | "canceled" | "completed" | "all">("active");
-    const [exportHost, setExportHost] = useState("");
     const [exportCompany, setExportCompany] = useState("");
     const [exportFormat, setExportFormat] = useState<"excel" | "csv">("excel");
 
@@ -700,15 +728,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             return dateA - dateB;
         });
     }, [visits]);
-
-    const hostOptions = useMemo(() => {
-        const set = new Set<string>();
-        for (const v of sortedVisits) {
-            const name = typeof v.hostName === "string" ? v.hostName.trim() : "";
-            if (name) set.add(name);
-        }
-        return Array.from(set).sort((a, b) => a.localeCompare(b, "th"));
-    }, [sortedVisits]);
 
     const toThaiDateKey = (value: string | null | undefined) => {
         if (!value) return "";
@@ -743,11 +762,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 if (!dateKey) return false;
             }
 
-            if (filterHost.trim()) {
-                const hn = typeof v.hostName === "string" ? v.hostName.trim() : "";
-                if (hn !== filterHost.trim()) return false;
-            }
-
             if (qCompany) {
                 const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
                 if (!client.includes(qCompany)) return false;
@@ -755,7 +769,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
             return true;
         });
-    }, [filterCompany, filterDateFrom, filterDateTo, filterHost, sortedVisits]);
+    }, [filterCompany, filterDateFrom, filterDateTo, sortedVisits]);
 
     const exportableVisits = useMemo(() => {
         const qCompany = exportCompany.trim().toLowerCase();
@@ -771,11 +785,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             if (exportStatus === "canceled" && Number(v.status) !== 0) return false;
             if (exportStatus === "completed" && Number(v.status) !== 2) return false;
 
-            if (exportHost.trim()) {
-                const hn = typeof v.hostName === "string" ? v.hostName.trim() : "";
-                if (hn !== exportHost.trim()) return false;
-            }
-
             if (qCompany) {
                 const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
                 if (!client.includes(qCompany)) return false;
@@ -783,7 +792,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
             return true;
         });
-    }, [exportCompany, exportFrom, exportHost, exportStatus, exportTo, sortedVisits]);
+    }, [exportCompany, exportFrom, exportStatus, exportTo, sortedVisits]);
 
     const downloadCsv = (rows: Array<Record<string, string>>, filename: string) => {
         const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -867,7 +876,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                     if (type && other && type === "อื่นๆ") return `${type} - ${other}`;
                     return typeof type === "string" ? type : "";
                 })(),
-                Host: typeof v.hostName === "string" ? v.hostName : "",
                 วัตถุประสงค์: typeof v.purposeOfVisit === "string" ? v.purposeOfVisit : "",
                 จำนวนผู้เข้าร่วม: String((v.guests?.length ?? v.totalGuests ?? 0) || 0),
                 เบอร์ผู้ประสานงาน: typeof v.contactPhone === "string" ? v.contactPhone : "",
@@ -953,7 +961,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             setExportFrom(filterDateFrom);
                             setExportTo(filterDateTo);
                             setExportStatus("active");
-                            setExportHost(filterHost);
                             setExportCompany(filterCompany);
                             setExportFormat("excel");
                             setExportOpen(true);
@@ -986,21 +993,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                         />
                     </div>
-                    <div className="flex flex-col gap-1 lg:col-span-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Host</label>
-                        <select
-                            value={filterHost}
-                            onChange={(e) => setFilterHost(e.target.value)}
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                        >
-                            <option value="">ทุกคน</option>
-                            {hostOptions.map((h) => (
-                                <option key={h} value={h}>
-                                    {h}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
                     <div className="flex flex-col gap-1 lg:col-span-2">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ชื่อบริษัทที่เชิญมา</label>
                         <input
@@ -1020,7 +1012,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         onClick={() => {
                             setFilterDateFrom("");
                             setFilterDateTo("");
-                            setFilterHost("");
                             setFilterCompany("");
                         }}
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
@@ -1039,7 +1030,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             <tr className="border-b border-gray-100/80">
                                 <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[28%]">วันและเวลา</th>
                                 <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[35%]">องค์กร / ผู้มาเยือน</th>
-                                <th className="hidden md:table-cell px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[22%]">ผู้ติดต่อ (Host)</th>
                                 <th className="hidden sm:table-cell px-6 py-5 text-center text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[15%]">จำนวนผู้เข้าพบ</th>
                                 <th className="w-[5%]"></th>
                             </tr>
@@ -1078,9 +1068,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                                     <span className="text-sm text-gray-500 flex items-center gap-1.5 mt-1"><Briefcase className="w-3.5 h-3.5 text-gray-400" /><span className="line-clamp-1">{(visit as any).purposeOfVisit || "-"}</span></span>
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td className="hidden md:table-cell px-6 py-5 align-top text-sm">
-                                            <div className="flex items-center gap-2 pt-2"><div className="p-1.5 bg-gray-100 text-gray-400 rounded-full"><UserCircle2 className="w-4 h-4" /></div><span className="font-medium text-gray-700">{visit.hostName || "-"}</span></div>
                                         </td>
                                         <td className="hidden sm:table-cell px-6 py-5 align-middle text-center">
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${(visit.guests?.length || 0) >= 1 ? 'bg-indigo-50 text-indigo-600 border-indigo-100/50' : 'bg-gray-50 text-gray-500 border-gray-100/50'}`}><Users className="w-3.5 h-3.5" />{visit.guests?.length || 1} คน</span>
@@ -1142,14 +1129,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                             if (type && other && type === "อื่นๆ") return `${type} - ${other}`;
                                             return type;
                                         })()} />
-                                        <InfoCard icon={<UserCircle2 className="w-4 h-4 text-blue-500" />} label="บุคคลที่ลูกค้าขอเข้าพบ (Host)" value={selectedVisit.hostName} />
-                                        
-                                        {/* ข้อมูล Executive Host & Submitted By */}
-                                        <InfoCard 
-                                            icon={<UserCheck className="w-4 h-4 text-blue-500" />} 
-                                            label="ผู้ดูแล ต้อนรับแขก" 
-                                            value={(selectedVisit.executiveHost as any)?.name || "-"} 
-                                        />
                                     </div>
 
                                     {selectedVisit.purposeOfVisit && (
@@ -1210,6 +1189,40 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                             </div>
                                         ) : (
                                             <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วม</div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* ผู้เข้าร่วมภายใน */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden h-full flex flex-col">
+                                    <div className="bg-indigo-50/50 px-5 sm:px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Users className="w-5 h-5 text-indigo-600" />
+                                            <h3 className="text-base font-bold text-indigo-900">ผู้เข้าร่วมภายใน EPAC</h3>
+                                        </div>
+                                        <span className="text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-md">{selectedVisit.internalAttendees?.length || 0} ท่าน</span>
+                                    </div>
+                                    <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
+                                        {selectedVisit.internalAttendees && selectedVisit.internalAttendees.length > 0 ? (
+                                            <div className="grid grid-cols-1 gap-3">
+                                                {selectedVisit.internalAttendees.map((g: any, i: number) => (
+                                                    <div key={i} className="flex items-center gap-4 p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-colors">
+                                                        <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500 shrink-0">
+                                                            <UserCircle2 className="w-5 h-5" />
+                                                        </div>
+                                                        <div className="overflow-hidden">
+                                                            <div className="font-bold text-sm text-gray-900 truncate">
+                                                                {[g.firstName, g.lastName].filter(Boolean).join(" ") || "-"}
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                                {g.position || "ไม่ระบุตำแหน่ง"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วมภายใน</div>
                                         )}
                                     </div>
                                 </div>
@@ -1603,7 +1616,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
                             <div>
                                 <div className="text-lg font-bold text-gray-900">Export</div>
-                                <div className="text-sm text-gray-500">เลือกช่วงวันที่ สถานะ Host และบริษัท</div>
+                                <div className="text-sm text-gray-500">เลือกช่วงวันที่ สถานะ และบริษัท</div>
                             </div>
                             <button
                                 type="button"
@@ -1648,21 +1661,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         <option value="all">ทั้งหมด</option>
                                     </select>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-sm font-semibold text-gray-700">Host</label>
-                                    <select
-                                        value={exportHost}
-                                        onChange={(e) => setExportHost(e.target.value)}
-                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                                    >
-                                        <option value="">ทุกคน</option>
-                                        {hostOptions.map((h) => (
-                                            <option key={h} value={h}>
-                                                {h}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
                                 <div className="flex flex-col gap-1 md:col-span-2">
                                     <label className="text-sm font-semibold text-gray-700">ชื่อบริษัทที่เชิญมา</label>
                                     <input
@@ -1697,7 +1695,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                             setExportFrom("");
                                             setExportTo("");
                                             setExportStatus("all");
-                                            setExportHost("");
                                             setExportCompany("");
                                             setExportFormat("excel");
                                         }}

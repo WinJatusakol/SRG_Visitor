@@ -29,7 +29,6 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterStatus, setFilterStatus] = useState<"active" | "canceled" | "completed" | "all">("all");
-  const [filterHost, setFilterHost] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
 
   const sorted = useMemo(() => {
@@ -41,15 +40,6 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
     });
     return items;
   }, [visits]);
-
-  const hostOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const v of sorted) {
-      const name = typeof v.hostName === "string" ? v.hostName.trim() : "";
-      if (name) set.add(name);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "th"));
-  }, [sorted]);
 
   const timeZone = "Asia/Bangkok";
 
@@ -81,11 +71,6 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
       if (filterStatus === "canceled" && Number(v.status) !== 0) return false;
       if (filterStatus === "completed" && Number(v.status) !== 2) return false;
 
-      if (filterHost.trim()) {
-        const hn = typeof v.hostName === "string" ? v.hostName.trim() : "";
-        if (hn !== filterHost.trim()) return false;
-      }
-
       if (qCompany) {
         const client = typeof v.clientCompany === "string" ? v.clientCompany.toLowerCase() : "";
         if (!client.includes(qCompany)) return false;
@@ -93,7 +78,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
 
       return true;
     });
-  }, [filterCompany, filterDateFrom, filterDateTo, filterHost, filterStatus, sorted]);
+  }, [filterCompany, filterDateFrom, filterDateTo, filterStatus, sorted]);
 
   return (
     <>
@@ -119,7 +104,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-[#FAEFCC]/60 px-6 py-4">
               <div>
                 <div className="text-lg font-semibold text-gray-900">ประวัติการจองทั้งหมด</div>
-                <div className="text-sm text-gray-500">ค้นหา/คัดกรองตามวัน สถานะ Host และบริษัท</div>
+                <div className="text-sm text-gray-500">ค้นหา/คัดกรองตามวัน สถานะ และบริษัท</div>
               </div>
               <button
                 type="button"
@@ -145,7 +130,6 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                       setFilterDateFrom("");
                       setFilterDateTo("");
                       setFilterStatus("all");
-                      setFilterHost("");
                       setFilterCompany("");
                     }}
                     className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
@@ -187,21 +171,6 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                         <option value="all">ทั้งหมด</option>
                       </select>
                     </div>
-                    <div className="flex flex-col gap-1 lg:col-span-1">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Host</label>
-                      <select
-                        value={filterHost}
-                        onChange={(e) => setFilterHost(e.target.value)}
-                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                      >
-                        <option value="">ทุกคน</option>
-                        {hostOptions.map((h) => (
-                          <option key={h} value={h}>
-                            {h}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
                     <div className="flex flex-col gap-1 lg:col-span-2">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ชื่อบริษัทที่เชิญมา</label>
                       <input
@@ -228,9 +197,6 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                           ชื่อบริษัทที่เชิญมา
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
-                          ผู้ถูกเข้าพบ
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
                           วัตถุประสงค์
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
@@ -252,9 +218,6 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                             </td>
                             <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
                               {visit.clientCompany || "-"}
-                            </td>
-                            <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
-                              {visit.hostName || "-"}
                             </td>
                             <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
                               {visit.purposeOfVisit || "-"}

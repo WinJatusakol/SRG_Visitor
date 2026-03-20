@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 
 type TableKey =
-  | "hosts"
-  | "executive_hosts"
   | "meeting_rooms"
   | "site_visit_areas"
   | "affiliate_companies"
@@ -41,8 +39,6 @@ type FoodMenuRow = RefRow & {
 type AnyRow = RefRow | MeetingRoomRow | FoodMenuRow;
 
 const tableLabels: Record<TableKey, string> = {
-  hosts: "Hosts",
-  executive_hosts: "Executive Hosts",
   meeting_rooms: "Meeting Rooms",
   site_visit_areas: "Site Visit Areas",
   affiliate_companies: "Affiliate Companies",
@@ -53,8 +49,6 @@ const tableLabels: Record<TableKey, string> = {
 
 // Mapping ชื่อ Label ให้เฉพาะเจาะจงตามหมวดหมู่
 const inputLabels: Record<TableKey, { th: string; en: string }> = {
-  hosts: { th: "ชื่อผู้ติดต่อ (TH)", en: "ชื่อผู้ติดต่อ (EN)" },
-  executive_hosts: { th: "ชื่อผู้บริหาร (TH)", en: "ชื่อผู้บริหาร (EN)" },
   meeting_rooms: { th: "ชื่อห้องประชุม (TH)", en: "ชื่อห้องประชุม (EN)" },
   site_visit_areas: { th: "ชื่อพื้นที่เข้าชม (TH)", en: "ชื่อพื้นที่เข้าชม (EN)" },
   affiliate_companies: { th: "ชื่อบริษัทในเครือ (TH)", en: "ชื่อบริษัทในเครือ (EN)" },
@@ -81,7 +75,7 @@ const normalizeNumber = (value: string) => {
 
 export default function RefDataManager() {
   const [open, setOpen] = useState(false);
-  const [table, setTable] = useState<TableKey>("hosts");
+  const [table, setTable] = useState<TableKey>("meeting_rooms");
   const [items, setItems] = useState<AnyRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
