@@ -23,6 +23,13 @@ type EditableCar = {
   license: string;
 };
 
+type ShuttleSchedule = {
+  date: string;
+  pickup: string;
+  destination: string;
+  time: string;
+};
+
 type YesNo = "yes" | "no";
 
 type RefOptionRow = {
@@ -32,6 +39,13 @@ type RefOptionRow = {
   sort_index?: number | null;
   active?: boolean | null;
 };
+
+const createEmptyShuttleSchedule = (): ShuttleSchedule => ({
+  date: "",
+  pickup: "",
+  destination: "",
+  time: "",
+});
 
 type MeetingRoomRow = {
   code: string;
@@ -132,6 +146,16 @@ const normalizeEditableCars = (value: unknown) => {
   })) as EditableCar[];
 };
 
+const normalizeShuttleSchedules = (value: unknown) => {
+  const arr = Array.isArray(value) ? value : [];
+  return arr.map((s) => ({
+    date: asString(s?.date),
+    pickup: asString(s?.pickup),
+    destination: asString(s?.destination),
+    time: asString(s?.time),
+  })) as ShuttleSchedule[];
+};
+
 const timeSlots: string[] = [];
 for (let hour = 6; hour <= 21; hour += 1) {
   timeSlots.push(`${hour.toString().padStart(2, "0")}:00`);
@@ -223,6 +247,7 @@ export default function EditBookingModal({
   const [executiveHostOptions, setExecutiveHostOptions] = useState<RefOptionRow[]>([]);
   const [meetingRoomOptions, setMeetingRoomOptions] = useState<MeetingRoomRow[]>([]);
   const [siteVisitAreaOptions, setSiteVisitAreaOptions] = useState<RefOptionRow[]>([]);
+  const [affiliateCompanyOptions, setAffiliateCompanyOptions] = useState<RefOptionRow[]>([]);
   const [souvenirGiftSetOptions, setSouvenirGiftSetOptions] = useState<RefOptionRow[]>([]);
   const [breakfastMenuOptions, setBreakfastMenuOptions] = useState<RefOptionRow[]>([]);
   const [lunchMenuOptions, setLunchMenuOptions] = useState<RefOptionRow[]>([]);
@@ -246,11 +271,13 @@ export default function EditBookingModal({
   const [visitTime, setVisitTime] = useState("");
   const [meetingRoom, setMeetingRoom] = useState<YesNo | "">("");
   const [meetingRoomSelection, setMeetingRoomSelection] = useState("");
-  const [transportType, setTransportType] = useState<"" | "personal" | "public">("");
+  const [transportType, setTransportType] = useState<"" | "personal" | "shuttle">("");
   const [guests, setGuests] = useState<EditableGuest[]>([]);
   const [cars, setCars] = useState<EditableCar[]>([]);
+  const [shuttleSchedules, setShuttleSchedules] = useState<ShuttleSchedule[]>([]);
 
   const [siteVisitAreas, setSiteVisitAreas] = useState<string[]>([]);
+  const [siteVisitAffiliateCompanies, setSiteVisitAffiliateCompanies] = useState<string[]>([]);
   const [siteVisitApproverName, setSiteVisitApproverName] = useState("");
   const [siteVisitApproverPosition, setSiteVisitApproverPosition] = useState("");
 
@@ -318,7 +345,7 @@ export default function EditBookingModal({
 
   useEffect(() => {
     const load = async () => {
-      const [hosts, executives, rooms, areas, giftSets, foodMenus, allergiesRes] = await Promise.all([
+      const [hosts, executives, rooms, siteAreas, affiliateCompanies, giftSets, foodMenus, allergiesRes] = await Promise.all([
         supabase
           .from("hosts")
           .select("value,label_th,label_en,sort_index,active")
@@ -339,6 +366,12 @@ export default function EditBookingModal({
           .order("code", { ascending: true }),
         supabase
           .from("site_visit_areas")
+          .select("value,label_th,label_en,sort_index,active")
+          .eq("active", true)
+          .order("sort_index", { ascending: true })
+          .order("value", { ascending: true }),
+        supabase
+          .from("affiliate_companies")
           .select("value,label_th,label_en,sort_index,active")
           .eq("active", true)
           .order("sort_index", { ascending: true })
@@ -367,7 +400,8 @@ export default function EditBookingModal({
       setHostOptions(!hosts.error && Array.isArray(hosts.data) ? (hosts.data as RefOptionRow[]) : []);
       setExecutiveHostOptions(!executives.error && Array.isArray(executives.data) ? (executives.data as RefOptionRow[]) : []);
       setMeetingRoomOptions(!rooms.error && Array.isArray(rooms.data) ? (rooms.data as MeetingRoomRow[]) : []);
-      setSiteVisitAreaOptions(!areas.error && Array.isArray(areas.data) ? (areas.data as RefOptionRow[]) : []);
+      setSiteVisitAreaOptions(!siteAreas.error && Array.isArray(siteAreas.data) ? (siteAreas.data as RefOptionRow[]) : []);
+      setAffiliateCompanyOptions(!affiliateCompanies.error && Array.isArray(affiliateCompanies.data) ? (affiliateCompanies.data as RefOptionRow[]) : []);
       setSouvenirGiftSetOptions(!giftSets.error && Array.isArray(giftSets.data) ? (giftSets.data as RefOptionRow[]) : []);
 
       const foodMenuRows =
@@ -467,7 +501,7 @@ export default function EditBookingModal({
     setMeetingRoom(meetingSel ? "yes" : "no");
     setMeetingRoomSelection(meetingSel);
 
-    setTransportType(visit.transportType === "personal" || visit.transportType === "public" ? visit.transportType : "");
+    setTransportType(visit.transportType === "personal" || visit.transportType === "shuttle" ? visit.transportType : "");
 
     const sub = asRecord(unwrapKey(visit.submittedBy, "submittedBy"));
     setSubmittedByName(asString(sub?.name));
@@ -480,6 +514,7 @@ export default function EditBookingModal({
     const sv = asRecord(unwrapKey(visit.siteVisit, "siteVisit"));
     const svAreas = asStringArray(sv?.areas);
     setSiteVisitAreas(svAreas);
+    setSiteVisitAffiliateCompanies(asStringArray(sv?.affiliateCompanies));
     setSiteVisitApproverName(asString(sv?.approverName));
     setSiteVisitApproverPosition(asString(sv?.approverPosition));
 
@@ -512,6 +547,7 @@ export default function EditBookingModal({
 
     setGuests(normalizeEditableGuests(visit.guests));
     setCars(normalizeEditableCars(visit.cars));
+    setShuttleSchedules(normalizeShuttleSchedules(visit.shuttleSchedules));
 
     const visitorId = visit.id;
     void (async () => {
@@ -584,6 +620,7 @@ export default function EditBookingModal({
           const svRec = asRecord(svDb);
           const svAreasDb = asStringArray(svRec?.areas);
           setSiteVisitAreas(svAreasDb);
+          setSiteVisitAffiliateCompanies(asStringArray(svRec?.affiliateCompanies));
           setSiteVisitApproverName(asString(svRec?.approverName));
           setSiteVisitApproverPosition(asString(svRec?.approverPosition));
         }
@@ -659,6 +696,10 @@ export default function EditBookingModal({
       setErrorMessage("กรุณากรอกข้อมูลผู้อนุญาตให้เข้าชม");
       return false;
     }
+    if (siteVisitAreas.includes("บริษัทในเครือ") && siteVisitAffiliateCompanies.length === 0) {
+      setErrorMessage("กรุณาเลือกบริษัทในเครือ");
+      return false;
+    }
     if (!transportType) {
       setErrorMessage("กรุณาเลือกประเภทรถ");
       return false;
@@ -666,6 +707,19 @@ export default function EditBookingModal({
     if (transportType === "personal" && cars.length === 0) {
       setErrorMessage("กรุณาเพิ่มข้อมูลรถอย่างน้อย 1 คัน");
       return false;
+    }
+    if (transportType === "shuttle") {
+      if (shuttleSchedules.length === 0) {
+        setErrorMessage("กรุณาเพิ่มกำหนดการรถรับ-ส่งอย่างน้อย 1 รายการ");
+        return false;
+      }
+      for (let index = 0; index < shuttleSchedules.length; index += 1) {
+        const item = shuttleSchedules[index];
+        if (!item.date.trim() || !item.pickup.trim() || !item.destination.trim() || !item.time.trim()) {
+          setErrorMessage(`กรุณากรอกข้อมูลรถรับ-ส่งรายการที่ ${index + 1} ให้ครบ`);
+          return false;
+        }
+      }
     }
     if (!foodRequired) {
       setErrorMessage("กรุณาระบุว่าจะรับอาหารหรือไม่");
@@ -736,9 +790,10 @@ export default function EditBookingModal({
       const visitDateTime = buildIsoUtc(visitDate, visitTime);
 
       const carsPayload = transportType === "personal" ? cars : [];
+      const shuttleSchedulesPayload = transportType === "shuttle" ? shuttleSchedules : [];
       const siteVisitPayload =
         siteVisitAreas.length > 0
-          ? { areas: siteVisitAreas, approverName: siteVisitApproverName, approverPosition: siteVisitApproverPosition }
+          ? { areas: siteVisitAreas, affiliateCompanies: siteVisitAffiliateCompanies, approverName: siteVisitApproverName, approverPosition: siteVisitApproverPosition }
           : null;
 
       const foodPreferencesPayload =
@@ -799,6 +854,7 @@ export default function EditBookingModal({
           },
           guests,
           cars: carsPayload,
+          shuttleSchedules: shuttleSchedulesPayload,
           siteVisit: siteVisitPayload,
           foodPreferences: foodPreferencesPayload,
           souvenirPreferences: souvenirPreferencesPayload,
@@ -1021,12 +1077,17 @@ export default function EditBookingModal({
                       <label className={labelClass}>การเดินทาง</label>
                       <select
                         value={transportType}
-                        onChange={(e) => setTransportType(e.target.value as "" | "personal" | "public")}
+                        onChange={(e) => {
+                          const next = e.target.value as "" | "personal" | "shuttle";
+                          setTransportType(next);
+                          if (next !== "personal") setCars([]);
+                          if (next !== "shuttle") setShuttleSchedules([]);
+                        }}
                         className={controlClass}
                       >
                         <option value="">เลือก</option>
-                        <option value="public">รถสาธารณะ</option>
                         <option value="personal">รถส่วนตัว</option>
+                        <option value="shuttle">รถรับ-ส่ง</option>
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
@@ -1305,6 +1366,115 @@ export default function EditBookingModal({
                   </div>
                 )}
 
+                {transportType === "shuttle" && (
+                  <div className={cardClass}>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-bold text-gray-900">กำหนดการรถรับ-ส่ง</div>
+                      <button
+                        type="button"
+                        onClick={() => setShuttleSchedules((prev) => [...prev, createEmptyShuttleSchedule()])}
+                        className={smallBtnClass}
+                      >
+                        เพิ่มวัน
+                      </button>
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      {shuttleSchedules.length === 0 && (
+                        <div className="text-sm text-gray-500">ยังไม่มีข้อมูลรถรับ-ส่ง</div>
+                      )}
+                      {shuttleSchedules.map((item, index) => (
+                        <details key={index} className="rounded-xl border border-gray-200 bg-white p-3 group">
+                          <summary className="cursor-pointer list-none">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-xs font-bold text-gray-700">
+                                    {index + 1}
+                                  </span>
+                                  <div className="text-sm font-semibold text-gray-900 truncate">
+                                    {item.date || "กำหนดการรถรับ-ส่ง"}
+                                  </div>
+                                </div>
+                                <div className="mt-1 text-xs text-gray-500">กดเพื่อแก้ไขกำหนดการ</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setShuttleSchedules((prev) => prev.filter((_, i) => i !== index));
+                                }}
+                                className={dangerBtnClass}
+                              >
+                                ลบ
+                              </button>
+                            </div>
+                          </summary>
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <div className="flex flex-col gap-1">
+                              <label className={labelClass}>วันที่</label>
+                              <input
+                                type="date"
+                                value={item.date}
+                                onChange={(e) =>
+                                  setShuttleSchedules((prev) =>
+                                    prev.map((x, i) => (i === index ? { ...x, date: e.target.value } : x))
+                                  )
+                                }
+                                className={controlClass}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className={labelClass}>เวลา</label>
+                              <select
+                                value={item.time}
+                                onChange={(e) =>
+                                  setShuttleSchedules((prev) =>
+                                    prev.map((x, i) => (i === index ? { ...x, time: e.target.value } : x))
+                                  )
+                                }
+                                className={controlClass}
+                              >
+                                <option value="">เลือกเวลา</option>
+                                {timeSlots.map((slot) => (
+                                  <option key={slot} value={slot}>
+                                    {slot}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className={labelClass}>จุดที่รับ</label>
+                              <input
+                                value={item.pickup}
+                                onChange={(e) =>
+                                  setShuttleSchedules((prev) =>
+                                    prev.map((x, i) => (i === index ? { ...x, pickup: e.target.value } : x))
+                                  )
+                                }
+                                className={controlClass}
+                                placeholder="เช่น อาคาร A"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className={labelClass}>จุดหมาย</label>
+                              <input
+                                value={item.destination}
+                                onChange={(e) =>
+                                  setShuttleSchedules((prev) =>
+                                    prev.map((x, i) => (i === index ? { ...x, destination: e.target.value } : x))
+                                  )
+                                }
+                                className={controlClass}
+                                placeholder="เช่น โรงงาน EPAC"
+                              />
+                            </div>
+                          </div>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className={cardClass}>
                   <div className="text-sm font-bold text-gray-900">การเข้าชมพื้นที่</div>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -1315,9 +1485,12 @@ export default function EditBookingModal({
                           <input
                             type="checkbox"
                             checked={checked}
-                            onChange={() =>
-                              setSiteVisitAreas((prev) => (checked ? prev.filter((x) => x !== o.value) : [...prev, o.value]))
-                            }
+                            onChange={() => {
+                              setSiteVisitAreas((prev) => (checked ? prev.filter((x) => x !== o.value) : [...prev, o.value]));
+                              if (checked && o.value === "บริษัทในเครือ") {
+                                setSiteVisitAffiliateCompanies([]);
+                              }
+                            }}
                           />
                           {optionLabelTh(o)}
                         </label>
@@ -1326,6 +1499,31 @@ export default function EditBookingModal({
                   </div>
                   {siteVisitAreas.length > 0 && (
                     <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      {siteVisitAreas.includes("บริษัทในเครือ") && (
+                        <div className="flex flex-col gap-2 md:col-span-2">
+                          <label className={labelClass}>เลือกบริษัทในเครือ</label>
+                          <div className="flex flex-wrap gap-4 text-sm text-gray-800">
+                            {affiliateCompanyOptions.map((company) => (
+                              <label key={company.value} className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={siteVisitAffiliateCompanies.includes(company.value)}
+                                  onChange={(e) =>
+                                    setSiteVisitAffiliateCompanies((prev) =>
+                                      e.target.checked
+                                        ? prev.includes(company.value)
+                                          ? prev
+                                          : [...prev, company.value]
+                                        : prev.filter((item) => item !== company.value)
+                                    )
+                                  }
+                                />
+                                {optionLabelTh(company)}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="flex flex-col gap-1">
                         <label className={labelClass}>ผู้อนุญาต (ชื่อ)</label>
                         <input

@@ -289,8 +289,18 @@ export function VisitDetailsModal({
                             </div>
                             <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
                                 <div className="flex items-center gap-4 mb-5">
-                                    <div className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${selectedVisit.transportType === "personal" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
-                                        {selectedVisit.transportType === "personal" ? "🚗 เดินทางด้วยรถส่วนตัว" : "🚌 เดินทางด้วยรถสาธารณะ"}
+                                    <div className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${
+                                        selectedVisit.transportType === "personal"
+                                          ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                          : selectedVisit.transportType === "shuttle"
+                                            ? "bg-blue-100 text-blue-700 border-blue-200"
+                                            : "bg-gray-100 text-gray-600 border-gray-200"
+                                      }`}>
+                                        {selectedVisit.transportType === "personal"
+                                          ? "🚗 เดินทางด้วยรถส่วนตัว"
+                                          : selectedVisit.transportType === "shuttle"
+                                            ? "🚌 รถรับ-ส่ง"
+                                            : "-"}
                                     </div>
                                     {selectedVisit.transportType === "personal" && (
                                         <div className="text-sm font-semibold text-gray-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
@@ -311,6 +321,25 @@ export function VisitDetailsModal({
                                 ) : selectedVisit.transportType === "personal" ? (
                                     <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถยนต์</div>
                                 ) : null}
+                                {selectedVisit.transportType === "shuttle" && Array.isArray(selectedVisit.shuttleSchedules) && (
+                                    <div className="space-y-2">
+                                        {selectedVisit.shuttleSchedules.length > 0 ? (
+                                            selectedVisit.shuttleSchedules.map((s: any, i: number) => (
+                                                <div key={i} className="rounded-xl border border-blue-100 bg-white p-3 text-sm text-gray-700">
+                                                    <div className="font-semibold text-blue-700">รายการที่ {i + 1}</div>
+                                                    <div className="mt-1 text-xs text-gray-500">
+                                                        {s.date || "-"} • {s.time || "-"}
+                                                    </div>
+                                                    <div className="mt-1">
+                                                        {s.pickup || "-"} → {s.destination || "-"}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถรับ-ส่ง</div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -334,6 +363,11 @@ export function VisitDetailsModal({
                                                 </span>
                                             ))}
                                         </div>
+                                        {Array.isArray(siteV.affiliateCompanies) && siteV.affiliateCompanies.length > 0 && (
+                                            <div className="mt-3 text-sm font-semibold text-violet-700">
+                                                บริษัทในเครือ: {siteV.affiliateCompanies.join(", ")}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
@@ -1171,8 +1205,18 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     </div>
                                     <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
                                         <div className="flex items-center gap-4 mb-5">
-                                            <div className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${selectedVisit.transportType === "personal" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
-                                                {selectedVisit.transportType === "personal" ? "🚗 เดินทางด้วยรถส่วนตัว" : "🚌 เดินทางด้วยรถสาธารณะ"}
+                                            <div className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${
+                                                selectedVisit.transportType === "personal"
+                                                  ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                                  : selectedVisit.transportType === "shuttle"
+                                                    ? "bg-blue-100 text-blue-700 border-blue-200"
+                                                    : "bg-gray-100 text-gray-600 border-gray-200"
+                                              }`}>
+                                                {selectedVisit.transportType === "personal"
+                                                  ? "🚗 เดินทางด้วยรถส่วนตัว"
+                                                  : selectedVisit.transportType === "shuttle"
+                                                    ? "🚌 รถรับ-ส่ง"
+                                                    : "-"}
                                             </div>
                                             {selectedVisit.transportType === "personal" && (
                                                 <div className="text-sm font-semibold text-gray-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
@@ -1193,6 +1237,25 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         ) : selectedVisit.transportType === "personal" ? (
                                             <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถยนต์</div>
                                         ) : null}
+                                        {selectedVisit.transportType === "shuttle" && Array.isArray(selectedVisit.shuttleSchedules) && (
+                                            <div className="space-y-2">
+                                                {selectedVisit.shuttleSchedules.length > 0 ? (
+                                                    selectedVisit.shuttleSchedules.map((s: any, i: number) => (
+                                                        <div key={i} className="rounded-xl border border-blue-100 bg-white p-3 text-sm text-gray-700">
+                                                            <div className="font-semibold text-blue-700">รายการที่ {i + 1}</div>
+                                                            <div className="mt-1 text-xs text-gray-500">
+                                                                {s.date || "-"} • {s.time || "-"}
+                                                            </div>
+                                                            <div className="mt-1">
+                                                                {s.pickup || "-"} → {s.destination || "-"}
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถรับ-ส่ง</div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1217,6 +1280,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                                         </span>
                                                     ))}
                                                 </div>
+                                                {Array.isArray(siteV.affiliateCompanies) && siteV.affiliateCompanies.length > 0 && (
+                                                    <div className="mt-3 text-sm font-semibold text-violet-700">
+                                                        บริษัทในเครือ: {siteV.affiliateCompanies.join(", ")}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">

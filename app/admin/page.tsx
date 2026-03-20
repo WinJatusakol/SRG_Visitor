@@ -24,6 +24,7 @@ type CarRow = {
 type FoodRow = { foodPreferences?: unknown | null };
 type SiteVisitRow = { siteVisit?: unknown | null };
 type SouvenirRow = { souvenirPreferences?: unknown | null };
+type ShuttleRow = { schedules?: unknown | null };
 type PresentationFileRow = { presentationFile?: unknown | null; registrationFile?: unknown | null };
 
 export default async function AdminPage() {
@@ -55,6 +56,7 @@ export default async function AdminPage() {
     *,
     vip_visitor_guests(*),
     vip_visitor_cars(*),
+    vip_visitor_shuttle(*),
     vip_visitor_food(*),
     vip_visitor_site_visit(*),
     vip_visitor_souvenir(*),
@@ -86,6 +88,7 @@ export default async function AdminPage() {
     
     const guestRowsRaw = record.vip_visitor_guests;
     const carRowsRaw = record.vip_visitor_cars;
+    const shuttleRowsRaw = record.vip_visitor_shuttle;
     const foodRowsRaw = record.vip_visitor_food;
     const siteVisitRowsRaw = record.vip_visitor_site_visit;
     const souvenirRowsRaw = record.vip_visitor_souvenir;
@@ -101,6 +104,7 @@ export default async function AdminPage() {
     const foodRow = (Array.isArray(foodRowsRaw) ? foodRowsRaw[0] : foodRowsRaw) as FoodRow | null;
     const siteVisitRow = (Array.isArray(siteVisitRowsRaw) ? siteVisitRowsRaw[0] : siteVisitRowsRaw) as SiteVisitRow | null;
     const souvenirRow = (Array.isArray(souvenirRowsRaw) ? souvenirRowsRaw[0] : souvenirRowsRaw) as SouvenirRow | null;
+    const shuttleRow = (Array.isArray(shuttleRowsRaw) ? shuttleRowsRaw[0] : shuttleRowsRaw) as ShuttleRow | null;
     const presentationFileRow = (Array.isArray(presentationFileRowsRaw) ? presentationFileRowsRaw[0] : presentationFileRowsRaw) as PresentationFileRow | null;
 
     // ทำการจัดเรียง Guest ตาม sortIndex
@@ -132,6 +136,7 @@ export default async function AdminPage() {
       id: normalizedId,
       guests: normalizedGuests,
       cars: normalizedCars,
+      shuttleSchedules: shuttleRow?.schedules ?? record.shuttleSchedules,
       foodPreferences: foodRow?.foodPreferences ?? record.foodPreferences,
       siteVisit: siteVisitRow?.siteVisit ?? record.siteVisit,
       souvenirPreferences: souvenirRow?.souvenirPreferences ?? record.souvenirPreferences,

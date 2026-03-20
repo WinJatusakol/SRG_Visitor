@@ -8,6 +8,7 @@ type TableKey =
   | "executive_hosts"
   | "meeting_rooms"
   | "site_visit_areas"
+  | "affiliate_companies"
   | "souvenir_gift_sets"
   | "food_menu_options"
   | "allergy_options";
@@ -44,6 +45,7 @@ const tableLabels: Record<TableKey, string> = {
   executive_hosts: "Executive Hosts",
   meeting_rooms: "Meeting Rooms",
   site_visit_areas: "Site Visit Areas",
+  affiliate_companies: "Affiliate Companies",
   souvenir_gift_sets: "Souvenir Gift Sets",
   food_menu_options: "Food Menu Options",
   allergy_options: "Allergy Options",
@@ -55,6 +57,7 @@ const inputLabels: Record<TableKey, { th: string; en: string }> = {
   executive_hosts: { th: "ชื่อผู้บริหาร (TH)", en: "ชื่อผู้บริหาร (EN)" },
   meeting_rooms: { th: "ชื่อห้องประชุม (TH)", en: "ชื่อห้องประชุม (EN)" },
   site_visit_areas: { th: "ชื่อพื้นที่เข้าชม (TH)", en: "ชื่อพื้นที่เข้าชม (EN)" },
+  affiliate_companies: { th: "ชื่อบริษัทในเครือ (TH)", en: "ชื่อบริษัทในเครือ (EN)" },
   souvenir_gift_sets: { th: "ชื่อของที่ระลึก (TH)", en: "ชื่อของที่ระลึก (EN)" },
   food_menu_options: { th: "ชื่อเมนูอาหาร (TH) / Value", en: "ชื่อเมนูอาหาร (EN)" },
   allergy_options: { th: "รายการแพ้อาหาร (TH) / Value", en: "รายการแพ้อาหาร (EN)" },

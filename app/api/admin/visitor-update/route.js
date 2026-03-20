@@ -58,6 +58,24 @@ const carSummary = (items) => {
   return text.length > 220 ? `${text.slice(0, 220)}…` : text;
 };
 
+const shuttleSummary = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return "-";
+  const parts = items
+    .map((s, index) => {
+      const date = asText(s.date);
+      const time = asText(s.time);
+      const pickup = asText(s.pickup);
+      const destination = asText(s.destination);
+      const line = [date, time, pickup && destination ? `${pickup} -> ${destination}` : ""]
+        .filter(Boolean)
+        .join(" | ");
+      return line || `รายการที่ ${index + 1}`;
+    })
+    .filter(Boolean);
+  const text = parts.join(", ");
+  return text.length > 220 ? `${text.slice(0, 220)}…` : text;
+};
+
 export async function POST(request) {
   try {
     const user = await requireAdmin();
@@ -70,6 +88,7 @@ export async function POST(request) {
     const data = isRecord(body?.data) ? body.data : null;
     const guests = Array.isArray(body?.guests) ? body.guests : null;
     const cars = Array.isArray(body?.cars) ? body.cars : null;
+    const shuttleSchedules = Array.isArray(body?.shuttleSchedules) ? body.shuttleSchedules : null;
     const foodPreferences = body?.foodPreferences === null ? null : isRecord(body?.foodPreferences) ? body.foodPreferences : undefined;
     const siteVisit = body?.siteVisit === null ? null : isRecord(body?.siteVisit) ? body.siteVisit : undefined;
     const souvenirPreferences =
@@ -116,6 +135,7 @@ export async function POST(request) {
 
     const shouldLoadGuests = Array.isArray(guests);
     const shouldLoadCars = Array.isArray(cars);
+    const shouldLoadShuttle = Array.isArray(shuttleSchedules);
     const shouldLoadFood = foodPreferences !== undefined;
     const shouldLoadSiteVisit = siteVisit !== undefined;
     const shouldLoadSouvenir = souvenirPreferences !== undefined;
@@ -123,6 +143,7 @@ export async function POST(request) {
     const [
       { data: beforeGuestRows },
       { data: beforeCarRows },
+      { data: beforeShuttleRow },
       { data: beforeFoodRow },
       { data: beforeSiteVisitRow },
       { data: beforeSouvenirRow },
@@ -140,6 +161,9 @@ export async function POST(request) {
             .select("sortIndex,brand,license")
             .eq("visitorId", id)
             .order("sortIndex", { ascending: true })
+        : Promise.resolve({ data: null }),
+      shouldLoadShuttle
+        ? supabase.from("vip_visitor_shuttle").select("schedules").eq("visitorId", id).maybeSingle()
         : Promise.resolve({ data: null }),
       shouldLoadFood ? supabase.from("vip_visitor_food").select("foodPreferences").eq("visitorId", id).maybeSingle() : Promise.resolve({ data: null }),
       shouldLoadSiteVisit ? supabase.from("vip_visitor_site_visit").select("siteVisit").eq("visitorId", id).maybeSingle() : Promise.resolve({ data: null }),
@@ -252,6 +276,21 @@ export async function POST(request) {
       }
     }
 
+    if (shuttleSchedules !== null) {
+      const { error: delShuttleError } = await supabase.from("vip_visitor_shuttle").delete().eq("visitorId", visitorId);
+      if (delShuttleError) {
+        return NextResponse.json({ success: false, error: delShuttleError.message }, { status: 500 });
+      }
+      if (shuttleSchedules.length > 0) {
+        const { error: insShuttleError } = await supabase
+          .from("vip_visitor_shuttle")
+          .insert([{ visitorId, schedules: shuttleSchedules }]);
+        if (insShuttleError) {
+          return NextResponse.json({ success: false, error: insShuttleError.message }, { status: 500 });
+        }
+      }
+    }
+
     if (foodPreferences !== undefined) {
       await supabase.from("vip_visitor_food").delete().eq("visitorId", visitorId);
       if (foodPreferences) {
@@ -340,6 +379,15 @@ export async function POST(request) {
         : [];
       if (!valuesEqual(beforeCars, afterCars)) {
         changes.push({ field: "cars", from: carSummary(beforeCars), to: carSummary(afterCars) });
+      }
+    }
+    if (shouldLoadShuttle) {
+      const beforeSchedules = isRecord(beforeShuttleRow) && Array.isArray(beforeShuttleRow.schedules)
+        ? beforeShuttleRow.schedules
+        : [];
+      const afterSchedules = Array.isArray(shuttleSchedules) ? shuttleSchedules : [];
+      if (!valuesEqual(beforeSchedules, afterSchedules)) {
+        changes.push({ field: "shuttleSchedules", from: shuttleSummary(beforeSchedules), to: shuttleSummary(afterSchedules) });
       }
     }
     if (shouldLoadFood) {

@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type TransportType = "personal" | "public";
+type TransportType = "personal" | "shuttle";
 type YesNo = "yes" | "no";
 
 type Guest = {
@@ -24,6 +24,13 @@ type Car = {
   license: string;
 };
 
+type ShuttleSchedule = {
+  date: string;
+  pickup: string;
+  destination: string;
+  time: string;
+};
+
 type VisitFormState = {
   clientCompany: string;
   companyAddress: string;
@@ -38,11 +45,13 @@ type VisitFormState = {
   meetingRoom: YesNo | "";
   meetingRoomSelection: string;
   siteVisitAreas: string[];
+  siteVisitAffiliateCompanies: string[];
   siteVisitApproverName: string;
   siteVisitApproverPosition: string;
   transportType: TransportType | "";
   carCount: string;
   cars: Car[];
+  shuttleSchedules: ShuttleSchedule[];
   foodRequired: YesNo | "";
   meals: string[];
   breakfastMenu: string;
@@ -65,6 +74,7 @@ type VisitFormState = {
   hostName: string;
   executiveHostChoice: string;
 };
+
 
 type DialogType = "success" | "error";
 
@@ -123,6 +133,13 @@ const createEmptyCar = (): Car => ({
   license: "",
 });
 
+const createEmptyShuttleSchedule = (): ShuttleSchedule => ({
+  date: "",
+  pickup: "",
+  destination: "",
+  time: "",
+});
+
 const THAI_OFFSET_MS = 7 * 60 * 60 * 1000;
 const buildVisitDateTimeIso = (date: string, time: string) => {
   const safeDate = date.trim();
@@ -145,11 +162,13 @@ const initialState: VisitFormState = {
   meetingRoom: "",
   meetingRoomSelection: "",
   siteVisitAreas: [],
+  siteVisitAffiliateCompanies: [],
   siteVisitApproverName: "",
   siteVisitApproverPosition: "",
   transportType: "",
   carCount: "",
   cars: [],
+  shuttleSchedules: [],
   foodRequired: "",
   meals: [],
   breakfastMenu: "",
@@ -190,6 +209,7 @@ export default function Home() {
   const [executiveHostOptions, setExecutiveHostOptions] = useState<RefOptionRow[]>([]);
   const [meetingRoomOptions, setMeetingRoomOptions] = useState<MeetingRoomRow[]>([]);
   const [siteVisitAreaOptions, setSiteVisitAreaOptions] = useState<RefOptionRow[]>([]);
+  const [affiliateCompanyOptions, setAffiliateCompanyOptions] = useState<RefOptionRow[]>([]);
   const [souvenirGiftSetOptions, setSouvenirGiftSetOptions] = useState<RefOptionRow[]>([]);
   const [breakfastMenuOptions, setBreakfastMenuOptions] = useState<RefOptionRow[]>([]);
   const [lunchMenuOptions, setLunchMenuOptions] = useState<RefOptionRow[]>([]);
@@ -232,7 +252,7 @@ export default function Home() {
   useEffect(() => {
     const supabase = createClient();
     const load = async () => {
-      const [hosts, executives, rooms, areas, giftSets, foodMenus, allergies] =
+        const [hosts, executives, rooms, siteAreas, affiliateCompanies, giftSets, foodMenus, allergies] =
         await Promise.all([
           supabase
             .from("hosts")
@@ -256,6 +276,12 @@ export default function Home() {
             .order("code", { ascending: true }),
           supabase
             .from("site_visit_areas")
+            .select("value,label_th,label_en,sort_index,active")
+            .eq("active", true)
+            .order("sort_index", { ascending: true })
+            .order("value", { ascending: true }),
+          supabase
+            .from("affiliate_companies")
             .select("value,label_th,label_en,sort_index,active")
             .eq("active", true)
             .order("sort_index", { ascending: true })
@@ -293,7 +319,14 @@ export default function Home() {
         !rooms.error && Array.isArray(rooms.data) ? (rooms.data as MeetingRoomRow[]) : []
       );
       setSiteVisitAreaOptions(
-        !areas.error && Array.isArray(areas.data) ? (areas.data as RefOptionRow[]) : []
+        !siteAreas.error && Array.isArray(siteAreas.data)
+          ? (siteAreas.data as RefOptionRow[])
+          : []
+      );
+      setAffiliateCompanyOptions(
+        !affiliateCompanies.error && Array.isArray(affiliateCompanies.data)
+          ? (affiliateCompanies.data as RefOptionRow[])
+          : []
       );
       setSouvenirGiftSetOptions(
         !giftSets.error && Array.isArray(giftSets.data)
@@ -473,6 +506,7 @@ export default function Home() {
         transportType: value as TransportType,
         carCount: value === "personal" ? prev.carCount : "",
         cars: value === "personal" ? prev.cars : [],
+        shuttleSchedules: value === "shuttle" ? prev.shuttleSchedules : [],
       }));
     }
 
@@ -498,6 +532,33 @@ export default function Home() {
     }));
   };
 
+  const handleShuttleScheduleChange = (
+    index: number,
+    field: keyof ShuttleSchedule,
+    value: string
+  ) => {
+    setForm((prev) => {
+      const nextSchedules = prev.shuttleSchedules.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      );
+      return { ...prev, shuttleSchedules: nextSchedules };
+    });
+  };
+
+  const addShuttleSchedule = () => {
+    setForm((prev) => ({
+      ...prev,
+      shuttleSchedules: [...prev.shuttleSchedules, createEmptyShuttleSchedule()],
+    }));
+  };
+
+  const removeShuttleSchedule = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      shuttleSchedules: prev.shuttleSchedules.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleSiteVisitAreaChange = (value: string, checked: boolean) => {
     setForm((prev) => {
       if (checked) {
@@ -510,9 +571,22 @@ export default function Home() {
       return {
         ...prev,
         siteVisitAreas: nextAreas,
+        siteVisitAffiliateCompanies:
+          value === "บริษัทในเครือ" ? [] : prev.siteVisitAffiliateCompanies,
         siteVisitApproverName: nextAreas.length > 0 ? prev.siteVisitApproverName : "",
         siteVisitApproverPosition: nextAreas.length > 0 ? prev.siteVisitApproverPosition : "",
       };
+    });
+  };
+
+  const handleAffiliateCompanyChange = (company: string, checked: boolean) => {
+    setForm((prev) => {
+      const nextCompanies = checked
+        ? prev.siteVisitAffiliateCompanies.includes(company)
+          ? prev.siteVisitAffiliateCompanies
+          : [...prev.siteVisitAffiliateCompanies, company]
+        : prev.siteVisitAffiliateCompanies.filter((item) => item !== company);
+      return { ...prev, siteVisitAffiliateCompanies: nextCompanies };
     });
   };
 
@@ -702,12 +776,12 @@ export default function Home() {
     }
     if (!form.visitDate.trim()) {
       messages.push(
-        t("กรุณาเลือกวันที่มาถึง", "Please select the arrival date.")
+        t("กรุณาเลือกวันที่เข้าเยี่ยมชม", "Please select the arrival date.")
       );
     }
     if (!form.visitTime.trim()) {
       messages.push(
-        t("กรุณาเลือกเวลาที่มาถึง", "Please select the arrival time.")
+        t("กรุณาเลือกเวลาเข้าเยี่ยมชม", "Please select the arrival time.")
       );
     }
     if (form.visitDate && form.visitTime) {
@@ -737,6 +811,17 @@ export default function Home() {
       );
     }
     if (form.siteVisitAreas.length > 0) {
+      if (
+        form.siteVisitAreas.includes("บริษัทในเครือ") &&
+        form.siteVisitAffiliateCompanies.length === 0
+      ) {
+        messages.push(
+          t(
+            "กรุณาเลือกบริษัทในเครืออย่างน้อย 1 แห่ง",
+            "Please select at least one affiliate company."
+          )
+        );
+      }
       if (!form.siteVisitApproverName.trim()) {
         messages.push(
           t(
@@ -797,6 +882,27 @@ export default function Home() {
             );
           }
         }
+      }
+    }
+    if (form.transportType === "shuttle") {
+      if (form.shuttleSchedules.length === 0) {
+        messages.push(
+          t(
+            "กรุณาเพิ่มกำหนดการรถรับ-ส่งอย่างน้อย 1 รายการ",
+            "Please add at least one shuttle schedule."
+          )
+        );
+      } else {
+        form.shuttleSchedules.forEach((item, index) => {
+          if (!item.date.trim() || !item.pickup.trim() || !item.destination.trim() || !item.time.trim()) {
+            messages.push(
+              t(
+                `กรุณากรอกข้อมูลรถรับ-ส่งรายการที่ ${index + 1} ให้ครบ`,
+                `Please complete shuttle schedule #${index + 1}.`
+              )
+            );
+          }
+        });
       }
     }
     if (!form.foodRequired) {
@@ -944,11 +1050,14 @@ export default function Home() {
     }
 
     const cars = form.transportType === "personal" ? form.cars : [];
+    const shuttleSchedules =
+      form.transportType === "shuttle" ? form.shuttleSchedules : [];
 
     const siteVisit =
       form.siteVisitAreas.length > 0
         ? {
           areas: form.siteVisitAreas,
+          affiliateCompanies: form.siteVisitAffiliateCompanies,
           approverName: form.siteVisitApproverName,
           approverPosition: form.siteVisitApproverPosition,
         }
@@ -1026,6 +1135,7 @@ export default function Home() {
       siteVisit,
       transportType: form.transportType,
       cars,
+      shuttleSchedules,
       foodPreferences,
       souvenirPreferences,
       executiveHost,
@@ -1121,6 +1231,7 @@ export default function Home() {
 
   const meetingRoomYes = form.meetingRoom === "yes";
   const transportPersonal = form.transportType === "personal";
+  const transportShuttle = form.transportType === "shuttle";
   const foodRequiredYes = form.foodRequired === "yes";
   const guestsCount = Number(form.totalGuests || 0);
 
@@ -1236,7 +1347,7 @@ export default function Home() {
                 href="#section-2"
                 className="block rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("2) กำหนดการและสถานที่", "2) Schedule & Location")}
+                {t("2) กำหนดการเข้าเยี่ยมชมโรงงานและสถานที่", "2) Factory Visit Schedule & Locations")}
               </a>
               <a
                 href="#section-3"
@@ -1587,7 +1698,7 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   2
                 </span>
-                <span>{t("กำหนดการเข้าพบและสถานที่", "Schedule & Location")}</span>
+                <span>{t("กำหนดการเข้าเยี่ยมชมโรงงานและสถานที่", "Factory Visit Schedule & Locations")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
@@ -1599,7 +1710,7 @@ export default function Home() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("วันที่มาถึง", "Arrival date")}
+                    {t("วันที่", "Arrival date")}
                   </label>
                   <input
                     type="date"
@@ -1613,7 +1724,7 @@ export default function Home() {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("เวลาที่มาถึง", "Arrival time")}
+                    {t("เวลา", "Arrival time")}
                   </label>
                   <select
                     name="visitTime"
@@ -1621,7 +1732,7 @@ export default function Home() {
                     onChange={handleChange}
                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                   >
-                    <option value="">{t("เลือกเวลาที่มาถึง", "Select arrival time")}</option>
+                    <option value="">{t("เวลา", "Select arrival time")}</option>
                     {timeSlots.map((slot) => (
                       <option key={slot} value={slot}>
                         {slot}
@@ -1701,9 +1812,7 @@ export default function Home() {
                       {t("เลือกประเภทรถ", "Select transport type")}
                     </option>
                     <option value="personal">{t("รถส่วนตัว", "Private car")}</option>
-                    <option value="public">
-                      {t("รถสาธารณะ", "Public transport")}
-                    </option>
+                    <option value="shuttle">{t("รถรับ-ส่ง", "Shuttle service")}</option>
                   </select>
                 </div>
 
@@ -1729,6 +1838,27 @@ export default function Home() {
 
                     {form.siteVisitAreas.length > 0 && (
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        {form.siteVisitAreas.includes("บริษัทในเครือ") && (
+                          <div className="flex flex-col gap-2 md:col-span-2">
+                            <label className="text-sm font-medium">
+                              {t("เลือกบริษัทในเครือ", "Select affiliate companies")}
+                            </label>
+                            <div className="flex flex-wrap gap-4 text-sm">
+                              {affiliateCompanyOptions.map((company) => (
+                                <label key={company.value} className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={form.siteVisitAffiliateCompanies.includes(company.value)}
+                                    onChange={(e) =>
+                                      handleAffiliateCompanyChange(company.value, e.target.checked)
+                                    }
+                                  />
+                                  <span>{optionLabel(company)}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex flex-col gap-1">
                           <label className="text-sm font-medium">
                             {t("ชื่อผู้อนุญาตให้เข้าชม", "Site visit approver")}
@@ -1833,6 +1963,109 @@ export default function Home() {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {transportShuttle && (
+                  <div className="space-y-3 md:col-span-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-sm font-semibold text-zinc-900">
+                        {t("กำหนดการรถรับ-ส่ง", "Shuttle schedules")}
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                        onClick={addShuttleSchedule}
+                      >
+                        {t("เพิ่มวัน", "Add day")}
+                      </button>
+                    </div>
+                    {form.shuttleSchedules.length === 0 && (
+                      <div className="rounded-lg border border-dashed border-zinc-200 bg-white/80 p-4 text-sm text-zinc-500">
+                        {t("ยังไม่มีข้อมูลรถรับ-ส่ง", "No shuttle schedules yet.")}
+                      </div>
+                    )}
+                    {form.shuttleSchedules.map((item, index) => (
+                      <div
+                        key={`${item.date}-${index}`}
+                        className="rounded-lg border border-zinc-200 bg-white p-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-zinc-900">
+                            {t("รายการที่", "Schedule")} {index + 1}
+                          </div>
+                          <button
+                            type="button"
+                            className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
+                            onClick={() => removeShuttleSchedule(index)}
+                          >
+                            {t("ลบ", "Remove")}
+                          </button>
+                        </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium">
+                              {t("วันที่", "Date")}
+                            </label>
+                            <input
+                              type="date"
+                              value={item.date}
+                              onChange={(e) =>
+                                handleShuttleScheduleChange(index, "date", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium">
+                              {t("เวลา", "Time")}
+                            </label>
+                            <select
+                              value={item.time}
+                              onChange={(e) =>
+                                handleShuttleScheduleChange(index, "time", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            >
+                              <option value="">{t("เลือกเวลา", "Select time")}</option>
+                              {timeSlots.map((slot) => (
+                                <option key={slot} value={slot}>
+                                  {slot}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium">
+                              {t("จุดที่รับ", "Pickup point")}
+                            </label>
+                            <input
+                              type="text"
+                              value={item.pickup}
+                              onChange={(e) =>
+                                handleShuttleScheduleChange(index, "pickup", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("เช่น อาคาร A", "e.g., Building A")}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium">
+                              {t("จุดหมาย", "Destination")}
+                            </label>
+                            <input
+                              type="text"
+                              value={item.destination}
+                              onChange={(e) =>
+                                handleShuttleScheduleChange(index, "destination", e.target.value)
+                              }
+                              className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                              placeholder={t("เช่น โรงงาน EPAC", "e.g., EPAC Factory")}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

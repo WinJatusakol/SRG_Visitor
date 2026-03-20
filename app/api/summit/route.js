@@ -55,6 +55,9 @@ export async function POST(request) {
 
     const guests = Array.isArray(data.guests) ? data.guests : [];
     const cars = Array.isArray(data.cars) ? data.cars : [];
+    const shuttleSchedules = Array.isArray(data.shuttleSchedules)
+      ? data.shuttleSchedules
+      : [];
     const transportType = String(data.transportType ?? "").trim();
     const carCountInput =
       typeof data.carCount === "number" ? data.carCount : Number(data.carCount ?? 0);
@@ -397,6 +400,30 @@ export async function POST(request) {
       }
     }
 
+    if (transportType === "shuttle" && shuttleSchedules.length > 0) {
+      const { error: shuttleError } = await supabase
+        .from("vip_visitor_shuttle")
+        .insert([{ visitorId, schedules: shuttleSchedules }]);
+      if (shuttleError) {
+        await rollback();
+        const msg = String(shuttleError.message ?? "");
+        if (msg.includes('relation "vip_visitor_shuttle"')) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "ฐานข้อมูลยังไม่มีตาราง vip_visitor_shuttle กรุณาสร้างตารางสำหรับเก็บกำหนดการรถรับ-ส่งก่อน",
+            },
+            { status: 500 }
+          );
+        }
+        return NextResponse.json(
+          { success: false, error: shuttleError.message },
+          { status: 500 }
+        );
+      }
+    }
+
     if (foodPreferences) {
       const { error: foodError } = await supabase
         .from("vip_visitor_food")
@@ -497,8 +524,8 @@ export async function POST(request) {
     const transportTypeText =
       transportType === "personal"
         ? "รถส่วนตัว"
-        : transportType === "public"
-          ? "รถสาธารณะ"
+        : transportType === "shuttle"
+          ? "รถรับ-ส่ง"
           : "-";
     const yesNo = (value) => (value ? "ต้องการ" : "ไม่ต้องการ");
     const visitDateTime = formatDateTime(data.visitDateTime);
@@ -619,6 +646,17 @@ export async function POST(request) {
                 `- คันที่ ${index + 1}: ${car?.brand ?? "-"} / ${
                   car?.license ?? "-"
                 }`
+            )
+            .join("\n")
+        : "-";
+    const shuttleSchedulesText =
+      shuttleSchedules.length > 0
+        ? shuttleSchedules
+            .map(
+              (item, index) =>
+                `- รายการที่ ${index + 1}: ${item?.date ?? "-"} ${item?.time ?? "-"} | ${
+                  item?.pickup ?? "-"
+                } -> ${item?.destination ?? "-"}`
             )
             .join("\n")
         : "-";
@@ -777,6 +815,8 @@ export async function POST(request) {
       `ประเภทรถ: ${transportTypeText}`,
       `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
       `ข้อมูลรถ:\n${carsText}`,
+      `กำหนดการรถรับ-ส่ง:\n${shuttleSchedulesText}`,
+      `ต้องการอาหาร: ${foodRequiredText}`,
       `ต้องการอาหาร: ${foodRequiredText}`,
       `มื้ออาหาร: ${meals}`,
       `เมนู: \n${foodMenuText}`,

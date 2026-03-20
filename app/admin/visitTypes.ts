@@ -24,6 +24,7 @@ export type Visit = {
   guests?: unknown[] | null;
   carCount?: number | null;
   cars?: unknown[] | null;
+  shuttleSchedules?: unknown[] | null;
   meetingRoomSelection?: string | null;
   foodPreferences?: unknown | null;
   siteVisit?: unknown | null;

@@ -73,6 +73,7 @@ const knownFields = [
   "submittedBy",
   "guests",
   "cars",
+  "shuttleSchedules",
   "foodPreferences",
   "siteVisit",
   "souvenirPreferences",
@@ -96,6 +97,7 @@ const labelFor = (field: string) => {
     submittedBy: "ชื่อผู้ยื่นคำร้อง",
     guests: "ผู้เข้าร่วม",
     cars: "รถยนต์",
+    shuttleSchedules: "รถรับ-ส่ง",
     foodPreferences: "อาหาร",
     siteVisit: "Site Visit",
     souvenirPreferences: "ของที่ระลึก",
@@ -306,7 +308,7 @@ const formatValue = (field: string, value: unknown) => {
   if (field === "transportType") {
     const t = asString(v);
     if (t === "personal") return "ส่วนตัว";
-    if (t === "public") return "สาธารณะ";
+    if (t === "shuttle") return "รถรับ-ส่ง";
     return t || "-";
   }
   if (field === "foodPreferences") return formatFoodPreferences(v);
