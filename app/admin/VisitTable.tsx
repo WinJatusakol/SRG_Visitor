@@ -82,6 +82,7 @@ const souvenirData = (value: unknown) => {
     return { giftSet, count, extra };
 };
 
+// ปรับให้คืนค่า null ถ้าไม่มีไฟล์ เพื่อให้เอาไปใช้เป็นเงื่อนไขซ่อน/โชว์ได้
 const renderFileList = (value: unknown) => {
     let fileData: unknown = value;
     if (Array.isArray(value) && value.length > 0 && isRecord(value[0]) && "registrationFile" in value[0]) {
@@ -91,12 +92,12 @@ const renderFileList = (value: unknown) => {
     }
 
     if (!fileData || (Array.isArray(fileData) && fileData.length === 0)) {
-        return <span className="text-sm font-bold text-gray-400">ไม่มีไฟล์แนบ</span>;
+        return null;
     }
 
     const filesArray = Array.isArray(fileData) ? fileData : [fileData];
     return (
-        <div className="flex flex-wrap gap-2 mt-2">
+        <div className="flex flex-wrap gap-2">
             {filesArray.map((file, idx) => {
                 if (!file) return null;
                 const url =
@@ -117,11 +118,11 @@ const renderFileList = (value: unknown) => {
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 shadow-sm rounded-lg text-sm text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all w-full sm:w-auto"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-white border border-[#E2CCA8] shadow-sm rounded-lg text-xs font-semibold text-[#788B64] hover:bg-[#FAEFCC] transition-all w-full sm:w-auto"
                     >
-                        <FileText className="w-4 h-4 shrink-0" />
-                        <span className="font-semibold line-clamp-1 break-all">{name}</span>
-                        <Download className="w-3.5 h-3.5 ml-auto sm:ml-1 text-gray-400 shrink-0" />
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span className="line-clamp-1 break-all">{name}</span>
+                        <Download className="w-3.5 h-3.5 ml-auto sm:ml-1 text-[#788B64]/60 shrink-0" />
                     </a>
                 );
             })}
@@ -153,31 +154,32 @@ export function VisitDetailsModal({
     const statusMeta = (() => {
         const status = selectedVisit?.status;
         if (status === 0) return { text: "ยกเลิกแล้ว", className: "bg-red-50 text-red-700 border-red-200" };
-        if (status === 2) return { text: "เสร็จสิ้นแล้ว", className: "bg-gray-50 text-gray-700 border-gray-200" };
-        return { text: "ยังดำเนินการอยู่", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+        if (status === 2) return { text: "เสร็จสิ้นแล้ว", className: "bg-zinc-100 text-zinc-700 border-zinc-200" };
+        return { text: "ยังดำเนินการอยู่", className: "bg-[#788B64]/15 text-[#1b2a18] border-[#788B64]/30" };
     })();
     if (!selectedVisit) return null;
 
+    const regFilesContent = renderFileList(selectedVisit.registrationFiles);
+
     return (
-        <>
         <div
-            className={`fixed inset-0 ${overlayZ} flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300`}
+            className={`fixed inset-0 ${overlayZ} flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300`}
             onMouseDown={(e) => {
                 if (e.currentTarget === e.target) onClose();
             }}
         >
-            <div className="bg-gray-50 w-full max-w-5xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
-                <div className="relative px-6 py-6 border-b border-gray-200/60 overflow-hidden bg-white shrink-0 sm:rounded-t-3xl rounded-t-3xl">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+            <div className="bg-[#fcfaf5] w-full max-w-5xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 border border-[#E2CCA8]/60">
+                <div className="relative px-6 py-6 border-b border-[#E2CCA8]/60 overflow-hidden bg-white shrink-0 sm:rounded-t-3xl rounded-t-3xl">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-[#FAEFCC] rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2 opacity-60"></div>
                     <div className="relative z-10 flex justify-between items-start">
                         <div className="flex items-center gap-4">
                             <CompanyAvatar name={selectedVisit.clientCompany} size="lg" />
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-900 leading-tight">
+                                <h2 className="text-2xl font-bold text-[#1b2a18] leading-tight">
                                     {selectedVisit.clientCompany || "ไม่ระบุบริษัท"}
                                 </h2>
                                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                                    <p className="text-sm text-blue-600 font-semibold flex items-center gap-1.5">
+                                    <p className="text-sm text-[#788B64] font-semibold flex items-center gap-1.5">
                                         <CalendarClock className="w-4 h-4" />
                                         {selectedVisit.visitDateTime || selectedVisit.created_at
                                             ? new Intl.DateTimeFormat("th-TH", {
@@ -199,7 +201,7 @@ export function VisitDetailsModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="p-2 -mr-2 bg-gray-100 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-full transition-colors shadow-sm"
+                            className="p-2 -mr-2 bg-[#FAEFCC]/50 text-[#788B64] hover:text-[#1b2a18] hover:bg-[#E2CCA8]/50 rounded-full transition-colors shadow-sm"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -207,17 +209,16 @@ export function VisitDetailsModal({
                 </div>
 
                 <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden">
-                        <div className="bg-blue-50/50 px-5 sm:px-6 py-4 border-b border-blue-100 flex items-center gap-2">
-                            <MessageSquareText className="w-5 h-5 text-blue-600" />
-                            <h3 className="text-base font-bold text-blue-900">ข้อมูลผู้เข้าเยี่ยมชม</h3>
+                    <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                        <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
+                            <MessageSquareText className="w-5 h-5 text-[#788B64]" />
+                            <h3 className="text-base font-bold text-[#1b2a18]">ข้อมูลผู้เข้าเยี่ยมชม</h3>
                         </div>
                         <div className="p-5 sm:p-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                                <InfoCard icon={<Phone className="w-4 h-4 text-blue-500" />} label="เบอร์ผู้ประสานงาน" value={(selectedVisit.submittedBy as any)?.phone || selectedVisit.contactPhone} />
-                                <InfoCard icon={<Globe2 className="w-4 h-4 text-blue-500" />} label="ประเทศ" value={selectedVisit.country} />
-                                <InfoCard icon={<MapPin className="w-4 h-4 text-blue-500" />} label="ที่อยู่บริษัท" value={selectedVisit.companyAddress} />
-                                <InfoCard icon={<Tag className="w-4 h-4 text-blue-500" />} label="ประเภทผู้เข้าเยี่ยมชม" value={(() => {
+                                <InfoCard icon={<Globe2 className="w-4 h-4 text-[#788B64]" />} label="ประเทศ" value={selectedVisit.country} />
+                                <InfoCard icon={<MapPin className="w-4 h-4 text-[#788B64]" />} label="ที่อยู่บริษัท" value={selectedVisit.companyAddress} />
+                                <InfoCard icon={<Tag className="w-4 h-4 text-[#788B64]" />} label="ประเภทผู้เข้าเยี่ยมชม" value={(() => {
                                     const type = selectedVisit.visitorType;
                                     const other = selectedVisit.visitorTypeOther;
                                     if (type && other && type === "อื่นๆ") return `${type} - ${other}`;
@@ -226,90 +227,104 @@ export function VisitDetailsModal({
                             </div>
 
                             {selectedVisit.purposeOfVisit && (
-                                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
+                                <div className="bg-zinc-50/80 rounded-xl p-5 border border-[#E2CCA8]/60">
                                     <div>
-                                        <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                        <dt className="text-xs font-semibold text-[#788B64] uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                             <Briefcase className="w-3.5 h-3.5" /> วัตถุประสงค์ในการเข้าพบ
                                         </dt>
-                                        <dd className="text-base font-bold text-gray-900">{selectedVisit.purposeOfVisit}</dd>
+                                        <dd className="text-base font-bold text-[#1b2a18]">{selectedVisit.purposeOfVisit}</dd>
                                     </div>
                                 </div>
                             )}
                             {selectedVisit.welcomeMessage && (
-                                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
+                                <div className="bg-zinc-50/80 rounded-xl p-5 border border-[#E2CCA8]/60 mt-4">
                                     <div>
-                                        <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                        <dt className="text-xs font-semibold text-[#788B64] uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                             <MessageSquareText className="w-3.5 h-3.5" /> ข้อความ Welcome board
                                         </dt>
-                                        <dd className="text-base font-bold text-gray-900">{selectedVisit.welcomeMessage}</dd>
+                                        <dd className="text-base font-bold text-[#1b2a18]">{selectedVisit.welcomeMessage}</dd>
                                     </div>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden h-full flex flex-col">
-                            <div className="bg-indigo-50/50 px-5 sm:px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+                    <div className="space-y-6">
+                        {/* Guests (ลูกค้า) */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                            <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div className="flex items-center gap-2">
-                                    <Users className="w-5 h-5 text-indigo-600" />
-                                    <h3 className="text-base font-bold text-indigo-900">รายชื่อผู้เข้าร่วม</h3>
+                                    <Users className="w-5 h-5 text-[#788B64]" />
+                                    <h3 className="text-base font-bold text-[#1b2a18]">รายชื่อผู้เข้าเยี่ยมชม (ลูกค้า)</h3>
+                                    <span className="text-xs font-bold text-[#788B64] bg-[#788B64]/10 px-2.5 py-1 rounded-md border border-[#788B64]/20">{selectedVisit.guests?.length || 0} ท่าน</span>
                                 </div>
-                                <span className="text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-md">{selectedVisit.guests?.length || 0} ท่าน</span>
+                                {/* แสดงไฟล์ PDF แนบรายชื่อตรงนี้ ถ้ามี */}
+                                {regFilesContent !== null && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-semibold text-zinc-500">ไฟล์แนบรายชื่อ:</span>
+                                        {regFilesContent}
+                                    </div>
+                                )}
                             </div>
-                            <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
+                            <div className="p-5 sm:p-6 flex-1 bg-white/50">
                                 {selectedVisit.guests && selectedVisit.guests.length > 0 ? (
                                     <div className="grid grid-cols-1 gap-3">
                                         {selectedVisit.guests.map((g: any, i: number) => (
-                                            <div key={i} className="flex items-center gap-4 p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-colors">
-                                                <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500 shrink-0">
-                                                    <UserCircle2 className="w-5 h-5" />
+                                            <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-white border border-[#E2CCA8]/50 rounded-xl shadow-sm hover:border-[#788B64]/40 transition-colors">
+                                                <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                                                    <div className="bg-[#FAEFCC]/80 p-2.5 rounded-full text-[#788B64] shrink-0">
+                                                        <UserCircle2 className="w-5 h-5" />
+                                                    </div>
+                                                    <div className="overflow-hidden">
+                                                        <div className="font-bold text-[0.95rem] text-[#1b2a18] truncate">
+                                                            {[g.prefix, g.firstName, g.middleName === "-" ? "" : g.middleName, g.lastName].filter(Boolean).join(" ") || "-"}
+                                                        </div>
+                                                        <div className="text-sm font-medium text-zinc-500 truncate mt-0.5">
+                                                            {g.position || "ไม่ระบุตำแหน่ง"}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="overflow-hidden">
-                                                    <div className="font-bold text-sm text-gray-900 truncate">
-                                                        {[g.prefix, g.firstName, g.middleName === "-" ? "" : g.middleName, g.lastName].filter(Boolean).join(" ") || "-"}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 truncate mt-0.5">
-                                                        {[
-                                                            g.position || "ไม่ระบุตำแหน่ง",
-                                                            g.halal ? "ฮาลาล" : "",
-                                                            g.vegan ? "มังสวิรัติ" : "",
-                                                            Array.isArray(g.allergies) && g.allergies.length > 0
-                                                                ? `แพ้อาหาร: ${[...g.allergies.filter((x: string) => x && x !== "อื่นๆ"), g.allergyOther].filter(Boolean).join(", ")}`
-                                                                : "",
-                                                        ].filter(Boolean).join(" • ")}
-                                                    </div>
+                                                {/* Badges พื้นที่อาหาร */}
+                                                <div className="flex flex-wrap items-center gap-2 sm:justify-end mt-2 sm:mt-0 pl-14 sm:pl-0">
+                                                    {g.halal && <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-md border border-emerald-200">ฮาลาล</span>}
+                                                    {g.vegan && <span className="px-2 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-md border border-green-200">มังสวิรัติ</span>}
+                                                    {g.allergies?.length > 0 && (
+                                                        <span className="px-2 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-md border border-red-200">
+                                                            แพ้อาหาร: {[...g.allergies.filter((x: string) => x && x !== "อื่นๆ"), g.allergyOther].filter(Boolean).join(", ")}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วม</div>
+                                    <div className="text-center py-6 text-sm text-zinc-400 font-medium border-2 border-dashed border-[#E2CCA8]/60 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วม</div>
                                 )}
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden h-full flex flex-col">
-                            <div className="bg-indigo-50/50 px-5 sm:px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+                        {/* Internal Attendees (EPAC) */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                            <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <Users className="w-5 h-5 text-indigo-600" />
-                                    <h3 className="text-base font-bold text-indigo-900">ผู้เข้าร่วมภายใน EPAC</h3>
+                                    <Users className="w-5 h-5 text-[#788B64]" />
+                                    <h3 className="text-base font-bold text-[#1b2a18]">ผู้เข้าร่วมภายใน EPAC</h3>
                                 </div>
-                                <span className="text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-md">{selectedVisit.internalAttendees?.length || 0} ท่าน</span>
+                                <span className="text-xs font-bold text-[#788B64] bg-[#788B64]/10 px-2.5 py-1 rounded-md border border-[#788B64]/20">{selectedVisit.internalAttendees?.length || 0} ท่าน</span>
                             </div>
-                            <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
+                            <div className="p-5 sm:p-6 flex-1 bg-white/50">
                                 {selectedVisit.internalAttendees && selectedVisit.internalAttendees.length > 0 ? (
-                                    <div className="grid grid-cols-1 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                         {selectedVisit.internalAttendees.map((g: any, i: number) => (
-                                            <div key={i} className="flex items-center gap-4 p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-colors">
-                                                <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500 shrink-0">
-                                                    <UserCircle2 className="w-5 h-5" />
+                                            <div key={i} className="flex items-center gap-3 p-3.5 bg-white border border-[#E2CCA8]/50 rounded-xl shadow-sm hover:border-[#788B64]/40 transition-colors">
+                                                <div className="bg-[#FAEFCC]/80 p-2 rounded-full text-[#788B64] shrink-0">
+                                                    <UserCircle2 className="w-4 h-4" />
                                                 </div>
                                                 <div className="overflow-hidden">
-                                                    <div className="font-bold text-sm text-gray-900 truncate">
+                                                    <div className="font-bold text-sm text-[#1b2a18] truncate">
                                                         {[g.firstName, g.lastName].filter(Boolean).join(" ") || "-"}
                                                     </div>
-                                                    <div className="text-xs text-gray-500 truncate mt-0.5">
+                                                    <div className="text-xs font-medium text-zinc-500 truncate mt-0.5">
                                                         {g.position || "ไม่ระบุตำแหน่ง"}
                                                     </div>
                                                 </div>
@@ -317,24 +332,25 @@ export function VisitDetailsModal({
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วมภายใน</div>
+                                    <div className="text-center py-6 text-sm text-zinc-400 font-medium border-2 border-dashed border-[#E2CCA8]/60 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วมภายใน</div>
                                 )}
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden h-full flex flex-col">
-                            <div className="bg-emerald-50/50 px-5 sm:px-6 py-4 border-b border-emerald-100 flex items-center gap-2">
-                                <CarFront className="w-5 h-5 text-emerald-600" />
-                                <h3 className="text-base font-bold text-emerald-900">ข้อมูลการเดินทาง</h3>
+                        {/* Transport */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                            <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
+                                <CarFront className="w-5 h-5 text-[#788B64]" />
+                                <h3 className="text-base font-bold text-[#1b2a18]">ข้อมูลการเดินทาง</h3>
                             </div>
-                            <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
+                            <div className="p-5 sm:p-6 flex-1 bg-white/50">
                                 <div className="flex items-center gap-4 mb-5">
-                                    <div className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${
+                                    <div className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${
                                         selectedVisit.transportType === "personal"
-                                          ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                          ? "bg-[#788B64]/15 text-[#1b2a18] border-[#788B64]/30"
                                           : selectedVisit.transportType === "shuttle"
-                                            ? "bg-blue-100 text-blue-700 border-blue-200"
-                                            : "bg-gray-100 text-gray-600 border-gray-200"
+                                            ? "bg-[#E2CCA8]/40 text-[#1b2a18] border-[#E2CCA8]"
+                                            : "bg-zinc-100 text-zinc-600 border-zinc-200"
                                       }`}>
                                         {selectedVisit.transportType === "personal"
                                           ? "🚗 เดินทางด้วยรถส่วนตัว"
@@ -343,40 +359,77 @@ export function VisitDetailsModal({
                                             : "-"}
                                     </div>
                                     {selectedVisit.transportType === "personal" && (
-                                        <div className="text-sm font-semibold text-gray-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
+                                        <div className="text-sm font-semibold text-zinc-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
                                     )}
                                 </div>
 
                                 {selectedVisit.transportType === "personal" && selectedVisit.cars && selectedVisit.cars.length > 0 ? (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {selectedVisit.cars.map((c: any, i: number) => (
-                                            <div key={i} className="p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-emerald-200 transition-colors">
-                                                <div className="text-xs text-gray-400 font-semibold mb-1 truncate">{c.brand || "ไม่ระบุแบรนด์"}</div>
-                                                <div className="font-bold text-sm text-gray-900 flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-emerald-400"></div> {c.license || "ไม่ระบุทะเบียน"}
+                                            <div key={i} className="p-3 bg-white border border-[#E2CCA8]/50 rounded-xl shadow-sm hover:border-[#788B64]/40 transition-colors">
+                                                <div className="text-xs text-zinc-500 font-semibold mb-1 truncate">{c.brand || "ไม่ระบุแบรนด์"}</div>
+                                                <div className="font-bold text-sm text-[#1b2a18] flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-[#788B64]"></div> {c.license || "ไม่ระบุทะเบียน"}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 ) : selectedVisit.transportType === "personal" ? (
-                                    <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถยนต์</div>
+                                    <div className="text-center py-6 text-sm text-zinc-400 font-medium border-2 border-dashed border-[#E2CCA8]/60 rounded-xl">ไม่มีการระบุข้อมูลรถยนต์</div>
                                 ) : null}
-                                {selectedVisit.transportType === "shuttle" && Array.isArray(selectedVisit.shuttleSchedules) && (
-                                    <div className="space-y-2">
-                                        {selectedVisit.shuttleSchedules.length > 0 ? (
-                                            selectedVisit.shuttleSchedules.map((s: any, i: number) => (
-                                                <div key={i} className="rounded-xl border border-blue-100 bg-white p-3 text-sm text-gray-700">
-                                                    <div className="font-semibold text-blue-700">รายการที่ {i + 1}</div>
-                                                    <div className="mt-1 text-xs text-gray-500">
-                                                        {s.date || "-"} • {s.time || "-"}
-                                                    </div>
-                                                    <div className="mt-1">
-                                                        {s.pickup || "-"} → {s.destination || "-"}
-                                                    </div>
-                                                </div>
-                                            ))
+                                {selectedVisit.transportType === "shuttle" && Array.isArray((selectedVisit as any).shuttleSchedules) && (
+                                    <div className="mt-4">
+                                        {(selectedVisit as any).shuttleSchedules.length > 0 ? (
+                                            <div className="overflow-x-auto rounded-xl border border-[#E2CCA8]/60 bg-white shadow-sm">
+                                                <table className="min-w-full text-sm text-left">
+                                                    <thead className="bg-[#FAEFCC]/40 border-b border-[#E2CCA8]/60">
+                                                        <tr>
+                                                            <th className="px-4 py-3 font-bold text-[#788B64] whitespace-nowrap w-[40%]">วันและเวลา</th>
+                                                            <th className="px-4 py-3 font-bold text-[#788B64] whitespace-nowrap w-[30%]">จุดรับ</th>
+                                                            <th className="px-4 py-3 font-bold text-[#788B64] whitespace-nowrap w-[30%]">จุดส่ง (จุดหมาย)</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-[#E2CCA8]/30">
+                                                        {[...(selectedVisit as any).shuttleSchedules]
+                                                            .sort((a: any, b: any) => {
+                                                                const timeA = new Date(`${a.date || "1970-01-01"}T${a.time || "00:00"}`).getTime();
+                                                                const timeB = new Date(`${b.date || "1970-01-01"}T${b.time || "00:00"}`).getTime();
+                                                                return timeA - timeB;
+                                                            })
+                                                            .map((s: any, i: number) => {
+                                                                let displayDate = s.date || "-";
+                                                                if (s.date) {
+                                                                    try {
+                                                                        displayDate = new Intl.DateTimeFormat("th-TH", {
+                                                                            year: "numeric",
+                                                                            month: "short",
+                                                                            day: "numeric"
+                                                                        }).format(new Date(s.date));
+                                                                    } catch (e) { }
+                                                                }
+
+                                                                return (
+                                                                    <tr key={i} className="hover:bg-[#FAEFCC]/20 transition-colors">
+                                                                        <td className="px-4 py-3 font-semibold text-[#1b2a18]">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <CalendarClock className="w-4 h-4 text-[#788B64]" />
+                                                                                {displayDate} <br></br> {s.time ? `${s.time} น.` : "-"}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 font-medium text-zinc-700">
+                                                                            {s.pickup || "-"}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 font-medium text-zinc-700">
+                                                                            {s.destination || "-"}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         ) : (
-                                            <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถรับ-ส่ง</div>
+                                            <div className="text-center py-6 text-sm text-zinc-400 font-medium border-2 border-dashed border-[#E2CCA8]/60 rounded-xl">ไม่มีการระบุข้อมูลรถรับ-ส่ง</div>
                                         )}
                                     </div>
                                 )}
@@ -384,42 +437,43 @@ export function VisitDetailsModal({
                         </div>
                     </div>
 
+                    {/* Site Visit */}
                     {selectedVisit.siteVisit ? (() => {
                         const siteV = selectedVisit.siteVisit as any;
                         if (!siteV.areas || siteV.areas.length === 0) return null;
                         return (
-                            <div className="bg-white rounded-2xl shadow-sm border border-violet-100 overflow-hidden">
-                                <div className="bg-violet-50/50 px-5 sm:px-6 py-4 border-b border-violet-100 flex items-center gap-2">
-                                    <MapPin className="w-5 h-5 text-violet-600" />
-                                    <h3 className="text-base font-bold text-violet-900">การเข้าชมพื้นที่ (Site Visit)</h3>
+                            <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                                <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
+                                    <MapPin className="w-5 h-5 text-[#788B64]" />
+                                    <h3 className="text-base font-bold text-[#1b2a18]">การเข้าชมพื้นที่ (Site Visit)</h3>
                                 </div>
-                                <div className="p-5 sm:p-6 bg-gray-50/30">
+                                <div className="p-5 sm:p-6 bg-white/50">
                                     <div className="mb-5">
-                                        <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">พื้นที่เข้าชม</span>
+                                        <span className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">พื้นที่เข้าชม</span>
                                         <div className="flex flex-wrap gap-2">
                                             {siteV.areas.map((area: string, i: number) => (
-                                                <span key={i} className="px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-sm font-semibold border border-violet-100">
+                                                <span key={i} className="px-3 py-1.5 bg-[#FAEFCC] text-[#1b2a18] rounded-lg text-sm font-semibold border border-[#E2CCA8]/50">
                                                     {area}
                                                 </span>
                                             ))}
                                         </div>
                                         {Array.isArray(siteV.affiliateCompanies) && siteV.affiliateCompanies.length > 0 && (
-                                            <div className="mt-3 text-sm font-semibold text-violet-700">
+                                            <div className="mt-3 text-sm font-semibold text-[#788B64]">
                                                 บริษัทในเครือ: {siteV.affiliateCompanies.join(", ")}
                                             </div>
                                         )}
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
+                                        <div className="bg-white p-3.5 rounded-xl border border-[#E2CCA8]/60 shadow-sm flex items-center gap-3">
                                             <div className="overflow-hidden">
-                                                <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ชื่อ)</dt>
-                                                <dd className="text-sm font-bold text-gray-900 truncate">{siteV.approverName || "-"}</dd>
+                                                <dt className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ชื่อ)</dt>
+                                                <dd className="text-sm font-bold text-[#1b2a18] truncate">{siteV.approverName || "-"}</dd>
                                             </div>
                                         </div>
-                                        <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
+                                        <div className="bg-white p-3.5 rounded-xl border border-[#E2CCA8]/60 shadow-sm flex items-center gap-3">
                                             <div className="overflow-hidden">
-                                                <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ตำแหน่ง)</dt>
-                                                <dd className="text-sm font-bold text-gray-900 truncate">{siteV.approverPosition || "-"}</dd>
+                                                <dt className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ตำแหน่ง)</dt>
+                                                <dd className="text-sm font-bold text-[#1b2a18] truncate">{siteV.approverPosition || "-"}</dd>
                                             </div>
                                         </div>
                                     </div>
@@ -428,48 +482,44 @@ export function VisitDetailsModal({
                         );
                     })() : null}
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-cyan-100 overflow-hidden">
-                        <div className="bg-cyan-50/50 px-5 sm:px-6 py-4 border-b border-cyan-100 flex items-center gap-2">
-                            <Building2 className="w-5 h-5 text-cyan-600" />
-                            <h3 className="text-base font-bold text-cyan-900">การอำนวยความสะดวก (Facilities & Extras)</h3>
+                    {/* Facilities & Extras */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                        <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
+                            <Building2 className="w-5 h-5 text-[#788B64]" />
+                            <h3 className="text-base font-bold text-[#1b2a18]">การอำนวยความสะดวก (Facilities & Extras)</h3>
                         </div>
-                        <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-3 gap-5 bg-gray-50/30">
-                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Users className="w-4 h-4 text-cyan-500" /> ห้องประชุม</dt>
-                                <dd className="text-sm font-bold text-gray-900">
+                        <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-5 bg-white/50">
+                            <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/60 shadow-sm">
+                                <dt className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Users className="w-4 h-4 text-[#788B64]" /> ห้องประชุม</dt>
+                                <dd className="text-sm font-bold text-[#1b2a18]">
                                     {selectedVisit.meetingRoomSelection ? (
-                                        <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500" /> {selectedVisit.meetingRoomSelection}</span>
+                                        <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#788B64]" /> {selectedVisit.meetingRoomSelection}</span>
                                     ) : (
-                                        <span className="text-gray-400 font-medium">ไม่ต้องการห้องประชุม</span>
+                                        <span className="text-zinc-400 font-medium">ไม่ต้องการห้องประชุม</span>
                                     )}
                                 </dd>
                             </div>
 
-                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Gift className="w-4 h-4 text-pink-500" /> ของที่ระลึก</dt>
+                            <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/60 shadow-sm">
+                                <dt className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Gift className="w-4 h-4 text-[#788B64]" /> ของที่ระลึก</dt>
                                 {(() => {
                                     const suv = souvenirData(selectedVisit.souvenirPreferences);
                                     if (suv) {
                                         return (
-                                            <dd className="text-sm font-bold text-gray-900 space-y-1">
-                                                <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500" /> {suv.giftSet || "-"}</div>
-                                                {suv.count > 0 && <div className="text-xs font-semibold text-gray-500">จำนวน {suv.count} ชุด</div>}
-                                                {suv.extra && <div className="text-xs font-semibold text-gray-500">พิเศษ: {suv.extra}</div>}
+                                            <dd className="text-sm font-bold text-[#1b2a18] space-y-1">
+                                                <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#788B64]" /> {suv.giftSet || "-"}</div>
+                                                {suv.count > 0 && <div className="text-xs font-semibold text-zinc-500">จำนวน {suv.count} ชุด</div>}
+                                                {suv.extra && <div className="text-xs font-semibold text-zinc-500">พิเศษ: {suv.extra}</div>}
                                             </dd>
                                         );
                                     }
-                                    return <dd className="text-sm font-bold text-gray-400">ไม่รับของที่ระลึก</dd>;
+                                    return <dd className="text-sm font-bold text-zinc-400">ไม่รับของที่ระลึก</dd>;
                                 })()}
-                            </div>
-
-                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-blue-500" /> ไฟล์นำเสนอ</dt>
-                                <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-500" /> ไฟล์ลงทะเบียนรายชื่อ</dt>
-                                <dd className="text-sm">{renderFileList(selectedVisit.registrationFiles)}</dd>
                             </div>
                         </div>
                     </div>
 
+                    {/* Food */}
                     {(() => {
                         const foodValue = (selectedVisit.foodPreferences as any)?.foodPreferences ?? selectedVisit.foodPreferences;
                         const foodData = foodValue && typeof foodValue === "object" ? foodValue : null;
@@ -483,63 +533,66 @@ export function VisitDetailsModal({
                         if (!hasMeals && !hasSpecialDiet && !hasAllergies) return null;
 
                         const mealIcon = (meal: string) => {
-                            if (meal === "เช้า") return <Coffee className="w-4 h-4 text-yellow-600" />;
-                            if (meal === "อาหารว่างเช้า") return <Coffee className="w-4 h-4 text-emerald-600" />;
-                            if (meal === "กลางวัน") return <Sun className="w-4 h-4 text-orange-600" />;
-                            if (meal === "อาหารว่างบ่าย") return <Coffee className="w-4 h-4 text-sky-600" />;
-                            if (meal === "เย็น") return <Moon className="w-4 h-4 text-indigo-600" />;
-                            return <Utensils className="w-4 h-4 text-gray-600" />;
+                            if (meal === "เช้า" || meal === "อาหารว่างเช้า") return <Coffee className="w-4 h-4 text-[#788B64]" />;
+                            if (meal === "กลางวัน") return <Sun className="w-4 h-4 text-[#788B64]" />;
+                            if (meal === "เย็น") return <Moon className="w-4 h-4 text-[#788B64]" />;
+                            return <Utensils className="w-4 h-4 text-zinc-500" />;
                         };
 
                         return (
-                            <div className="bg-white rounded-2xl shadow-sm border border-amber-100 overflow-hidden">
-                                <div className="bg-amber-50/50 px-5 sm:px-6 py-4 border-b border-amber-100 flex items-center gap-2">
-                                    <Utensils className="w-5 h-5 text-amber-600" />
-                                    <h3 className="text-base font-bold text-amber-900">อาหารและข้อจำกัด</h3>
+                            <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                                <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
+                                    <Utensils className="w-5 h-5 text-[#788B64]" />
+                                    <h3 className="text-base font-bold text-[#1b2a18]">อาหารและข้อจำกัด</h3>
                                 </div>
 
-                                <div className="p-5 sm:p-6 bg-gray-50/30">
+                                <div className="p-5 sm:p-6 bg-white/50">
                                     {hasMeals ? (
                                         <div className="space-y-4">
                                             <div className="flex flex-wrap gap-2">
                                                 {meals.map((m: string, i: number) => (
-                                                    <span key={i} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-amber-100 text-sm font-bold text-gray-800 shadow-sm">
+                                                    <span key={i} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-[#E2CCA8]/60 text-sm font-bold text-[#1b2a18] shadow-sm">
                                                         {mealIcon(m)} {m}
                                                     </span>
                                                 ))}
                                             </div>
 
                                             {foodData?.menus && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    {/* มื้อเช้า */}
                                                     {foodData?.menus?.breakfast && (
-                                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-yellow-700 mb-3">
+                                                        <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
+                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
                                                                 <Coffee className="w-4 h-4" /> เมนูเช้า
                                                             </div>
-                                                            <div className="text-sm font-semibold text-gray-900 whitespace-pre-line">
-                                                                {foodData?.menus?.breakfastOther
-                                                                    ? `${foodData?.menus?.breakfast} - ${foodData?.menus?.breakfastOther}`
-                                                                    : (foodData?.menus?.breakfast || "-")}
+                                                            <div className="flex flex-col gap-1 flex-1 justify-center">
+                                                                <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
+                                                                <span className="font-semibold text-[#1b2a18] whitespace-pre-line">
+                                                                    {foodData?.menus?.breakfastOther
+                                                                        ? `${foodData?.menus?.breakfast} - ${foodData?.menus?.breakfastOther}`
+                                                                        : (foodData?.menus?.breakfast || "-")}
+                                                                </span>
                                                             </div>
                                                         </div>
                                                     )}
+                                                    {/* มื้อกลางวัน */}
                                                     {foodData?.menus?.lunch && (
-                                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-orange-700 mb-3">
+                                                        <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
+                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
                                                                 <Sun className="w-4 h-4" /> เมนูกลางวัน
                                                             </div>
-                                                            <div className="grid grid-cols-2 gap-3">
-                                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-gray-900">
+                                                            <div className="flex flex-col gap-3 flex-1 justify-center">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
+                                                                    <span className="font-semibold text-[#1b2a18]">
                                                                         {foodData?.menus?.lunch?.otherMain
                                                                             ? `${foodData?.menus?.lunch?.main} - ${foodData?.menus?.lunch?.otherMain}`
                                                                             : (foodData?.menus?.lunch?.main || "-")}
                                                                     </span>
                                                                 </div>
-                                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-                                                                    <span className="font-semibold text-gray-900">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน (Dessert)</span>
+                                                                    <span className="font-semibold text-[#1b2a18]">
                                                                         {foodData?.menus?.lunch?.otherDessert
                                                                             ? `${foodData?.menus?.lunch?.dessert} - ${foodData?.menus?.lunch?.otherDessert}`
                                                                             : (foodData?.menus?.lunch?.dessert || "-")}
@@ -548,23 +601,24 @@ export function VisitDetailsModal({
                                                             </div>
                                                         </div>
                                                     )}
+                                                    {/* มื้อเย็น */}
                                                     {foodData?.menus?.dinner && (
-                                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-indigo-700 mb-3">
+                                                        <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
+                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
                                                                 <Moon className="w-4 h-4" /> เมนูเย็น
                                                             </div>
-                                                            <div className="grid grid-cols-2 gap-3">
-                                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-gray-900">
+                                                            <div className="flex flex-col gap-3 flex-1 justify-center">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
+                                                                    <span className="font-semibold text-[#1b2a18]">
                                                                         {foodData?.menus?.dinner?.otherMain
                                                                             ? `${foodData?.menus?.dinner?.main} - ${foodData?.menus?.dinner?.otherMain}`
                                                                             : (foodData?.menus?.dinner?.main || "-")}
                                                                     </span>
                                                                 </div>
-                                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-                                                                    <span className="font-semibold text-gray-900">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน (Dessert)</span>
+                                                                    <span className="font-semibold text-[#1b2a18]">
                                                                         {foodData?.menus?.dinner?.otherDessert
                                                                             ? `${foodData?.menus?.dinner?.dessert} - ${foodData?.menus?.dinner?.otherDessert}`
                                                                             : (foodData?.menus?.dinner?.dessert || "-")}
@@ -579,9 +633,9 @@ export function VisitDetailsModal({
                                             {(hasSpecialDiet || hasAllergies) && (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                                                     {hasSpecialDiet && (
-                                                        <div className="p-4 bg-green-50/50 rounded-xl border border-green-200 shadow-sm">
-                                                            <span className="block text-xs font-extrabold text-green-700 uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
-                                                            <div className="text-sm text-gray-800 font-semibold whitespace-pre-line leading-relaxed">
+                                                        <div className="p-4 bg-[#FAEFCC]/40 rounded-xl border border-[#E2CCA8]/60 shadow-sm">
+                                                            <span className="block text-xs font-extrabold text-[#788B64] uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
+                                                            <div className="text-sm text-[#1b2a18] font-semibold whitespace-pre-line leading-relaxed">
                                                                 {sdText}
                                                             </div>
                                                         </div>
@@ -604,9 +658,9 @@ export function VisitDetailsModal({
                                             {(hasSpecialDiet || hasAllergies) && (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {hasSpecialDiet && (
-                                                        <div className="p-4 bg-green-50/50 rounded-xl border border-green-200 shadow-sm">
-                                                            <span className="block text-xs font-extrabold text-green-700 uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
-                                                            <div className="text-sm text-gray-800 font-semibold whitespace-pre-line leading-relaxed">
+                                                        <div className="p-4 bg-[#FAEFCC]/40 rounded-xl border border-[#E2CCA8]/60 shadow-sm">
+                                                            <span className="block text-xs font-extrabold text-[#788B64] uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
+                                                            <div className="text-sm text-[#1b2a18] font-semibold whitespace-pre-line leading-relaxed">
                                                                 {sdText}
                                                             </div>
                                                         </div>
@@ -629,14 +683,20 @@ export function VisitDetailsModal({
                             </div>
                         );
                     })()}
-
                 </div>
 
-                <div className="shrink-0 border-t border-gray-200/60 bg-white px-6 py-4 sm:rounded-b-3xl">
+                {/* Footer Modal */}
+                <div className="shrink-0 border-t border-[#E2CCA8]/60 bg-white px-6 py-4 sm:rounded-b-3xl">
                     <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
-                            <PenLine className="w-3.5 h-3.5" />
-                            ผู้ยื่นคำร้อง: {(selectedVisit.submittedBy as any)?.name ? `${(selectedVisit.submittedBy as any).name} ${(selectedVisit.submittedBy as any).position ? `(${(selectedVisit.submittedBy as any).position})` : ""}` : "-"}
+                        <div className="text-xs text-zinc-500 font-medium flex flex-wrap items-center gap-x-4 gap-y-1">
+                            <span className="flex items-center gap-1.5">
+                                <PenLine className="w-3.5 h-3.5" />
+                                ผู้ยื่นคำร้อง: {(selectedVisit.submittedBy as any)?.name ? `${(selectedVisit.submittedBy as any).name} ${(selectedVisit.submittedBy as any).position ? `(${(selectedVisit.submittedBy as any).position})` : ""}` : "-"}
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5" />
+                                เบอร์ติดต่อ: {(selectedVisit.submittedBy as any)?.phone || selectedVisit.contactPhone || "-"}
+                            </span>
                         </div>
 
                         <div className="flex items-center justify-end gap-3">
@@ -644,7 +704,7 @@ export function VisitDetailsModal({
                                 <button
                                     type="button"
                                     onClick={onClose}
-                                    className="px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+                                    className="px-4 py-2 bg-white border border-[#E2CCA8] text-[#1b2a18] rounded-lg text-sm font-semibold hover:bg-[#FAEFCC] transition-colors shadow-sm"
                                 >
                                     ปิด
                                 </button>
@@ -654,7 +714,7 @@ export function VisitDetailsModal({
                                         type="button"
                                         onClick={() => onEdit?.()}
                                         disabled={updatingStatus || !canManage}
-                                        className="px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
+                                        className="px-4 py-2 bg-white border border-[#E2CCA8] text-[#1b2a18] rounded-lg text-sm font-semibold hover:bg-[#FAEFCC] disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 transition-colors shadow-sm"
                                     >
                                         แก้ไข
                                     </button>
@@ -662,7 +722,7 @@ export function VisitDetailsModal({
                                         type="button"
                                         onClick={() => onCancel?.()}
                                         disabled={updatingStatus || !canManage}
-                                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300 transition-colors shadow-sm"
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-zinc-300 transition-colors shadow-sm"
                                     >
                                         ยกเลิกการจอง
                                     </button>
@@ -673,7 +733,6 @@ export function VisitDetailsModal({
                 </div>
             </div>
         </div>
-        </>
     );
 }
 
@@ -945,20 +1004,20 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     };
 
     return (
-        <div className="p-2 md:p-4 space-y-6 bg-gray-50/50 min-h-screen rounded-3xl">
+        <div className="p-2 md:p-4 space-y-6 bg-transparent min-h-screen rounded-3xl">
             {/* Header Table */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
                 <div>
-                    <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600">
+                    <h2 className="text-2xl font-extrabold text-[#1b2a18]">
                         Visitor Log
                     </h2>
-                    <p className="text-gray-500 text-sm mt-1">รายการแขกคนสำคัญและผู้มาเยือน</p>
+                    <p className="text-[#1b2a18]/70 text-sm mt-1">รายการแขกคนสำคัญและผู้มาเยือน</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50">
-                        <Users className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-medium text-gray-600">
-                            กำลังดำเนินอยู่: <span className="text-gray-900 font-bold">{filteredVisits.length}</span> รายการ
+                    <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md py-2 px-4 rounded-2xl shadow-sm border border-[#E2CCA8]/60">
+                        <Users className="w-4 h-4 text-[#788B64]" />
+                        <span className="text-sm font-medium text-[#1b2a18]">
+                            กำลังดำเนินอยู่: <span className="text-[#788B64] font-extrabold">{filteredVisits.length}</span> รายการ
                         </span>
                     </div>
                     <button
@@ -971,46 +1030,46 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             setExportFormat("excel");
                             setExportOpen(true);
                         }}
-                        className="inline-flex items-center gap-2 bg-white py-2 px-4 rounded-2xl shadow-sm border border-gray-100/50 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                        className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-md py-2 px-4 rounded-2xl shadow-sm border border-[#E2CCA8]/60 text-sm font-semibold text-[#1b2a18] hover:bg-[#FAEFCC]/80 transition-colors"
                     >
-                        <Download className="w-4 h-4" />
+                        <Download className="w-4 h-4 text-[#788B64]" />
                         Export
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-white/60 p-4">
+            <div className="bg-[#FAEFCC]/70 backdrop-blur-xl rounded-2xl shadow-sm border border-[#E2CCA8] p-5">
                 <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
                     <div className="flex flex-col gap-1 lg:col-span-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">จากวันที่</label>
+                        <label className="text-xs font-bold text-[#788B64] uppercase tracking-wider">จากวันที่</label>
                         <input
                             type="date"
                             value={filterDateFrom}
                             onChange={(e) => setFilterDateFrom(e.target.value)}
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                         />
                     </div>
                     <div className="flex flex-col gap-1 lg:col-span-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ถึงวันที่</label>
+                        <label className="text-xs font-bold text-[#788B64] uppercase tracking-wider">ถึงวันที่</label>
                         <input
                             type="date"
                             value={filterDateTo}
                             onChange={(e) => setFilterDateTo(e.target.value)}
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                         />
                     </div>
                     <div className="flex flex-col gap-1 lg:col-span-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ชื่อบริษัทที่เชิญมา</label>
+                        <label className="text-xs font-bold text-[#788B64] uppercase tracking-wider">ชื่อบริษัทที่เชิญมา</label>
                         <input
                             value={filterCompany}
                             onChange={(e) => setFilterCompany(e.target.value)}
                             placeholder="พิมพ์ชื่อบริษัทที่เชิญมาเพื่อค้นหา"
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                         />
                     </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-xs text-gray-500">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-xs font-medium text-[#1b2a18]/60">
                         ตัวกรองใช้วันที่ตามเวลาไทย (Asia/Bangkok)
                     </div>
                     <button
@@ -1020,7 +1079,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                             setFilterDateTo("");
                             setFilterCompany("");
                         }}
-                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                        className="rounded-lg border border-[#E2CCA8] bg-white px-4 py-2 text-sm font-semibold text-[#1b2a18] hover:bg-[#FAEFCC] transition-colors shadow-sm"
                     >
                         ล้างตัวกรอง
                     </button>
@@ -1028,19 +1087,18 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             </div>
 
             {/* Table Section */}
-            <div className="bg-white/80 backdrop-blur-xl rounded-lg shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden relative z-0">
-                <div className="absolute top-0 right-0 -z-10 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none translate-x-1/3 -translate-y-1/3"></div>
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-[#788B64]/10 border border-[#E2CCA8] overflow-hidden relative z-0">
                 <div className="overflow-x-auto p-2">
                     <table className="min-w-full w-full">
                         <thead>
-                            <tr className="border-b border-gray-100/80">
-                                <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[28%]">วันและเวลา</th>
-                                <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[35%]">องค์กร / ผู้มาเยือน</th>
-                                <th className="hidden sm:table-cell px-6 py-5 text-center text-[0.7rem] font-bold text-gray-400 uppercase tracking-wider w-[15%]">จำนวนผู้เข้าพบ</th>
+                            <tr className="border-b border-[#E2CCA8]/60">
+                                <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-[#788B64] uppercase tracking-wider w-[28%]">วันและเวลา</th>
+                                <th className="px-6 py-5 text-left text-[0.7rem] font-bold text-[#788B64] uppercase tracking-wider w-[35%]">องค์กร / ผู้มาเยือน</th>
+                                <th className="hidden sm:table-cell px-6 py-5 text-center text-[0.7rem] font-bold text-[#788B64] uppercase tracking-wider w-[15%]">จำนวนผู้เข้าพบ</th>
                                 <th className="w-[5%]"></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50/50">
+                        <tbody className="divide-y divide-[#E2CCA8]/40">
                             {filteredVisits.map((visit, index) => {
                                 const visitDate = new Date(visit.visitDateTime || visit.created_at || 0);
                                 const monthShort = new Intl.DateTimeFormat("en-US", { month: "short", timeZone }).format(visitDate);
@@ -1048,19 +1106,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                 const timeText = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone }).format(visitDate);
                                 const weekdayText = new Intl.DateTimeFormat("th-TH", { weekday: "long", timeZone }).format(visitDate);
                                 return (
-                                    <tr key={visit.id} onClick={() => setSelectedVisit(visit)} className="group transition-all duration-200 hover:bg-white hover:shadow-md hover:shadow-blue-100/50 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10">
+                                    <tr key={visit.id} onClick={() => setSelectedVisit(visit)} className="group transition-all duration-200 hover:bg-[#FAEFCC]/40 hover:shadow-md hover:shadow-[#788B64]/10 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10">
                                         <td className="px-6 py-5 align-top">
                                             <div className="flex items-start gap-3">
-                                                <div className="shrink-0 w-12 h-12 bg-blue-50/80 text-blue-600 rounded-xl flex flex-col items-center justify-center shadow-sm border border-blue-100/50 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                <div className="shrink-0 w-12 h-12 bg-[#FAEFCC] text-[#788B64] rounded-xl flex flex-col items-center justify-center shadow-sm border border-[#E2CCA8] group-hover:bg-[#788B64] group-hover:text-white transition-colors">
                                                     <span className="text-xs font-bold uppercase leading-none">{monthShort}</span>
                                                     <span className="text-lg font-extrabold leading-none mt-0.5">{dayNum}</span>
                                                 </div>
                                                 <div className="flex flex-col pt-1">
-                                                    <span className="gap-x-1 flex text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors w-fit">
-                                                        <CalendarClock className="w-4 h-4 text-blue-500" />
+                                                    <span className="gap-x-1 flex text-sm font-bold text-[#1b2a18] group-hover:text-[#788B64] transition-colors w-fit">
+                                                        <CalendarClock className="w-4 h-4 text-[#788B64]" />
                                                         {timeText} น.
                                                     </span>
-                                                    <div className="flex items-center text-xs font-medium text-gray-500 gap-1.5 mt-1 bg-gray-100/70 px-2 py-0.5 rounded-md w-fit">
+                                                    <div className="flex items-center text-xs font-medium text-zinc-500 gap-1.5 mt-1 bg-white border border-[#E2CCA8]/50 px-2 py-0.5 rounded-md w-fit">
                                                         {weekdayText}
                                                     </div>
                                                 </div>
@@ -1070,16 +1128,16 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                             <div className="flex items-start gap-3">
                                                 <CompanyAvatar name={visit.clientCompany} idx={index} />
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.95rem] font-bold text-gray-900 line-clamp-1 group-hover:text-blue-700 transition-colors">{visit.clientCompany || "ไม่ระบุบริษัท"}</span>
-                                                    <span className="text-sm text-gray-500 flex items-center gap-1.5 mt-1"><Briefcase className="w-3.5 h-3.5 text-gray-400" /><span className="line-clamp-1">{(visit as any).purposeOfVisit || "-"}</span></span>
+                                                    <span className="text-[0.95rem] font-bold text-[#1b2a18] line-clamp-1 group-hover:text-[#788B64] transition-colors">{visit.clientCompany || "ไม่ระบุบริษัท"}</span>
+                                                    <span className="text-sm text-zinc-500 flex items-center gap-1.5 mt-1"><Briefcase className="w-3.5 h-3.5 text-zinc-400" /><span className="line-clamp-1">{(visit as any).purposeOfVisit || "-"}</span></span>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="hidden sm:table-cell px-6 py-5 align-middle text-center">
-                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${(visit.guests?.length || 0) >= 1 ? 'bg-indigo-50 text-indigo-600 border-indigo-100/50' : 'bg-gray-50 text-gray-500 border-gray-100/50'}`}><Users className="w-3.5 h-3.5" />{visit.guests?.length || 1} คน</span>
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${(visit.guests?.length || 0) >= 1 ? 'bg-[#788B64]/10 text-[#788B64] border-[#788B64]/20' : 'bg-zinc-50 text-zinc-500 border-zinc-200'}`}><Users className="w-3.5 h-3.5" />{visit.guests?.length || 1} คน</span>
                                         </td>
                                         <td className="px-4 py-5 align-middle text-right opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                            <ChevronRight className="w-5 h-5 text-blue-500" />
+                                            <ChevronRight className="w-5 h-5 text-[#788B64]" />
                                         </td>
                                     </tr>
                                 );
@@ -1089,470 +1147,16 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 </div>
             </div>
 
-            {selectedVisit ? (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-gray-50 w-full max-w-5xl max-h-[90vh] sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
-
-                        {/* Modal Header */}
-                        <div className="relative px-6 py-6 border-b border-gray-200/60 overflow-hidden bg-white shrink-0 sm:rounded-t-3xl rounded-t-3xl">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
-                            <div className="relative z-10 flex justify-between items-start">
-                                <div className="flex items-center gap-4">
-                                    <CompanyAvatar name={selectedVisit.clientCompany} size="lg" />
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-gray-900 leading-tight">
-                                            {selectedVisit.clientCompany || "ไม่ระบุบริษัท"}
-                                        </h2>
-                                        <p className="text-sm text-blue-600 font-semibold flex items-center gap-1.5 mt-1.5">
-                                            <CalendarClock className="w-4 h-4" />
-                                            {selectedVisit.visitDateTime || selectedVisit.created_at
-                                                ? new Intl.DateTimeFormat("th-TH", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone }).format(new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0)) + " น."
-                                                : 'ไม่ระบุเวลาเข้าพบ'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setSelectedVisit(null)} className="p-2 -mr-2 bg-gray-100 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-full transition-colors shadow-sm"><X className="w-5 h-5" /></button>
-                            </div>
-                        </div>
-
-                        {/* Modal Body */}
-                        <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-6">
-
-                            {/* Section 1: ข้อมูลทั่วไป */}
-                            <div className="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden">
-                                <div className="bg-blue-50/50 px-5 sm:px-6 py-4 border-b border-blue-100 flex items-center gap-2">
-                                    <MessageSquareText className="w-5 h-5 text-blue-600" />
-                                    <h3 className="text-base font-bold text-blue-900">ข้อมูลผู้เข้าเยี่ยมชม</h3>
-                                </div>
-                                <div className="p-5 sm:p-6">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                                        <InfoCard icon={<Phone className="w-4 h-4 text-blue-500" />} label="เบอร์ผู้ประสานงาน" value={(selectedVisit.submittedBy as any)?.phone || selectedVisit.contactPhone} />
-                                        <InfoCard icon={<Globe2 className="w-4 h-4 text-blue-500" />} label="ประเทศ" value={selectedVisit.country} />
-                                        <InfoCard icon={<MapPin className="w-4 h-4 text-blue-500" />} label="ที่อยู่บริษัท" value={selectedVisit.companyAddress} />
-                                        <InfoCard icon={<Tag className="w-4 h-4 text-blue-500" />} label="ประเภทผู้เข้าเยี่ยมชม" value={(() => {
-                                            const type = selectedVisit.visitorType;
-                                            const other = selectedVisit.visitorTypeOther;
-                                            if (type && other && type === "อื่นๆ") return `${type} - ${other}`;
-                                            return type;
-                                        })()} />
-                                    </div>
-
-                                    {selectedVisit.purposeOfVisit && (
-                                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
-                                            <div>
-                                                <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5" /> วัตถุประสงค์ในการเข้าพบ</dt>
-                                                <dd className="text-base font-bold text-gray-900">{selectedVisit.purposeOfVisit}</dd>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {selectedVisit.welcomeMessage && (
-                                        <div className="bg-gray-50 rounded-xl p-5 border border-gray-100/80">
-                                            <div>
-                                                <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1.5"><MessageSquareText className="w-3.5 h-3.5" /> ข้อความ Welcome board</dt>
-                                                <dd className="text-base font-bold text-gray-900">{selectedVisit.welcomeMessage}</dd>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Section 2: ผู้เข้าร่วม & การเดินทาง */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* ผู้เข้าร่วม */}
-                                <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden h-full flex flex-col">
-                                    <div className="bg-indigo-50/50 px-5 sm:px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Users className="w-5 h-5 text-indigo-600" />
-                                            <h3 className="text-base font-bold text-indigo-900">รายชื่อผู้เข้าร่วม</h3>
-                                        </div>
-                                        <span className="text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-md">{selectedVisit.guests?.length || 0} ท่าน</span>
-                                    </div>
-                                    <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
-                                        {selectedVisit.guests && selectedVisit.guests.length > 0 ? (
-                                            <div className="grid grid-cols-1 gap-3">
-                                                {selectedVisit.guests.map((g: any, i) => (
-                                                    <div key={i} className="flex items-center gap-4 p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-colors">
-                                                        <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500 shrink-0">
-                                                            <UserCircle2 className="w-5 h-5" />
-                                                        </div>
-                                                        <div className="overflow-hidden">
-                                                            <div className="font-bold text-sm text-gray-900 truncate">
-                                                                {[g.prefix, g.firstName, g.middleName === "-" ? "" : g.middleName, g.lastName].filter(Boolean).join(" ") || "-"}
-                                                            </div>
-                                                            <div className="text-xs text-gray-500 truncate mt-0.5">
-                                                                {[
-                                                                    g.position || "ไม่ระบุตำแหน่ง",
-                                                                    g.halal ? "ฮาลาล" : "",
-                                                                    g.vegan ? "มังสวิรัติ" : "",
-                                                                    Array.isArray(g.allergies) && g.allergies.length > 0
-                                                                        ? `แพ้อาหาร: ${[...g.allergies.filter((x: string) => x && x !== "อื่นๆ"), g.allergyOther].filter(Boolean).join(", ")}`
-                                                                        : "",
-                                                                ].filter(Boolean).join(" • ")}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วม</div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* ผู้เข้าร่วมภายใน */}
-                                <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden h-full flex flex-col">
-                                    <div className="bg-indigo-50/50 px-5 sm:px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Users className="w-5 h-5 text-indigo-600" />
-                                            <h3 className="text-base font-bold text-indigo-900">ผู้เข้าร่วมภายใน EPAC</h3>
-                                        </div>
-                                        <span className="text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-md">{selectedVisit.internalAttendees?.length || 0} ท่าน</span>
-                                    </div>
-                                    <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
-                                        {selectedVisit.internalAttendees && selectedVisit.internalAttendees.length > 0 ? (
-                                            <div className="grid grid-cols-1 gap-3">
-                                                {selectedVisit.internalAttendees.map((g: any, i: number) => (
-                                                    <div key={i} className="flex items-center gap-4 p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-indigo-200 transition-colors">
-                                                        <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-500 shrink-0">
-                                                            <UserCircle2 className="w-5 h-5" />
-                                                        </div>
-                                                        <div className="overflow-hidden">
-                                                            <div className="font-bold text-sm text-gray-900 truncate">
-                                                                {[g.firstName, g.lastName].filter(Boolean).join(" ") || "-"}
-                                                            </div>
-                                                            <div className="text-xs text-gray-500 truncate mt-0.5">
-                                                                {g.position || "ไม่ระบุตำแหน่ง"}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีข้อมูลผู้เข้าร่วมภายใน</div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* การเดินทาง */}
-                                <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden h-full flex flex-col">
-                                    <div className="bg-emerald-50/50 px-5 sm:px-6 py-4 border-b border-emerald-100 flex items-center gap-2">
-                                        <CarFront className="w-5 h-5 text-emerald-600" />
-                                        <h3 className="text-base font-bold text-emerald-900">ข้อมูลการเดินทาง</h3>
-                                    </div>
-                                    <div className="p-5 sm:p-6 flex-1 bg-gray-50/30">
-                                        <div className="flex items-center gap-4 mb-5">
-                                            <div className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${
-                                                selectedVisit.transportType === "personal"
-                                                  ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                                                  : selectedVisit.transportType === "shuttle"
-                                                    ? "bg-blue-100 text-blue-700 border-blue-200"
-                                                    : "bg-gray-100 text-gray-600 border-gray-200"
-                                              }`}>
-                                                {selectedVisit.transportType === "personal"
-                                                  ? "🚗 เดินทางด้วยรถส่วนตัว"
-                                                  : selectedVisit.transportType === "shuttle"
-                                                    ? "🚌 รถรับ-ส่ง"
-                                                    : "-"}
-                                            </div>
-                                            {selectedVisit.transportType === "personal" && (
-                                                <div className="text-sm font-semibold text-gray-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
-                                            )}
-                                        </div>
-
-                                        {selectedVisit.transportType === "personal" && selectedVisit.cars && selectedVisit.cars.length > 0 ? (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                {selectedVisit.cars.map((c: any, i) => (
-                                                    <div key={i} className="p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-emerald-200 transition-colors">
-                                                        <div className="text-xs text-gray-400 font-semibold mb-1 truncate">{c.brand || "ไม่ระบุแบรนด์"}</div>
-                                                        <div className="font-bold text-sm text-gray-900 flex items-center gap-2">
-                                                            <div className="w-2 h-2 rounded-full bg-emerald-400"></div> {c.license || "ไม่ระบุทะเบียน"}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : selectedVisit.transportType === "personal" ? (
-                                            <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถยนต์</div>
-                                        ) : null}
-                                        {selectedVisit.transportType === "shuttle" && Array.isArray(selectedVisit.shuttleSchedules) && (
-                                            <div className="space-y-2">
-                                                {selectedVisit.shuttleSchedules.length > 0 ? (
-                                                    selectedVisit.shuttleSchedules.map((s: any, i: number) => (
-                                                        <div key={i} className="rounded-xl border border-blue-100 bg-white p-3 text-sm text-gray-700">
-                                                            <div className="font-semibold text-blue-700">รายการที่ {i + 1}</div>
-                                                            <div className="mt-1 text-xs text-gray-500">
-                                                                {s.date || "-"} • {s.time || "-"}
-                                                            </div>
-                                                            <div className="mt-1">
-                                                                {s.pickup || "-"} → {s.destination || "-"}
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="text-center py-6 text-sm text-gray-400 font-medium border-2 border-dashed border-gray-100 rounded-xl">ไม่มีการระบุข้อมูลรถรับ-ส่ง</div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Section: การเข้าชมพื้นที่ (Site Visit) */}
-                            {selectedVisit.siteVisit ? (() => {
-                                const siteV = selectedVisit.siteVisit as any;
-                                if (!siteV.areas || siteV.areas.length === 0) return null;
-                                return (
-                                    <div className="bg-white rounded-2xl shadow-sm border border-violet-100 overflow-hidden">
-                                        <div className="bg-violet-50/50 px-5 sm:px-6 py-4 border-b border-violet-100 flex items-center gap-2">
-                                            <MapPin className="w-5 h-5 text-violet-600" />
-                                            <h3 className="text-base font-bold text-violet-900">การเข้าชมพื้นที่ (Site Visit)</h3>
-                                        </div>
-                                        <div className="p-5 sm:p-6 bg-gray-50/30">
-                                            <div className="mb-5">
-                                                <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">พื้นที่เข้าชม</span>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {siteV.areas.map((area: string, i: number) => (
-                                                        <span key={i} className="px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-sm font-semibold border border-violet-100">
-                                                            {area}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                                {Array.isArray(siteV.affiliateCompanies) && siteV.affiliateCompanies.length > 0 && (
-                                                    <div className="mt-3 text-sm font-semibold text-violet-700">
-                                                        บริษัทในเครือ: {siteV.affiliateCompanies.join(", ")}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
-                                                    <div className="overflow-hidden">
-                                                        <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ชื่อ)</dt>
-                                                        <dd className="text-sm font-bold text-gray-900 truncate">{siteV.approverName || "-"}</dd>
-                                                    </div>
-                                                </div>
-                                                <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
-                                                    <div className="overflow-hidden">
-                                                        <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">ผู้อนุญาต (ตำแหน่ง)</dt>
-                                                        <dd className="text-sm font-bold text-gray-900 truncate">{siteV.approverPosition || "-"}</dd>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })() : null}
-
-                            {/* Section 3: การอำนวยความสะดวก */}
-                            <div className="bg-white rounded-2xl shadow-sm border border-cyan-100 overflow-hidden">
-                                <div className="bg-cyan-50/50 px-5 sm:px-6 py-4 border-b border-cyan-100 flex items-center gap-2">
-                                    <Building2 className="w-5 h-5 text-cyan-600" />
-                                    <h3 className="text-base font-bold text-cyan-900">การอำนวยความสะดวก (Facilities & Extras)</h3>
-                                </div>
-                                <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-3 gap-5 bg-gray-50/30">
-
-                                    {/* ห้องประชุม */}
-                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                        <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Users className="w-4 h-4 text-cyan-500" /> ห้องประชุม</dt>
-                                        <dd className="text-sm font-bold text-gray-900">
-                                            {selectedVisit.meetingRoomSelection ? (
-                                                <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500" /> {selectedVisit.meetingRoomSelection}</span>
-                                            ) : (
-                                                <span className="text-gray-400 font-medium">ไม่ต้องการห้องประชุม</span>
-                                            )}
-                                        </dd>
-                                    </div>
-
-                                    {/* ของที่ระลึก */}
-                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                        <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Gift className="w-4 h-4 text-pink-500" /> ของที่ระลึก</dt>
-                                        {(() => {
-                                            const suv = souvenirData(selectedVisit.souvenirPreferences);
-                                            if (suv) {
-                                                return (
-                                                    <div className="space-y-1.5 text-sm">
-                                                        {suv.giftSet && <p className="font-bold text-gray-900 truncate">{suv.giftSet}</p>}
-                                                        <p className="text-gray-600 font-medium">จำนวน: <span className="text-pink-600 font-bold">{suv.count} ชุด</span></p>
-                                                        {suv.extra && <p className="text-xs text-gray-500 mt-1 bg-gray-50 p-1.5 rounded border border-gray-100 leading-relaxed">{suv.extra}</p>}
-                                                    </div>
-                                                )
-                                            }
-                                            return <span className="text-sm text-gray-400 font-medium">ไม่ต้องการของที่ระลึก</span>;
-                                        })()}
-                                    </div>
-
-                                    {/* ไฟล์แนบ */}
-                                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                                        <dt className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText className="w-4 h-4 text-emerald-500" /> ไฟล์ลงทะเบียนรายชื่อ</dt>
-                                        <dd>{renderFileList(selectedVisit.registrationFiles)}</dd>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Section 4: การรับรองและจัดเลี้ยงอาหาร */}
-                            {selectedVisit.foodPreferences ? (() => {
-                                const foodData = (selectedVisit.foodPreferences as any)?.foodPreferences || selectedVisit.foodPreferences;
-                                // เช็คว่ามีข้อมูลมื้อไหนบ้างเพื่อซ่อน/แสดง
-                                const hasBreakfast = foodData?.meals?.includes('เช้า') || (foodData?.menus?.breakfast && foodData.menus.breakfast.trim() !== "");
-                                const hasLunch = foodData?.meals?.includes('กลางวัน') || (foodData?.menus?.lunch?.main && foodData.menus.lunch.main.trim() !== "");
-                                const hasDinner = foodData?.meals?.includes('เย็น') || (foodData?.menus?.dinner?.main && foodData.menus.dinner.main.trim() !== "");
-
-                                // เช็คว่ามีข้อมูลแพ้อาหารหรืออาหารพิเศษไหม
-                                const sdText = specialDietText(foodData);
-                                const hasSpecialDiet = sdText !== "-";
-                                const alText = allergyText(foodData);
-                                const hasAllergies = alText !== "-";
-
-                                return (
-                                    <div className="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
-                                        <div className="bg-orange-50/50 px-5 sm:px-6 py-4 border-b border-orange-100 flex items-center gap-2">
-                                            <Utensils className="w-5 h-5 text-orange-600" />
-                                            <h3 className="text-base font-bold text-orange-900">การรับรองและจัดเลี้ยงอาหาร</h3>
-                                        </div>
-                                        <div className="p-5 sm:p-6 flex flex-col gap-5 bg-gray-50/30">
-                                            {/* แถวบน: รายการมื้ออาหารหลัก (เต็มความกว้าง) - แสดงเฉพาะมื้อที่มี */}
-                                            {(hasBreakfast || hasLunch || hasDinner) ? (
-                                                <div className="w-full">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                                                        <span className="flex items-center gap-1.5 text-sm font-bold text-gray-600 uppercase">
-                                                            <Info className="w-4 h-4 text-gray-400" /> รายการมื้ออาหารที่รับ
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-col md:flex-row gap-4">
-                                                        {hasBreakfast && (
-                                                            <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-orange-200 transition-all">
-                                                                <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
-                                                                    <div className="flex items-center gap-2 text-orange-600 font-bold"><Coffee className="w-4 h-4" /> มื้อเช้า</div>
-                                                                </div>
-                                                                <p className="text-sm text-gray-700 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                                                    <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-gray-900">
-                                                                        {foodData?.menus?.breakfastOther
-                                                                            ? `${foodData?.menus?.breakfast} - ${foodData?.menus?.breakfastOther}`
-                                                                            : (foodData?.menus?.breakfast || "จัดเตรียมมื้อเช้าตามความเหมาะสม")}
-                                                                    </span>
-                                                                </p>
-                                                            </div>
-                                                        )}
-                                                        {hasLunch && (
-                                                            <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-orange-200 transition-all">
-                                                                <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
-                                                                    <div className="flex items-center gap-2 text-orange-600 font-bold"><Sun className="w-4 h-4" /> มื้อกลางวัน</div>
-                                                                </div>
-                                                                <div className="space-y-3 text-sm text-gray-700">
-                                                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                                                        <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                        <span className="font-semibold text-gray-900">
-                                                                            {foodData?.menus?.lunch?.otherMain
-                                                                                ? `${foodData?.menus?.lunch?.main} - ${foodData?.menus?.lunch?.otherMain}`
-                                                                                : (foodData?.menus?.lunch?.main || "-")}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                                                        <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-                                                                        <span className="font-semibold text-gray-900">
-                                                                            {foodData?.menus?.lunch?.otherDessert
-                                                                                ? `${foodData?.menus?.lunch?.dessert} - ${foodData?.menus?.lunch?.otherDessert}`
-                                                                                : (foodData?.menus?.lunch?.dessert || "-")}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {hasDinner && (
-                                                            <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-orange-200 transition-all">
-                                                                <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
-                                                                    <div className="flex items-center gap-2 text-orange-600 font-bold"><Moon className="w-4 h-4" /> มื้อเย็น</div>
-                                                                </div>
-                                                                <div className="space-y-3 text-sm text-gray-700">
-                                                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                                                        <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">อาหารคาว (Main)</span>
-                                                                        <span className="font-semibold text-gray-900">
-                                                                            {foodData?.menus?.dinner?.otherMain
-                                                                                ? `${foodData?.menus?.dinner?.main} - ${foodData?.menus?.dinner?.otherMain}`
-                                                                                : (foodData?.menus?.dinner?.main || "-")}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                                                                        <span className="block text-xs font-bold text-gray-400 uppercase mb-0.5">ของหวาน (Dessert)</span>
-                                                                        <span className="font-semibold text-gray-900">
-                                                                            {foodData?.menus?.dinner?.otherDessert
-                                                                                ? `${foodData?.menus?.dinner?.dessert} - ${foodData?.menus?.dinner?.otherDessert}`
-                                                                                : (foodData?.menus?.dinner?.dessert || "-")}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="text-sm text-gray-400 font-medium italic py-4 text-center border-2 border-dashed border-gray-100 rounded-xl bg-white">
-                                                    ไม่ได้ระบุมื้ออาหารหลัก
-                                                </div>
-                                            )}
-                                            {/* แถวล่าง: อาหารพิเศษ และ แพ้อาหาร (ซ่อนถ้าไม่มีข้อมูลทั้งคู่) */}
-                                            {(hasSpecialDiet || hasAllergies) && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                                    {/* อาหารพิเศษ (ซ่อนถ้าไม่มี) */}
-                                                    {hasSpecialDiet && (
-                                                        <div className="p-4 bg-green-50/50 rounded-xl border border-green-200 shadow-sm">
-                                                            <span className="block text-xs font-extrabold text-green-700 uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
-                                                            <div className="text-sm text-gray-800 font-semibold whitespace-pre-line leading-relaxed">
-                                                                {sdText}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {/* แพ้อาหาร (ซ่อนถ้าไม่มี) */}
-                                                    {hasAllergies && (
-                                                        <div className="p-4 bg-red-50/50 rounded-xl border border-red-200 shadow-sm">
-                                                            <span className="flex items-center gap-1.5 text-xs font-extrabold text-red-700 uppercase mb-3">
-                                                                <AlertCircle className="w-4 h-4" /> ข้อมูลการแพ้อาหาร
-                                                            </span>
-                                                            <div className="text-sm text-red-900 font-semibold whitespace-pre-line leading-relaxed">
-                                                                {alText}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })() : null}
-                        </div>
-
-                        <div className="shrink-0 border-t border-gray-200/60 bg-white px-6 py-4 sm:rounded-b-3xl">
-                            <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4">
-                                {/* ✨ ส่วนที่เพิ่มใหม่: โชว์ชื่อผู้กรอกเล็กๆ จางๆ ฝั่งซ้าย */}
-                                <div className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
-                                    <PenLine className="w-3.5 h-3.5" />
-                                    ผู้ยื่นคำร้อง: {(selectedVisit.submittedBy as any)?.name ? `${(selectedVisit.submittedBy as any).name} ${(selectedVisit.submittedBy as any).position ? `(${(selectedVisit.submittedBy as any).position})` : ''}` : "-"}
-                                </div>
-                                
-                                {/* ฝั่งขวา: ปุ่ม Action */}
-                                <div className="flex items-center justify-end gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={openEdit}
-                                        disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
-                                        className="px-4 py-2 bg-white border border-gray-300 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
-                                    >
-                                        แก้ไข
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={openCancelConfirm}
-                                        disabled={updatingStatus || (selectedVisit.status != null && selectedVisit.status !== 1)}
-                                        className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300 transition-colors shadow-sm"
-                                    >
-                                        ยกเลิกการจอง
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                    </div>
-                </div>
-            ) : null}
+            <VisitDetailsModal
+                selectedVisit={selectedVisit}
+                onClose={() => setSelectedVisit(null)}
+                timeZone={timeZone}
+                readOnly={false}
+                updatingStatus={updatingStatus}
+                onEdit={openEdit}
+                onCancel={openCancelConfirm}
+                zVariant="table"
+            />
 
             {selectedVisit && cancelConfirmOpen && (
                 <div
@@ -1561,19 +1165,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         if (e.currentTarget === e.target && !updatingStatus) setCancelConfirmOpen(false);
                     }}
                 >
-                    <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200">
+                    <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-zinc-200">
                         <div className="px-6 py-5">
-                            <div className="text-lg font-bold text-gray-900">Cancel booking?</div>
-                            <div className="mt-2 text-sm text-gray-600">
+                            <div className="text-lg font-bold text-zinc-900">Cancel booking?</div>
+                            <div className="mt-2 text-sm text-zinc-600">
                                 ระบบจะเปลี่ยนสถานะเป็น “ยกเลิกแล้ว” และรายการจะหายจากหน้า Dashboard
                             </div>
                         </div>
-                        <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-6 py-4">
+                        <div className="flex items-center justify-end gap-3 border-t border-zinc-200 px-6 py-4 bg-zinc-50/50 rounded-b-2xl">
                             <button
                                 type="button"
                                 onClick={() => setCancelConfirmOpen(false)}
                                 disabled={updatingStatus}
-                                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed"
+                                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed shadow-sm transition-colors"
                             >
                                 Cancel
                             </button>
@@ -1581,7 +1185,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                 type="button"
                                 onClick={cancelBooking}
                                 disabled={updatingStatus}
-                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-zinc-300 shadow-sm transition-colors"
                             >
                                 {updatingStatus ? "Cancelling..." : "Confirm"}
                             </button>
@@ -1597,14 +1201,14 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         if (e.currentTarget === e.target) finishResult();
                     }}
                 >
-                    <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white px-6 py-6 shadow-2xl">
+                    <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white px-6 py-6 shadow-2xl">
                         <div className="flex items-start gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-700 border border-red-200">
                                 <XCircle className="h-5 w-5" />
                             </div>
                             <div className="flex-1">
-                                <div className="text-base font-bold text-gray-900">ยกเลิกการจองสำเร็จ</div>
-                                <div className="mt-1 text-sm text-gray-600">เปลี่ยนสถานะเป็นยกเลิกแล้ว</div>
+                                <div className="text-base font-bold text-zinc-900">ยกเลิกการจองสำเร็จ</div>
+                                <div className="mt-1 text-sm text-zinc-600">เปลี่ยนสถานะเป็นยกเลิกแล้ว</div>
                             </div>
                         </div>
                     </div>
@@ -1613,53 +1217,53 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
             {exportOpen && (
                 <div
-                    className="fixed inset-0 z-80 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    className="fixed inset-0 z-80 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200"
                     onMouseDown={(e) => {
                         if (e.currentTarget === e.target) setExportOpen(false);
                     }}
                 >
-                    <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200">
-                        <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
+                    <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-[#FAEFCC] shadow-2xl border border-[#E2CCA8] animate-in zoom-in-95 duration-200">
+                        <div className="flex items-start justify-between gap-4 border-b border-[#E2CCA8]/60 bg-white/70 backdrop-blur px-6 py-4">
                             <div>
-                                <div className="text-lg font-bold text-gray-900">Export</div>
-                                <div className="text-sm text-gray-500">เลือกช่วงวันที่ สถานะ และบริษัท</div>
+                                <div className="text-lg font-bold text-[#1b2a18]">Export Data</div>
+                                <div className="text-sm font-medium text-[#788B64]">เลือกช่วงวันที่ สถานะ และบริษัท</div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setExportOpen(false)}
-                                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                                className="rounded-md border border-[#E2CCA8] bg-white px-3 py-1.5 text-sm font-semibold text-[#1b2a18] hover:bg-[#FAEFCC] inline-flex items-center gap-2 transition-colors shadow-sm"
                             >
                                 <X className="w-4 h-4" />
                                 ปิด
                             </button>
                         </div>
 
-                        <div className="p-6 bg-gray-50/30">
+                        <div className="p-6 bg-white/50 backdrop-blur">
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-sm font-semibold text-gray-700">จากวันที่</label>
+                                    <label className="text-sm font-semibold text-[#1b2a18]">จากวันที่</label>
                                     <input
                                         type="date"
                                         value={exportFrom}
                                         onChange={(e) => setExportFrom(e.target.value)}
-                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                        className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-sm font-semibold text-gray-700">ถึงวันที่</label>
+                                    <label className="text-sm font-semibold text-[#1b2a18]">ถึงวันที่</label>
                                     <input
                                         type="date"
                                         value={exportTo}
                                         onChange={(e) => setExportTo(e.target.value)}
-                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                        className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-sm font-semibold text-gray-700">สถานะ</label>
+                                    <label className="text-sm font-semibold text-[#1b2a18]">สถานะ</label>
                                     <select
                                         value={exportStatus}
                                         onChange={(e) => setExportStatus(e.target.value as typeof exportStatus)}
-                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                        className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                                     >
                                         <option value="active">ยังดำเนินการอยู่</option>
                                         <option value="canceled">ยกเลิกแล้ว</option>
@@ -1668,33 +1272,33 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     </select>
                                 </div>
                                 <div className="flex flex-col gap-1 md:col-span-2">
-                                    <label className="text-sm font-semibold text-gray-700">ชื่อบริษัทที่เชิญมา</label>
+                                    <label className="text-sm font-semibold text-[#1b2a18]">ชื่อบริษัทที่เชิญมา</label>
                                     <input
                                         value={exportCompany}
                                         onChange={(e) => setExportCompany(e.target.value)}
                                         placeholder="เว้นว่างเพื่อเอาทั้งหมด"
-                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                        className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1 md:col-span-2">
-                                    <label className="text-sm font-semibold text-gray-700">รูปแบบไฟล์</label>
+                                    <label className="text-sm font-semibold text-[#1b2a18]">รูปแบบไฟล์</label>
                                     <select
                                         value={exportFormat}
                                         onChange={(e) => setExportFormat(e.target.value as typeof exportFormat)}
-                                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                                        className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                                     >
                                         <option value="excel">Excel (.xls)</option>
                                         <option value="csv">CSV (.csv)</option>
                                     </select>
-                                    <div className="mt-1 text-xs text-gray-500">วันที่/เวลาอ้างอิงเวลาไทย (Asia/Bangkok)</div>
+                                    <div className="mt-1 text-xs font-medium text-[#788B64]">วันที่/เวลาอ้างอิงเวลาไทย (Asia/Bangkok)</div>
                                 </div>
                             </div>
 
-                            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                                <div className="text-sm text-gray-700">
-                                    จะ export ทั้งหมด <span className="font-bold text-gray-900">{exportRows.length}</span> รายการ
+                            <div className="mt-6 flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-[#E2CCA8]/60">
+                                <div className="text-sm font-medium text-[#1b2a18]">
+                                    จะ export ทั้งหมด <span className="font-extrabold text-[#788B64]">{exportRows.length}</span> รายการ
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-3">
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -1704,7 +1308,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                             setExportCompany("");
                                             setExportFormat("excel");
                                         }}
-                                        className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                                        className="rounded-lg border border-[#E2CCA8] bg-white px-4 py-2 text-sm font-semibold text-[#1b2a18] hover:bg-[#FAEFCC] transition-colors shadow-sm"
                                     >
                                         ล้างค่า
                                     </button>
@@ -1714,7 +1318,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                             runExport();
                                             setExportOpen(false);
                                         }}
-                                        className="rounded-md bg-[#1b2a18] px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+                                        className="rounded-lg bg-[#788B64] px-5 py-2 text-sm font-semibold text-white hover:bg-[#6b7d58] shadow-sm transition-colors"
                                     >
                                         ดาวน์โหลด
                                     </button>
@@ -1742,13 +1346,13 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 function InfoCard({ label, value, icon }: { label: string; value: ReactNode; icon: ReactNode }) {
     const displayValue = value === null || value === undefined || value === "" ? "-" : value;
     return (
-        <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
-            <div className="bg-gray-50 p-2 rounded-lg shrink-0">
+        <div className="bg-white p-3.5 rounded-xl border border-[#E2CCA8]/60 shadow-sm flex items-center gap-3">
+            <div className="bg-[#FAEFCC]/60 p-2 rounded-lg shrink-0">
                 {icon}
             </div>
             <div className="overflow-hidden">
-                <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">{label}</dt>
-                <dd className="text-sm font-bold text-gray-900 truncate">
+                <dt className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-0.5">{label}</dt>
+                <dd className="text-sm font-bold text-[#1b2a18] truncate">
                     {displayValue}
                 </dd>
             </div>
@@ -1761,16 +1365,16 @@ function CompanyAvatar({ name, size = "md", idx = 0 }: { name?: string | null; s
     const initial = name && name.length > 0 ? name.charAt(0).toUpperCase() : <Building2 className={size === "lg" ? "w-6 h-6" : "w-4 h-4"} />;
 
     const colorPalettes = [
-        'from-blue-500 to-indigo-600 shadow-blue-200/50',
-        'from-purple-500 to-pink-600 shadow-purple-200/50',
-        'from-emerald-400 to-teal-600 shadow-emerald-200/50',
-        'from-orange-400 to-red-500 shadow-orange-200/50',
+        'bg-gradient-to-br from-[#788B64] to-[#4A5D3B] text-white shadow-[#788B64]/30',
+        'bg-gradient-to-br from-[#E2CCA8] to-[#C1A57B] text-[#1b2a18] shadow-[#E2CCA8]/40',
+        'bg-gradient-to-br from-[#1b2a18] to-[#0d150c] text-white shadow-[#1b2a18]/30',
+        'bg-gradient-to-br from-[#A3B18F] to-[#788B64] text-white shadow-[#788B64]/30',
     ];
     const colorClass = colorPalettes[(idx || (name?.length || 0)) % colorPalettes.length];
     const sizeClass = size === "lg" ? "w-16 h-16 text-2xl rounded-2xl" : "w-10 h-10 text-sm rounded-xl";
 
     return (
-        <div className={`shrink-0 ${sizeClass} text-white flex items-center justify-center font-extrabold bg-linear-to-br shadow-lg ${colorClass}`}>
+        <div className={`shrink-0 ${sizeClass} flex items-center justify-center font-extrabold shadow-lg ${colorClass}`}>
             {initial}
         </div>
     );
