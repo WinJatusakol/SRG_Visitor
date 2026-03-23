@@ -732,65 +732,64 @@ export default function Home() {
     }
     if (Number(form.totalGuests || 0) > 0) {
       const expectedCount = Number(form.totalGuests || 0);
-      for (let index = 0; index < expectedCount; index += 1) {
-        const guest = form.guests[index];
-        if (!guest) {
-          messages.push(
-            t(
-              `กรุณากรอกข้อมูลผู้เข้าร่วมคนที่ ${index + 1} ให้ครบ`,
-              `Please complete attendee #${index + 1}.`
-            )
-          );
-          continue;
-        }
-        if (!guest.firstName.trim()) {
-          messages.push(
-            t(
-              `กรุณากรอกชื่อผู้เข้าร่วมคนที่ ${index + 1}`,
-              `Please enter attendee #${index + 1} first name.`
-            )
-          );
-        }
-        if (!guest.lastName.trim()) {
-          messages.push(
-            t(
-              `กรุณากรอกนามสกุลผู้เข้าร่วมคนที่ ${index + 1}`,
-              `Please enter attendee #${index + 1} last name.`
-            )
-          );
-        }
-        if (!guest.position.trim()) {
-          messages.push(
-            t(
-              `กรุณากรอกตำแหน่งผู้เข้าร่วมคนที่ ${index + 1}`,
-              `Please enter attendee #${index + 1} position.`
-            )
-          );
-        }
-        if (guest.allergies.includes("อื่นๆ") && !guest.allergyOther.trim()) {
-          messages.push(
-            t(
-              `กรุณาระบุการแพ้อาหารผู้เข้าร่วมคนที่ ${index + 1}`,
-              `Please specify attendee #${index + 1} allergy (Other).`
-            )
-          );
-        }
-        if (isOtherMenuValue(form.dinnerMenu) && !form.dinnerMenuOther.trim()) {
-          messages.push(t("กรุณาระบุเมนูอาหารเย็น (อื่นๆ)", "Please specify the dinner other menu."));
-        }
-        if (isOtherMenuValue(form.dinnerDessert) && !form.dinnerDessertOther.trim()) {
-          messages.push(t("กรุณาระบุของหวาน (เย็น) (อื่นๆ)", "Please specify the dinner dessert other menu."));
+      
+      if (expectedCount > 20 && !registrationFile) {
+        messages.push(
+          t(
+            "ผู้เข้าร่วมเกิน 20 คน กรุณาแนบไฟล์ PDF ลงทะเบียนรายชื่อด้วยครับ",
+            "For more than 20 attendees, please attach a PDF registration file."
+          )
+        );
+      }
+      
+      if (expectedCount <= 20) {
+        for (let index = 0; index < expectedCount; index += 1) {
+          const guest = form.guests[index];
+          if (!guest) {
+            messages.push(
+              t(
+                `กรุณากรอกข้อมูลผู้เข้าร่วมคนที่ ${index + 1} ให้ครบ`,
+                `Please complete attendee #${index + 1}.`
+              )
+            );
+            continue;
+          }
+          if (!guest.firstName.trim()) {
+            messages.push(
+              t(
+                `กรุณากรอกชื่อผู้เข้าร่วมคนที่ ${index + 1}`,
+                `Please enter attendee #${index + 1} first name.`
+              )
+            );
+          }
+          if (!guest.lastName.trim()) {
+            messages.push(
+              t(
+                `กรุณากรอกนามสกุลผู้เข้าร่วมคนที่ ${index + 1}`,
+                `Please enter attendee #${index + 1} last name.`
+              )
+            );
+          }
+          if (!guest.position.trim()) {
+            messages.push(
+              t(
+                `กรุณากรอกตำแหน่งผู้เข้าร่วมคนที่ ${index + 1}`,
+                `Please enter attendee #${index + 1} position.`
+              )
+            );
+          }
+          if (guest.allergies.includes("อื่นๆ") && !guest.allergyOther.trim()) {
+            messages.push(
+              t(
+                `กรุณาระบุการแพ้อาหารผู้เข้าร่วมคนที่ ${index + 1}`,
+                `Please specify attendee #${index + 1} allergy (Other).`
+              )
+            );
+          }
         }
       }
-    if (expectedCount > 20 && !registrationFile) {
-      messages.push(
-        t(
-          "หากเกิน 20 คน กรุณาแนบไฟล์ PDF เพื่อลงทะเบียนรายชื่อ",
-          "If more than 20 attendees, please attach a PDF roster."
-        )
-      );
     }
-    }
+
     if (!form.purposeOfVisit.trim()) {
       messages.push(t("กรุณากรอกวัตถุประสงค์ในการเข้าพบ", "Please enter the purpose of visit."));
     }
@@ -1541,8 +1540,8 @@ export default function Home() {
                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                     placeholder={t("เช่น 5", "e.g., 5")}
                   />
-                  <div className="text-xs text-[#1b2a18]/60">
-                    {t("หากเกิน 20 คน ให้แนบไฟล์ PDF เพื่อลงทะเบียนรายชื่อ", "If more than 20 attendees, attach a PDF attendee list.")}
+                  <div className={`text-xs ${Number(form.totalGuests) > 20 ? 'text-amber-600 font-medium' : 'text-[#1b2a18]/60'}`}>
+                    {t("หากเกิน 20 คน กรุณาแนบไฟล์ PDF เพื่อลงทะเบียน","If more than 20 attendees, please attach a PDF attendee list instead of filling the form.")}
                   </div>
                 </div>
               </div>
@@ -1558,7 +1557,7 @@ export default function Home() {
                     const file = event.target.files?.[0] ?? null;
                     setRegistrationFile(file);
                   }}
-                  className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                  className={`rounded-md border px-3 py-2 text-sm outline-none focus:border-zinc-900 bg-white ${Number(form.totalGuests) > 20 && !registrationFile ? 'border-amber-400 ring-1 ring-amber-100' : 'border-zinc-300'}`}
                 />
                 {registrationFile && (
                   <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-700">
@@ -1578,7 +1577,7 @@ export default function Home() {
                 )}
               </div>
 
-              {guestsCount > 0 && (
+              {guestsCount > 0 && guestsCount <= 20 && (
                 <div className="space-y-3">
                   <div className="text-sm font-medium text-zinc-900">
                     {t("รายชื่อผู้เข้าร่วม", "Attendees")}
@@ -1594,7 +1593,7 @@ export default function Home() {
                           <div className="text-sm font-semibold text-zinc-900">
                             {t("ผู้เข้าร่วมคนที่", "Attendee")} {index + 1}
                           </div>
-                        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
                           <select
                             value={guest.prefix}
                             onChange={(e) =>
