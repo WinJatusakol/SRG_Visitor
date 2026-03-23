@@ -1388,7 +1388,7 @@ export default function Home() {
                 href="#section-1"
                 className="block whitespace-nowrap rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("1) ข้อมูลบริษัท/ผู้เข้าร่วม", "1) Invited Company")}
+                {t("1) ข้อมูลบริษัท/ผู้เข้าร่วม", "1) Visitor Information")}
               </a>
               <a
                 href="#section-2"
@@ -1400,7 +1400,7 @@ export default function Home() {
                 href="#section-3"
                 className="block whitespace-nowrap rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("3) อาหารและของที่ระลึก", "3) Catering & Souvenirs")}
+                {t("3) อาหารและของที่ระลึก", "3) Meals & Souvenirs")}
               </a>
               <a
                 href="#section-4"
@@ -1412,7 +1412,7 @@ export default function Home() {
                 href="#section-5"
                 className="block whitespace-nowrap rounded-xl border border-[#E2CCA8]/70 bg-[#FAEFCC]/50 px-3 py-2 text-[#1b2a18] hover:bg-[#FAEFCC]"
               >
-                {t("5) ข้อมูลภายในองค์กร EPAC", "5) Internal Information")}
+                {t("5) ข้อมูลภายในองค์กร EPAC", "5) EPAC Internal Info")}
               </a>
             </nav>
           </aside>
@@ -1429,19 +1429,19 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   1
                 </span>
-                <span>{t("ข้อมูลผู้เข้าเยี่ยมชมโรงงาน", "Invited Company Information")}</span>
+                <span>{t("ข้อมูลผู้เข้าเยี่ยมชมโรงงาน", "Visitor Information")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
                   "ข้อมูลผู้เข้าเยี่ยมชมโรงงานและรายชื่อผู้เข้าร่วม",
-                  "Invited company information and attendee list."
+                  "Visitor company information and attendee list."
                 )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("ชื่อบริษัท", "Invited company name")}
+                    {t("ชื่อบริษัท", "Company Name")}
                   </label>
                   <input
                     type="text"
@@ -1455,7 +1455,7 @@ export default function Home() {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("ที่อยู่บริษัทที่เข้าเยี่ยมชมโรงงาน", "Invited company address")}
+                    {t("ที่อยู่บริษัทที่เข้าเยี่ยมชมโรงงาน", "Company Address")}
                   </label>
                   <input
                     type="text"
@@ -1471,7 +1471,7 @@ export default function Home() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("ประเทศของบริษัทที่เข้าเยี่ยมชม", "Invited company country")}
+                    {t("ประเทศของบริษัทที่เข้าเยี่ยมชม", "Company Country")}
                   </label>
                   <input
                     type="text"
@@ -1484,7 +1484,7 @@ export default function Home() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("ประเภทผู้เข้าเยี่ยมชม", "Visitor type")}
+                    {t("ประเภทผู้เข้าเยี่ยมชม", "Visitor Category")}
                   </label>
                   <select
                     name="visitorType"
@@ -1492,9 +1492,9 @@ export default function Home() {
                     onChange={handleChange}
                     className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                   >
-                    <option value="">{t("เลือกประเภท", "Select type")}</option>
+                    <option value="">{t("เลือกประเภท", "Select Category")}</option>
                     <option value="ลูกค้า">{t("ลูกค้า", "Customer")}</option>
-                    <option value="หน่วยงานราชการ">{t("หน่วยงานราชการ", "Government agency")}</option>
+                    <option value="หน่วยงานราชการ">{t("หน่วยงานราชการ", "Government Agency")}</option>
                     <option value="อื่นๆ">{t("อื่นๆ", "Other")}</option>
                   </select>
                   {form.visitorType === "อื่นๆ" && (
@@ -1504,7 +1504,7 @@ export default function Home() {
                       value={form.visitorTypeOther}
                       onChange={handleChange}
                       className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                      placeholder={t("ระบุประเภทอื่นๆ", "Specify other type")}
+                      placeholder={t("ระบุประเภทอื่นๆ", "Specify other category")}
                     />
                   )}
                 </div>
@@ -1512,7 +1512,7 @@ export default function Home() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("วัตถุประสงค์ในการเข้าเยี่ยมชมโรงงาน", "Purpose of visit")}
+                  {t("วัตถุประสงค์ในการเข้าเยี่ยมชมโรงงาน", "Purpose of Visit")}
                 </label>
                 <input
                   type="text"
@@ -1522,7 +1522,7 @@ export default function Home() {
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                   placeholder={t(
                     "เช่น ประชุม ติดตามงาน ศึกษาดูงาน",
-                    "e.g., meeting, follow-up, site study"
+                    "e.g., Meeting, Follow-up, Site Study"
                   )}
                 />
               </div>
@@ -1530,7 +1530,7 @@ export default function Home() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("จำนวนผู้เข้าร่วมทั้งหมด", "Total attendees")}
+                    {t("จำนวนผู้เข้าร่วมทั้งหมด", "Total Attendees")}
                   </label>
                   <input
                     type="number"
@@ -1542,14 +1542,14 @@ export default function Home() {
                     placeholder={t("เช่น 5", "e.g., 5")}
                   />
                   <div className="text-xs text-[#1b2a18]/60">
-                    {t("หากเกิน 20 คน ให้แนบไฟล์ PDF เพื่อลงทะเบียนรายชื่อ", "If more than 20 attendees, attach a PDF roster.")}
+                    {t("หากเกิน 20 คน ให้แนบไฟล์ PDF เพื่อลงทะเบียนรายชื่อ", "If more than 20 attendees, attach a PDF attendee list.")}
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("ไฟล์ลงทะเบียนรายชื่อ (PDF)", "Registration roster file (PDF)")}
+                  {t("ไฟล์ลงทะเบียนรายชื่อ (PDF)", "Attendee List (PDF)")}
                 </label>
                 <input
                   type="file"
@@ -1665,7 +1665,7 @@ export default function Home() {
                         <div className="mt-3 grid gap-3 md:grid-cols-2">
                           <div className="rounded-lg border border-zinc-200 bg-white p-3">
                             <div className="text-sm font-semibold text-zinc-900">
-                              {t("อาหารเฉพาะบุคคล", "Individual diet")}
+                              {t("อาหารเฉพาะบุคคล", "Dietary Restrictions")}
                             </div>
                             <div className="mt-3 flex flex-wrap gap-4 text-sm">
                               <label className="flex items-center gap-2">
@@ -2495,7 +2495,7 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   4
                 </span>
-                <span>{t("ข้อความที่แสดงบน Welcome board", "Welcome board message")}</span>
+                <span>{t("ข้อความที่แสดงบน Welcome board", "Welcome Board Message")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
@@ -2505,7 +2505,7 @@ export default function Home() {
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">
-                  {t("ข้อความ Welcome board", "Welcome board text")}
+                  {t("ข้อความ Welcome board", "Welcome Board Text")}
                 </label>
                 <input
                   type="text"
@@ -2526,7 +2526,7 @@ export default function Home() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#788B64] text-sm font-semibold text-white">
                   5
                 </span>
-                <span>{t("ข้อมูลภายในองค์กร EPAC", "EPAC Internal Information")}</span>
+                <span>{t("ข้อมูลภายในองค์กร EPAC", "EPAC Internal Info")}</span>
               </h2>
               <div className="text-sm text-[#1b2a18]/75">
                 {t(
@@ -2538,7 +2538,7 @@ export default function Home() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("ชื่อผู้กรอกฟอร์ม", "Submitted by (name)")}
+                    {t("ชื่อผู้กรอกฟอร์ม", "Submitted by (Name)")}
                   </label>
                   <input
                     type="text"
@@ -2551,7 +2551,7 @@ export default function Home() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("ตำแหน่งผู้กรอกฟอร์ม", "Submitted by (position)")}
+                    {t("ตำแหน่งผู้กรอกฟอร์ม", "Submitted by (Position)")}
                   </label>
                   <input
                     type="text"
@@ -2564,7 +2564,7 @@ export default function Home() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("เบอร์ผู้ประสานงาน", "Contact phone")}
+                    {t("เบอร์ผู้ประสานงาน", "Contact Phone")}
                   </label>
                   <input
                     type="tel"
@@ -2580,7 +2580,7 @@ export default function Home() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">
-                    {t("จำนวนผู้เข้าร่วมภายใน", "Number of internal attendees")}
+                    {t("จำนวนผู้เข้าร่วมภายใน", "Number of Internal Attendees")}
                   </label>
                   <input
                     type="number"
@@ -2606,7 +2606,7 @@ export default function Home() {
                           className="rounded-lg border border-zinc-200 bg-white p-4"
                         >
                           <div className="text-sm font-semibold text-zinc-900">
-                            {t("ผู้เข้าร่วมภายในคนที่", "Internal attendee")} {index + 1}
+                            {t("ผู้เข้าร่วมภายในคนที่", "Internal Attendee")} {index + 1}
                           </div>
                           <div className="mt-3 grid gap-3 md:grid-cols-3">
                             <input
@@ -2616,7 +2616,7 @@ export default function Home() {
                                 handleInternalAttendeeChange(index, "firstName", e.target.value)
                               }
                               className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("ชื่อ", "First name")}
+                              placeholder={t("ชื่อ", "First Name")}
                             />
                             <input
                               type="text"
@@ -2625,7 +2625,7 @@ export default function Home() {
                                 handleInternalAttendeeChange(index, "lastName", e.target.value)
                               }
                               className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                              placeholder={t("นามสกุล", "Last name")}
+                              placeholder={t("นามสกุล", "Last Name")}
                             />
                             <input
                               type="text"
@@ -2667,7 +2667,7 @@ export default function Home() {
                 className="rounded-full bg-[#788B64] px-5 py-2 text-sm font-semibold text-white hover:bg-[#6b7d58] focus:outline-none focus:ring-2 focus:ring-[#788B64]/35 disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={submitting}
               >
-                {submitting ? t("กำลังส่งข้อมูล...", "Submitting...") : t("ส่งข้อมูล", "Submit")}
+                {submitting ? t("กำลังบันทึก...", "Saving...") : t("ส่งข้อมูล", "Submit")}
               </button>
             </div>
           </form>
