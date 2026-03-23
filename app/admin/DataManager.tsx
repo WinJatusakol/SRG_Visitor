@@ -9,7 +9,9 @@ type TableKey =
   | "affiliate_companies"
   | "souvenir_gift_sets"
   | "food_menu_options"
-  | "allergy_options";
+  | "allergy_options"
+  | "vip_visitor_departments"
+  | "vip_visitor_department_emails";
 
 type BaseRow = {
   id: number;
@@ -36,7 +38,18 @@ type FoodMenuRow = RefRow & {
   group_key: string;
 };
 
-type AnyRow = RefRow | MeetingRoomRow | FoodMenuRow;
+type DepartmentRow = BaseRow & {
+  name: string;
+  fields: string[];
+};
+
+type DepartmentEmailRow = BaseRow & {
+  department_id: number;
+  email: string;
+  vip_visitor_departments?: { name: string };
+};
+
+type AnyRow = RefRow | MeetingRoomRow | FoodMenuRow | DepartmentRow | DepartmentEmailRow;
 
 const tableLabels: Record<TableKey, string> = {
   meeting_rooms: "Meeting Rooms",
@@ -45,6 +58,8 @@ const tableLabels: Record<TableKey, string> = {
   souvenir_gift_sets: "Souvenir Gift Sets",
   food_menu_options: "Food Menu Options",
   allergy_options: "Allergy Options",
+  vip_visitor_departments: "Departments (ข้อมูลแผนก)",
+  vip_visitor_department_emails: "Department Emails (ผูกอีเมล)",
 };
 
 // Mapping ชื่อ Label ให้เฉพาะเจาะจงตามหมวดหมู่
@@ -55,6 +70,8 @@ const inputLabels: Record<TableKey, { th: string; en: string }> = {
   souvenir_gift_sets: { th: "ชื่อของที่ระลึก (TH)", en: "ชื่อของที่ระลึก (EN)" },
   food_menu_options: { th: "ชื่อเมนูอาหาร (TH) / Value", en: "ชื่อเมนูอาหาร (EN)" },
   allergy_options: { th: "รายการแพ้อาหาร (TH) / Value", en: "รายการแพ้อาหาร (EN)" },
+  vip_visitor_departments: { th: "ชื่อแผนก", en: "" },
+  vip_visitor_department_emails: { th: "อีเมล", en: "" },
 };
 
 const foodGroups = [
@@ -65,8 +82,23 @@ const foodGroups = [
   { value: "dinner_dessert", label: "Dinner (Dessert)" },
 ];
 
+const DEPARTMENT_FIELDS = [
+  { value: "company", label: "ข้อมูลบริษัท" },
+  { value: "date", label: "วันเวลาที่เข้าเยี่ยมชม" },
+  { value: "purpose", label: "วัตถุประสงค์ที่เข้าเยี่ยมชม" },
+  { value: "guests", label: "จำนวนและรายชื่อผู้เข้าร่วม" },
+  { value: "cars", label: "ข้อมูลรถเข้า-ออก" },
+  { value: "meeting_room", label: "ห้องประชุม" },
+  { value: "food", label: "อาหารและของที่ระลึก" },
+  { value: "site_visit", label: "การเข้าชมพื้นที่" },
+  { value: "welcome_board", label: "ข้อความ Welcome Board" },
+  { value: "internal", label: "ข้อมูลผู้ดูแลภายใน" },
+];
+
 const isMeetingRoomTable = (table: TableKey) => table === "meeting_rooms";
 const isFoodMenuTable = (table: TableKey) => table === "food_menu_options";
+const isDepartmentTable = (table: TableKey) => table === "vip_visitor_departments";
+const isDepartmentEmailTable = (table: TableKey) => table === "vip_visitor_department_emails";
 
 const normalizeNumber = (value: string) => {
   const n = Number(value);
@@ -101,8 +133,27 @@ export default function RefDataManager() {
 
   const [groupKey, setGroupKey] = useState(foodGroups[0]?.value ?? "breakfast");
 
+  const [deptName, setDeptName] = useState("");
+  const [deptFields, setDeptFields] = useState<string[]>([]);
+
+  const [deptEmailId, setDeptEmailId] = useState("");
+  const [deptEmailAddress, setDeptEmailAddress] = useState("");
+  const [departments, setDepartments] = useState<DepartmentRow[]>([]);
+
   // คอลัมน์สำหรับตาราง (นำ active ออกแล้ว)
   const columns = useMemo(() => {
+    if (isDepartmentTable(table)) {
+      return [
+        { key: "name", label: "ชื่อแผนก" },
+        { key: "fields", label: "ข้อมูลที่รับ" },
+      ];
+    }
+    if (isDepartmentEmailTable(table)) {
+      return [
+        { key: "department_id", label: "แผนก" },
+        { key: "email", label: "อีเมล" },
+      ];
+    }
     if (isMeetingRoomTable(table)) {
       return [
         { key: "code", label: "Code" },
@@ -136,6 +187,10 @@ export default function RefDataManager() {
     setLocationEn("");
     setCapacity("0");
     setGroupKey(foodGroups[0]?.value ?? "breakfast");
+    setDeptName("");
+    setDeptFields([]);
+    setDeptEmailId("");
+    setDeptEmailAddress("");
   }, []);
 
   const showResult = (kind: "success" | "error", message: string) => {
@@ -170,6 +225,18 @@ export default function RefDataManager() {
       }
 
       setItems(fetchedItems);
+
+      // โหลดรายชื่อแผนกมาเผื่อไว้ใช้ใน combobox (ถ้าอยู่หน้าอีเมล)
+      if (isDepartmentEmailTable(table)) {
+        const deptResponse = await fetch(`/api/admin/data?table=vip_visitor_departments`);
+        const deptResult = await deptResponse.json().catch(() => ({}));
+        if (deptResponse.ok && deptResult?.success) {
+            setDepartments(deptResult.items || []);
+            if (deptResult.items && deptResult.items.length > 0) {
+                setDeptEmailId(String(deptResult.items[0].id));
+            }
+        }
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
       setError(message);
@@ -199,7 +266,19 @@ export default function RefDataManager() {
         active: true, // ตั้งค่าให้เป็น Active เสมอตอนสร้างใหม่
       };
 
-      if (isMeetingRoomTable(table)) {
+      if (isDepartmentTable(table)) {
+        payload = {
+          ...payload,
+          name: deptName.trim(),
+          fields: deptFields,
+        };
+      } else if (isDepartmentEmailTable(table)) {
+        payload = {
+          ...payload,
+          department_id: Number(deptEmailId),
+          email: deptEmailAddress.trim(),
+        };
+      } else if (isMeetingRoomTable(table)) {
         payload = {
           ...payload,
           code: code.trim(),
@@ -271,6 +350,12 @@ export default function RefDataManager() {
   };
 
   const canSubmit = useMemo(() => {
+    if (isDepartmentTable(table)) {
+      return deptName.trim() !== "";
+    }
+    if (isDepartmentEmailTable(table)) {
+      return deptEmailId !== "" && deptEmailAddress.trim() !== "" && deptEmailAddress.includes("@");
+    }
     if (isMeetingRoomTable(table)) {
       return (
         code.trim() &&
@@ -284,7 +369,7 @@ export default function RefDataManager() {
       return groupKey.trim() && labelTh.trim() && labelEn.trim();
     }
     return labelTh.trim() && labelEn.trim();
-  }, [table, code, nameTh, nameEn, locationTh, locationEn, groupKey, labelTh, labelEn]);
+  }, [table, code, nameTh, nameEn, locationTh, locationEn, groupKey, labelTh, labelEn, deptName, deptEmailId, deptEmailAddress]);
 
   return (
     <>
@@ -351,7 +436,69 @@ export default function RefDataManager() {
                     >
                     <div className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-3">เพิ่มรายการใหม่</div>
 
-                    {isMeetingRoomTable(table) ? (
+                    {isDepartmentTable(table) ? (
+                        <div className="grid gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-gray-600">ชื่อแผนก</label>
+                            <input
+                              value={deptName}
+                              onChange={(e) => setDeptName(e.target.value)}
+                              className="rounded-md border border-gray-300 bg-gray-50/50 px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:bg-white transition-colors"
+                              placeholder="เช่น Security, แม่บ้าน, ผู้จัดการ"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 mt-2">
+                            <label className="text-xs font-semibold text-gray-600">ข้อมูลที่ต้องการส่งให้แผนกนี้</label>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {DEPARTMENT_FIELDS.map((f) => (
+                                <label key={f.value} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={deptFields.includes(f.value)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setDeptFields((prev) => [...prev, f.value]);
+                                      } else {
+                                        setDeptFields((prev) => prev.filter((v) => v !== f.value));
+                                      }
+                                    }}
+                                    className="rounded border-gray-300 text-[#788B64] focus:ring-[#788B64]"
+                                  />
+                                  <span>{f.label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                    ) : isDepartmentEmailTable(table) ? (
+                        <div className="grid gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-gray-600">เลือกแผนก</label>
+                            <select
+                              value={deptEmailId}
+                              onChange={(e) => setDeptEmailId(e.target.value)}
+                              className="rounded-md border border-gray-300 bg-gray-50/50 px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:bg-white transition-colors"
+                            >
+                              <option value="" disabled>-- กรุณาเลือกแผนก --</option>
+                              {departments.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-gray-600">อีเมลรับข้อมูล</label>
+                            <input
+                              type="email"
+                              value={deptEmailAddress}
+                              onChange={(e) => setDeptEmailAddress(e.target.value)}
+                              className="rounded-md border border-gray-300 bg-gray-50/50 px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:bg-white transition-colors"
+                              placeholder="เช่น abc@example.com"
+                            />
+                          </div>
+                        </div>
+                    ) : isMeetingRoomTable(table) ? (
                         <div className="grid gap-3 sm:grid-cols-2">
                         <div className="flex flex-col gap-1">
                             <label className="text-xs font-semibold text-gray-600">รหัสห้อง (Code)</label>
@@ -496,17 +643,33 @@ export default function RefDataManager() {
                               {columns.map((col) => {
                                 const raw = (row as Record<string, unknown>)[col.key];
                                 const isGroupCol = col.key === "group_key";
+                                const isFieldsCol = col.key === "fields";
+                                const isDeptIdCol = col.key === "department_id";
                                 
                                 let content: React.ReactNode = "";
 
                                 if (isGroupCol) {
                                     content = <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{String(raw)}</span>
+                                } else if (isFieldsCol) {
+                                    const fieldsArray = Array.isArray(raw) ? raw : [];
+                                    content = (
+                                        <div className="flex flex-wrap gap-1 max-w-[250px]">
+                                            {fieldsArray.map((f) => {
+                                                const label = DEPARTMENT_FIELDS.find(df => df.value === f)?.label || f;
+                                                return <span key={f} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">{label}</span>
+                                            })}
+                                        </div>
+                                    );
+                                } else if (isDeptIdCol && isDepartmentEmailTable(table)) {
+                                    // หาชื่อแผนกจาก relation ถ้ามี
+                                    const deptRel = (row as DepartmentEmailRow).vip_visitor_departments;
+                                    content = deptRel?.name || String(raw);
                                 } else {
                                     content = raw === null || raw === undefined ? "-" : String(raw);
                                 }
 
                                 return (
-                                  <td key={col.key} className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                                  <td key={col.key} className={`px-4 py-3 text-sm text-gray-700 ${!isFieldsCol ? 'whitespace-nowrap' : ''}`}>
                                     {content}
                                   </td>
                                 );

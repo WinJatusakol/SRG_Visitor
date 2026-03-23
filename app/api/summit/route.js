@@ -444,40 +444,39 @@ export async function POST(request) {
     if (!smtpUser) missing.push("SMTP_USER");
     if (!smtpPass) missing.push("SMTP_PASS");
     if (!emailFrom) missing.push("EMAIL_FROM");
-    const { data: recipientRows, error: recipientError } = await supabase
-      .from("vip_visitor_email_recipients")
-      .select("role,email,active")
+
+    // Fetch from vip_visitor_departments
+    const { data: departmentRows, error: departmentError } = await supabase
+      .from("vip_visitor_departments")
+      .select("id,name,fields,active")
       .eq("active", true);
-    if (recipientError) {
-      const msg = String(recipientError.message ?? "");
-      if (msg.includes('relation "vip_visitor_email_recipients"')) {
+
+    const { data: emailRows, error: emailError } = await supabase
+      .from("vip_visitor_department_emails")
+      .select("department_id,email,active")
+      .eq("active", true);
+
+    if (departmentError || emailError) {
+      const msg = String(departmentError?.message || emailError?.message || "");
+      if (msg.includes('relation "vip_visitor_departments"')) {
         return NextResponse.json(
           {
             success: false,
             error:
-              "ฐานข้อมูลยังไม่มีตาราง vip_visitor_email_recipients กรุณาสร้างตารางสำหรับอีเมลผู้รับก่อน",
+              "ฐานข้อมูลยังไม่มีตาราง vip_visitor_departments กรุณาสร้างตารางสำหรับอีเมลผู้รับแผนกต่างๆก่อน",
           },
           { status: 500 }
         );
       }
       return NextResponse.json(
-        { success: false, error: recipientError.message },
+        { success: false, error: departmentError.message },
         { status: 500 }
       );
     }
-    const recipientsByRole = { security: [], housekeeping: [], manager: [] };
-    if (Array.isArray(recipientRows)) {
-      for (const row of recipientRows) {
-        const role = typeof row?.role === "string" ? row.role.trim() : "";
-        const email = typeof row?.email === "string" ? row.email.trim() : "";
-        if (!role || !email) continue;
-        if (role in recipientsByRole) {
-          recipientsByRole[role].push(email);
-        }
-      }
+
+    if (!departmentRows || departmentRows.length === 0) {
+        missing.push("DEPARTMENTS_NOT_CONFIGURED");
     }
-    if (recipientsByRole.housekeeping.length === 0) missing.push("EMAIL_RECIPIENTS:housekeeping");
-    if (recipientsByRole.manager.length === 0) missing.push("EMAIL_RECIPIENTS:manager");
 
     const formatDateTime = (value) => {
       if (!value) {
@@ -609,12 +608,6 @@ export async function POST(request) {
     }
     const allergyText = allergyTextParts.length > 0 ? allergyTextParts.join(" | ") : "-";
 
-    const shouldSendSecurity =
-      transportType === "personal" &&
-      cars.length > 0 &&
-      String(cars[0]?.brand ?? "").trim() &&
-      String(cars[0]?.license ?? "").trim();
-
     const carsText =
       cars.length > 0
         ? cars
@@ -671,21 +664,11 @@ export async function POST(request) {
             .join("\n")
         : "-";
 
-    if (shouldSendSecurity && recipientsByRole.security.length === 0) {
-      return NextResponse.json(
-        {
-          success: true,
-          warning: "บันทึกสำเร็จ แต่ยังไม่ได้ตั้งค่าอีเมลผู้รับสำหรับตำแหน่ง รปภ.",
-        },
-        { status: 200 }
-      );
-    }
-
     if (missing.length > 0) {
       return NextResponse.json(
         {
           success: true,
-          warning: `บันทึกสำเร็จ แต่ยังไม่ได้ตั้งค่าอีเมล: ${missing.join(", ")}`,
+          warning: `บันทึกสำเร็จ แต่ระบบอีเมลยังไม่พร้อม (${missing.join(", ")})`,
         },
         { status: 200 }
       );
@@ -713,92 +696,99 @@ export async function POST(request) {
       ? `${sbName} / ${sbPosition || "-"}`
       : "-";
 
-    const housekeepingText = [
-      "แจ้งงานสำหรับแม่บ้าน",
-      `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
-      `ข้อความ Welcome board: ${welcomeMessageText}`,
-      `เวลาที่มาถึง: ${visitDateTime}`,
-      `ต้องการอาหาร: ${foodRequiredText}`,
-      `มื้ออาหาร: ${meals}`,
-      `เมนู: \n${foodMenuText}`,
-      `อาหารพิเศษ: ${specialDietText}`,
-      `แพ้อาหาร: ${allergyText}`,
-      `การเข้าชม: ${siteVisitText}`,
-      `ผู้อนุญาต: ${siteVisitApproverText}`,
-      `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
-      `ผู้เข้าร่วมภายใน:\n${internalAttendeesText}`,
-      `ของที่ระลึก: ${souvenirText}`,
-      `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
-      `ผู้กรอกฟอร์ม: ${submittedByText}`,
-    ].join("\n");
+    const mailTasks = [];
 
-    const managerText = [
-      "แจ้งการเข้าพบผู้เข้าเยี่ยมชม",
-      `เวลาแจ้ง: ${submittedAt}`,
-      `ชื่อบริษัทที่เชิญมา: ${data.clientCompany ?? "-"}`,
-      `ที่อยู่บริษัทที่เชิญมา: ${data.companyAddress ?? "-"}`,
-      `ประเทศของบริษัทที่เชิญมา: ${data.country ?? "-"}`,
-      `ประเภทผู้เข้าเยี่ยมชม: ${data.visitorType ?? "-"}${data.visitorTypeOther ? ` - ${data.visitorTypeOther}` : ""}`,
-      `เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
-      `จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`,
-      `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
-      `ข้อความ Welcome board: ${welcomeMessageText}`,
-      `รายชื่อผู้เข้าร่วม:\n${guestsText}`,
-      `ผู้เข้าร่วมภายใน:\n${internalAttendeesText}`,
-      `เวลาที่มาถึง: ${visitDateTime}`,
-      `ต้องการห้องประชุม: ${meetingRoomText}`,
-      `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
-      `การเข้าชม: ${siteVisitText}`,
-      `ผู้อนุญาต: ${siteVisitApproverText}`,
-      `ประเภทรถ: ${transportTypeText}`,
-      `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
-      `ข้อมูลรถ:\n${carsText}`,
-      `กำหนดการรถรับ-ส่ง:\n${shuttleSchedulesText}`,
-      `ต้องการอาหาร: ${foodRequiredText}`,
-      `ต้องการอาหาร: ${foodRequiredText}`,
-      `มื้ออาหาร: ${meals}`,
-      `เมนู: \n${foodMenuText}`,
-      `อาหารพิเศษ: ${specialDietText}`,
-      `แพ้อาหาร: ${allergyText}`,
-      `ของที่ระลึก: ${souvenirText}`,
-      `รายละเอียดของที่ระลึก:\n${souvenirDetailText}`,
-      `ผู้กรอกฟอร์ม: ${submittedByText}`,
-    ].join("\n");
+    for (const dept of departmentRows) {
+      const deptEmails = emailRows.filter(e => e.department_id === dept.id).map(e => e.email);
+      if (deptEmails.length === 0) continue;
+      
+      const fields = Array.isArray(dept.fields) ? dept.fields : [];
+      if (fields.length === 0) continue;
 
-    const mailTasks = [
-      transporter.sendMail({
-        from: emailFrom,
-        to: recipientsByRole.housekeeping,
-        subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (แม่บ้าน)",
-        text: housekeepingText,
-      }),
-      transporter.sendMail({
-        from: emailFrom,
-        to: recipientsByRole.manager,
-        subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ผู้จัดการ)",
-        text: managerText,
-      }),
-    ];
+      const lines = [`แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ถึงแผนก: ${dept.name})`, `เวลาแจ้ง: ${submittedAt}`];
 
-    if (shouldSendSecurity) {
-      const securityText = [
-        "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (รถส่วนตัว)",
-        `วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`,
-        `เวลาที่มาถึง: ${visitDateTime}`,
-        `จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`,
-        `ข้อมูลรถ:\n${carsText}`,
-        `ห้องประชุม: ${meetingRoom ? meetingRoomSelection || "-" : "-"}`,
-        `ผู้ประสานงาน: ${data.contactPhone ?? "-"}`,
-        `ชื่อบริษัทที่เชิญมา: ${data.clientCompany ?? "-"}`,
-        `ผู้กรอกฟอร์ม: ${submittedByText}`,
-      ].join("\n");
+      if (fields.includes("company")) {
+        lines.push(`-- ข้อมูลบริษัท --`);
+        lines.push(`ชื่อบริษัทที่เชิญมา: ${data.clientCompany ?? "-"}`);
+        lines.push(`ที่อยู่บริษัทที่เชิญมา: ${data.companyAddress ?? "-"}`);
+        lines.push(`ประเทศของบริษัทที่เชิญมา: ${data.country ?? "-"}`);
+        lines.push(`ประเภทผู้เข้าเยี่ยมชม: ${data.visitorType ?? "-"}${data.visitorTypeOther ? ` - ${data.visitorTypeOther}` : ""}`);
+        lines.push(`เบอร์ผู้ประสานงาน: ${data.contactPhone ?? "-"}`);
+      }
+      
+      if (fields.includes("date")) {
+        lines.push(`-- วันเวลาที่เข้าเยี่ยมชม --`);
+        lines.push(`เวลาที่มาถึง: ${visitDateTime}`);
+      }
+      
+      if (fields.includes("purpose")) {
+        lines.push(`-- วัตถุประสงค์ที่เข้าเยี่ยมชม --`);
+        lines.push(`วัตถุประสงค์ในการเข้าพบ: ${data.purposeOfVisit ?? "-"}`);
+      }
+
+      if (fields.includes("guests")) {
+        lines.push(`-- จำนวนและรายชื่อผู้เข้าร่วม --`);
+        lines.push(`จำนวนผู้เข้าร่วม: ${totalGuests ?? "-"}`);
+        lines.push(`รายชื่อผู้เข้าร่วม:\n${guestsText}`);
+      }
+
+      if (fields.includes("cars")) {
+        lines.push(`-- ข้อมูลรถเข้า-ออก --`);
+        lines.push(`ประเภทรถ: ${transportTypeText}`);
+        lines.push(`จำนวนรถ: ${Number.isFinite(carCount) ? carCount : "-"}`);
+        if (transportType === "personal") {
+            lines.push(`ข้อมูลรถ:\n${carsText}`);
+        } else if (transportType === "shuttle") {
+            lines.push(`กำหนดการรถรับ-ส่ง:\n${shuttleSchedulesText}`);
+        }
+      }
+
+      if (fields.includes("meeting_room")) {
+        lines.push(`-- ห้องประชุม --`);
+        lines.push(`ต้องการห้องประชุม: ${meetingRoomText}`);
+        if (meetingRoom) {
+            lines.push(`ห้องประชุม: ${meetingRoomSelection || "-"}`);
+        }
+      }
+
+      if (fields.includes("food")) {
+        lines.push(`-- อาหารและของที่ระลึก --`);
+        lines.push(`ต้องการอาหาร: ${foodRequiredText}`);
+        if (foodRequired) {
+            lines.push(`มื้ออาหาร: ${meals}`);
+            lines.push(`เมนู: \n${foodMenuText}`);
+            lines.push(`อาหารพิเศษ: ${specialDietText}`);
+            lines.push(`แพ้อาหาร: ${allergyText}`);
+        }
+        lines.push(`ของที่ระลึก: ${souvenirText}`);
+        if (souvenir) {
+            lines.push(`รายละเอียดของที่ระลึก:\n${souvenirDetailText}`);
+        }
+      }
+
+      if (fields.includes("site_visit")) {
+        lines.push(`-- การเข้าชมพื้นที่ --`);
+        lines.push(`การเข้าชม: ${siteVisitText}`);
+        lines.push(`ผู้อนุญาต: ${siteVisitApproverText}`);
+      }
+
+      if (fields.includes("welcome_board")) {
+        lines.push(`-- ข้อความ Welcome Board --`);
+        lines.push(`ข้อความ: ${welcomeMessageText}`);
+      }
+
+      if (fields.includes("internal")) {
+        lines.push(`-- ข้อมูลผู้ดูแลภายใน --`);
+        lines.push(`ผู้กรอกฟอร์ม: ${submittedByText}`);
+        lines.push(`ผู้เข้าร่วมภายใน:\n${internalAttendeesText}`);
+      }
 
       mailTasks.push(
         transporter.sendMail({
           from: emailFrom,
-          to: recipientsByRole.security,
-          subject: "แจ้งการเข้าพบผู้เข้าเยี่ยมชม (ยาม)",
-          text: securityText,
+          to: deptEmails,
+          subject: `แจ้งการเข้าพบผู้เข้าเยี่ยมชม - ${dept.name}`,
+          text: lines.join("\n"),
         })
       );
     }
