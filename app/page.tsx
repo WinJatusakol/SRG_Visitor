@@ -1593,7 +1593,7 @@ export default function Home() {
                           <div className="text-sm font-semibold text-zinc-900">
                             {t("ผู้เข้าร่วมคนที่", "Attendee")} {index + 1}
                           </div>
-                        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
                           <select
                             value={guest.prefix}
                             onChange={(e) =>
