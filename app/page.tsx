@@ -1037,6 +1037,13 @@ export default function Home() {
           "Please enter the number of internal attendees."
         )
       );
+    } else if (internalCount > 20) {
+      messages.push(
+        t(
+          "จำนวนผู้เข้าร่วมภายในต้องไม่เกิน 20 คน",
+          "Internal attendees cannot exceed 20 people."
+        )
+      );
     } else {
       for (let index = 0; index < internalCount; index += 1) {
         const attendee = form.internalAttendees[index];
@@ -2127,12 +2134,6 @@ export default function Home() {
                 </span>
                 <span>{t("อาหารและของที่ระลึก", "Catering & Souvenirs")}</span>
               </h2>
-              <div className="text-sm text-[#1b2a18]/75">
-                {t(
-                  "เลือกเฉพาะที่ต้องการ ระบบจะซ่อนช่องที่ไม่เกี่ยวข้อง",
-                  "Select what you need. Irrelevant fields will be hidden."
-                )}
-              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-1">
@@ -2584,16 +2585,22 @@ export default function Home() {
                   <input
                     type="number"
                     min={1}
+                    max={20}
                     name="internalAttendeeCount"
                     value={form.internalAttendeeCount}
-                    onChange={handleChange}
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                    placeholder={t("เช่น 3", "e.g., 3")}
+                    onChange={(e) => {
+                      handleChange(e);
+                    }}
+                    className={`rounded-md border px-3 py-2 text-sm outline-none focus:border-zinc-900 bg-white ${Number(form.internalAttendeeCount) > 20 ? 'border-amber-400 ring-1 ring-amber-100' : 'border-zinc-300'}`}
+                    placeholder={t("เช่น 3 (สูงสุด 20 คน)", "e.g., 3 (max 20)")}
                   />
+                  <div className={`text-xs ${Number(form.internalAttendeeCount) > 20 ? 'text-amber-600 font-medium' : 'text-[#1b2a18]/60'}`}>
+                    {t("จำกัดจำนวนไม่เกิน 20 คน", "Maximum 20 attendees allowed.")}
+                  </div>
                 </div>
               </div>
 
-              {Number(form.internalAttendeeCount || 0) > 0 && (
+              {Number(form.internalAttendeeCount || 0) > 0 && Number(form.internalAttendeeCount || 0) <= 20 && (
                 <div className="space-y-4">
                   {Array.from(
                     { length: Number(form.internalAttendeeCount || 0) },
