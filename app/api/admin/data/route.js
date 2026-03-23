@@ -9,11 +9,19 @@ const isAllowedTable = (table) =>
     "souvenir_gift_sets",
     "food_menu_options",
     "allergy_options",
+    "vip_visitor_departments",
+    "vip_visitor_department_emails",
   ].includes(table);
 
 const orderForTable = (query, table) => {
   if (table === "meeting_rooms") {
     return query.order("sort_index", { ascending: true }).order("code", { ascending: true });
+  }
+  if (table === "vip_visitor_departments") {
+    return query.order("id", { ascending: true });
+  }
+  if (table === "vip_visitor_department_emails") {
+    return query.order("department_id", { ascending: true }).order("id", { ascending: true });
   }
   if (table === "food_menu_options") {
     return query
@@ -67,11 +75,30 @@ export async function GET(request) {
     }
 
     const supabase = createServiceClient();
-    const { data, error } = await orderForTable(supabase.from(table).select("*"), table);
+    
+    let query;
+    if (table === "vip_visitor_department_emails") {
+        query = supabase.from(table).select("*, vip_visitor_departments(name)");
+    } else {
+        query = supabase.from(table).select("*");
+    }
+    
+    const { data, error } = await orderForTable(query, table);
+    
+    // Sort array by relation name for emails
+    let resultItems = data ?? [];
+    if (table === "vip_visitor_department_emails" && !error) {
+        resultItems.sort((a, b) => {
+            const nameA = a.vip_visitor_departments?.name || "";
+            const nameB = b.vip_visitor_departments?.name || "";
+            return nameA.localeCompare(nameB);
+        });
+    }
+
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ success: true, items: data ?? [] });
+    return NextResponse.json({ success: true, items: resultItems });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
@@ -101,11 +128,13 @@ export async function POST(request) {
     insertData.active = active;
 
     if (insertData.sort_index == null || !Number.isFinite(Number(insertData.sort_index))) {
-      const groupKey = typeof insertData.group_key === "string" ? insertData.group_key : "";
-      insertData.sort_index = await nextSortIndex(supabase, table, groupKey);
+      if (table !== "vip_visitor_departments" && table !== "vip_visitor_department_emails") {
+        const groupKey = typeof insertData.group_key === "string" ? insertData.group_key : "";
+        insertData.sort_index = await nextSortIndex(supabase, table, groupKey);
+      }
     }
 
-    if (table !== "meeting_rooms") {
+    if (table !== "meeting_rooms" && table !== "vip_visitor_departments" && table !== "vip_visitor_department_emails") {
       const labelTh = typeof insertData.label_th === "string" ? insertData.label_th.trim() : "";
       const labelEn = typeof insertData.label_en === "string" ? insertData.label_en.trim() : "";
       if (!labelTh || !labelEn) {
@@ -142,6 +171,31 @@ export async function POST(request) {
           insertData.sort_index = 999999;
         }
       }
+    }
+
+    if (table === "vip_visitor_departments") {
+      const name = typeof insertData.name === "string" ? insertData.name.trim() : "";
+      if (!name) {
+        return NextResponse.json(
+          { success: false, error: "name is required" },
+          { status: 400 }
+        );
+      }
+      insertData.name = name;
+      insertData.fields = Array.isArray(insertData.fields) ? insertData.fields : [];
+    }
+
+    if (table === "vip_visitor_department_emails") {
+      const email = typeof insertData.email === "string" ? insertData.email.trim() : "";
+      const department_id = insertData.department_id;
+      if (!email || !department_id) {
+        return NextResponse.json(
+          { success: false, error: "email and department_id are required" },
+          { status: 400 }
+        );
+      }
+      insertData.email = email;
+      insertData.department_id = department_id;
     }
 
     const { data: inserted, error } = await supabase.from(table).insert([insertData]).select("*").single();
