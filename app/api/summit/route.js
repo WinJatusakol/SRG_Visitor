@@ -53,6 +53,29 @@ export async function POST(request) {
     }
 
     const guests = Array.isArray(data.guests) ? data.guests : [];
+    
+    // Check for overlapping visits
+    if (data.visitDateTime) {
+      const visitDateStr = data.visitDateTime.substring(0, 10);
+      const visitTimeStr = data.visitDateTime.substring(11, 16);
+      
+      const { data: existingVisits, error: checkError } = await supabase
+        .from("vip_visitor")
+        .select("id")
+        .like("visit_date_time", `${visitDateStr}T${visitTimeStr}%`)
+        .limit(1);
+        
+      if (!checkError && existingVisits && existingVisits.length > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "มีการจองเข้าเยี่ยมชมในเวลานี้แล้ว กรุณาเลือกเวลาอื่น",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const cars = Array.isArray(data.cars) ? data.cars : [];
     const shuttleSchedules = Array.isArray(data.shuttleSchedules)
       ? data.shuttleSchedules
@@ -557,8 +580,6 @@ export async function POST(request) {
       fp && typeof fp.specialDiet === "object" && fp.specialDiet
         ? fp.specialDiet
         : null;
-    const fpAllergies =
-      fp && typeof fp.allergies === "object" && fp.allergies ? fp.allergies : null;
 
     const menuLines = [];
     if (fpMenus && typeof fpMenus.breakfast === "string" && fpMenus.breakfast.trim()) {
@@ -588,25 +609,43 @@ export async function POST(request) {
       fpSpecialDiet && Number.isFinite(Number(fpSpecialDiet.veganSets))
         ? Number(fpSpecialDiet.veganSets)
         : 0;
-    const specialDietText =
-      halalSets > 0 || veganSets > 0
-        ? `ฮาลาล: ${halalSets || "-"} ชุด, วีแกน: ${veganSets || "-"} ชุด`
-        : "-";
+    const dietGuests = [];
 
-    const allergyItems =
-      fpAllergies && Array.isArray(fpAllergies.items) ? fpAllergies.items : [];
-    const allergyOther =
-      fpAllergies && typeof fpAllergies.other === "string"
-        ? fpAllergies.other.trim()
-        : "";
-    const allergyTextParts = [];
-    if (allergyItems.length > 0) {
-      allergyTextParts.push(allergyItems.join(", "));
+    if (guests.length > 0) {
+        guests.forEach((guest, index) => {
+            const fullName = [guest?.prefix, guest?.firstName, guest?.middleName, guest?.lastName].filter(Boolean).join(" ");
+            const nameToUse = fullName || `ผู้เข้าร่วมคนที่ ${index + 1}`;
+            
+            const dietInfo = [];
+
+            // ฮาลาล/วีแกน
+            if (guest?.halal) dietInfo.push("ฮาลาล");
+            if (guest?.vegan) dietInfo.push("มังสวิรัติ");
+
+            // แพ้อาหาร
+            if (Array.isArray(guest?.allergies) && guest.allergies.length > 0) {
+                let allergyDesc = guest.allergies.filter(a => a !== "อื่นๆ" && a !== "ไม่แพ้" && a !== "None").join(", ");
+                if (guest.allergies.includes("อื่นๆ") && guest.allergyOther) {
+                    allergyDesc += allergyDesc ? `, ${guest.allergyOther}` : guest.allergyOther;
+                }
+                if (allergyDesc) {
+                    dietInfo.push(`แพ้อาหาร: ${allergyDesc}`);
+                }
+            }
+
+            if (dietInfo.length > 0) {
+                dietGuests.push(`- ${nameToUse} : ${dietInfo.join(" ")}`);
+            }
+        });
     }
-    if (allergyOther) {
-      allergyTextParts.push(`อื่นๆ: ${allergyOther}`);
+
+    let specialDietText = "-";
+    if (dietGuests.length > 0) {
+        specialDietText = dietGuests.join("\n");
+    } else if (halalSets > 0 || veganSets > 0) {
+        // Fallback to total count if no individual data
+        specialDietText = `ฮาลาล: ${halalSets || "-"} ชุด, มังสวิรัติ: ${veganSets || "-"} ชุด`;
     }
-    const allergyText = allergyTextParts.length > 0 ? allergyTextParts.join(" | ") : "-";
 
     const carsText =
       cars.length > 0
@@ -757,8 +796,7 @@ export async function POST(request) {
         if (foodRequired) {
             lines.push(`มื้ออาหาร: ${meals}`);
             lines.push(`เมนู: \n${foodMenuText}`);
-            lines.push(`อาหารพิเศษ: ${specialDietText}`);
-            lines.push(`แพ้อาหาร: ${allergyText}`);
+            lines.push(`อาหารพิเศษและแพ้อาหาร:\n${specialDietText}`);
         }
         lines.push(`ของที่ระลึก: ${souvenirText}`);
         if (souvenir) {
