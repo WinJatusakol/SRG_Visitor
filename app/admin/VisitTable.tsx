@@ -129,7 +129,21 @@ const renderFileList = (value: unknown) => {
         </div>
     );
 };
-
+export const getVisitDateObj = (visitDateTime?: any, createdAt?: any) => {
+    if (visitDateTime && typeof visitDateTime === "string") {
+        let cleanStr = visitDateTime.replace(/Z$/, "").replace(/\+00:00$/, "");
+        if (!cleanStr.match(/(\+|-)\d{2}:\d{2}$/)) {
+            cleanStr += "+07:00";
+        }
+        const d = new Date(cleanStr);
+        if (!isNaN(d.getTime())) return d;
+    }
+    if (createdAt && typeof createdAt === "string") {
+        const d = new Date(createdAt);
+        if (!isNaN(d.getTime())) return d;
+    }
+    return new Date(0);
+};
 export function VisitDetailsModal({
     selectedVisit,
     onClose,
@@ -189,7 +203,7 @@ export function VisitDetailsModal({
                                                 hour: "2-digit",
                                                 minute: "2-digit",
                                                 timeZone,
-                                            }).format(new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0)) + " น."
+                                            }).format(getVisitDateObj(selectedVisit.visitDateTime, selectedVisit.created_at)) + " น."
                                             : "ไม่ระบุเวลาเข้าพบ"}
                                     </p>
                                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.className}`}>
@@ -345,18 +359,17 @@ export function VisitDetailsModal({
                             </div>
                             <div className="p-5 sm:p-6 flex-1 bg-white/50">
                                 <div className="flex items-center gap-4 mb-5">
-                                    <div className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${
-                                        selectedVisit.transportType === "personal"
-                                          ? "bg-[#788B64]/15 text-[#1b2a18] border-[#788B64]/30"
-                                          : selectedVisit.transportType === "shuttle"
+                                    <div className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${selectedVisit.transportType === "personal"
+                                        ? "bg-[#788B64]/15 text-[#1b2a18] border-[#788B64]/30"
+                                        : selectedVisit.transportType === "shuttle"
                                             ? "bg-[#E2CCA8]/40 text-[#1b2a18] border-[#E2CCA8]"
                                             : "bg-zinc-100 text-zinc-600 border-zinc-200"
-                                      }`}>
+                                        }`}>
                                         {selectedVisit.transportType === "personal"
-                                          ? "🚗 เดินทางด้วยรถส่วนตัว"
-                                          : selectedVisit.transportType === "shuttle"
-                                            ? "🚌 รถรับ-ส่ง"
-                                            : "-"}
+                                            ? "🚗 เดินทางด้วยรถส่วนตัว"
+                                            : selectedVisit.transportType === "shuttle"
+                                                ? "🚌 รถรับ-ส่ง"
+                                                : "-"}
                                     </div>
                                     {selectedVisit.transportType === "personal" && (
                                         <div className="text-sm font-semibold text-zinc-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
@@ -782,16 +795,16 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const sortedVisits = useMemo(() => {
         if (!visits) return [];
         return [...visits].sort((a, b) => {
-            const dateA = new Date(a.visitDateTime || a.created_at || 0).getTime();
-            const dateB = new Date(b.visitDateTime || b.created_at || 0).getTime();
+            // เปลี่ยนมาใช้ getVisitDateObj
+            const dateA = getVisitDateObj(a.visitDateTime, a.created_at).getTime();
+            const dateB = getVisitDateObj(b.visitDateTime, b.created_at).getTime();
             return dateA - dateB;
         });
     }, [visits]);
 
-    const toThaiDateKey = (value: string | null | undefined) => {
-        if (!value) return "";
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return "";
+    const toThaiDateKey = (visit: Visit) => {
+        const d = getVisitDateObj(visit.visitDateTime, visit.created_at);
+        if (isNaN(d.getTime()) || d.getTime() === 0) return "";
         return new Intl.DateTimeFormat("en-CA", {
             timeZone,
             year: "numeric",
@@ -814,7 +827,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         return sortedVisits.filter((v) => {
             if (!isActiveStatus(v.status)) return false;
 
-            const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
+            const dateKey = toThaiDateKey(v);
             if (filterDateFrom && dateKey && dateKey < filterDateFrom) return false;
             if (filterDateTo && dateKey && dateKey > filterDateTo) return false;
             if (filterDateFrom || filterDateTo) {
@@ -833,7 +846,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const exportableVisits = useMemo(() => {
         const qCompany = exportCompany.trim().toLowerCase();
         return sortedVisits.filter((v) => {
-            const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
+            const dateKey = toThaiDateKey(v);
             if (exportFrom && dateKey && dateKey < exportFrom) return false;
             if (exportTo && dateKey && dateKey > exportTo) return false;
             if (exportFrom || exportTo) {
@@ -905,19 +918,18 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         URL.revokeObjectURL(url);
     };
 
-    const formatExportDateTime = (value: string | null | undefined) => {
-        if (!value) return "";
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return "";
-        return new Intl.DateTimeFormat("th-TH", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            timeZone,
-        }).format(d);
-    };
+    const formatExportDateTime = (visit: Visit) => {
+    const d = getVisitDateObj(visit.visitDateTime, visit.created_at);
+    if (isNaN(d.getTime()) || d.getTime() === 0) return "";
+    return new Intl.DateTimeFormat("th-TH", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone,
+    }).format(d);
+};
 
     const exportRows = useMemo(() => {
         return exportableVisits.map((v) => {
@@ -929,7 +941,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             const submittedBy = isRecord(submittedByRaw) ? submittedByRaw : null;
             return {
                 id: String(v.id ?? ""),
-                วันและเวลา: formatExportDateTime(dt),
+                วันและเวลา: formatExportDateTime(v),
                 สถานะ: statusText(v.status),
                 ชื่อบริษัทที่เชิญมา: typeof v.clientCompany === "string" ? v.clientCompany : "",
                 ที่อยู่บริษัทที่เชิญมา: typeof v.companyAddress === "string" ? v.companyAddress : "",
@@ -1100,7 +1112,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         </thead>
                         <tbody className="divide-y divide-[#E2CCA8]/40">
                             {filteredVisits.map((visit, index) => {
-                                const visitDate = new Date(visit.visitDateTime || visit.created_at || 0);
+                                const visitDate = getVisitDateObj(visit.visitDateTime, visit.created_at);
                                 const monthShort = new Intl.DateTimeFormat("en-US", { month: "short", timeZone }).format(visitDate);
                                 const dayNum = new Intl.DateTimeFormat("en-US", { day: "2-digit", timeZone }).format(visitDate);
                                 const timeText = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone }).format(visitDate);
