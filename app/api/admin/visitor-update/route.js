@@ -167,7 +167,7 @@ export async function POST(request) {
       shouldLoadGuests
         ? supabase
             .from("vip_visitor_guests")
-            .select("sortIndex,firstName,middleName,lastName,company,position,nationality")
+            .select("sortIndex,prefix,firstName,middleName,lastName,position,halal,vegan,allergies,allergyOther")
             .eq("visitorId", id)
             .order("sortIndex", { ascending: true })
         : Promise.resolve({ data: null }),
@@ -390,22 +390,28 @@ export async function POST(request) {
     if (shouldLoadGuests) {
       const beforeGuests = Array.isArray(beforeGuestRows)
         ? beforeGuestRows.map((g) => ({
+            prefix: asText(g?.prefix),
             firstName: asText(g?.firstName),
             middleName: asText(g?.middleName),
             lastName: asText(g?.lastName),
-            company: asText(g?.company),
             position: asText(g?.position),
-            nationality: asText(g?.nationality),
+            halal: Boolean(g?.halal),
+            vegan: Boolean(g?.vegan),
+            allergies: Array.isArray(g?.allergies) ? g.allergies.map(asText).filter(Boolean) : [],
+            allergyOther: asText(g?.allergyOther),
           }))
         : [];
       const afterGuests = Array.isArray(guests)
         ? guests.map((g) => ({
+            prefix: asText(g?.prefix),
             firstName: asText(g?.firstName),
             middleName: asText(g?.middleName),
             lastName: asText(g?.lastName),
-            company: asText(g?.company),
             position: asText(g?.position),
-            nationality: asText(g?.nationality),
+            halal: Boolean(g?.halal),
+            vegan: Boolean(g?.vegan),
+            allergies: Array.isArray(g?.allergies) ? g.allergies.map(asText).filter(Boolean) : [],
+            allergyOther: asText(g?.allergyOther),
           }))
         : [];
       if (!valuesEqual(beforeGuests, afterGuests)) {
