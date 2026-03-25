@@ -129,21 +129,7 @@ const renderFileList = (value: unknown) => {
         </div>
     );
 };
-export const getVisitDateObj = (visitDateTime?: any, createdAt?: any) => {
-    if (visitDateTime && typeof visitDateTime === "string") {
-        let cleanStr = visitDateTime.replace(/Z$/, "").replace(/\+00:00$/, "");
-        if (!cleanStr.match(/(\+|-)\d{2}:\d{2}$/)) {
-            cleanStr += "+07:00";
-        }
-        const d = new Date(cleanStr);
-        if (!isNaN(d.getTime())) return d;
-    }
-    if (createdAt && typeof createdAt === "string") {
-        const d = new Date(createdAt);
-        if (!isNaN(d.getTime())) return d;
-    }
-    return new Date(0);
-};
+
 export function VisitDetailsModal({
     selectedVisit,
     onClose,
@@ -203,7 +189,7 @@ export function VisitDetailsModal({
                                                 hour: "2-digit",
                                                 minute: "2-digit",
                                                 timeZone,
-                                            }).format(getVisitDateObj(selectedVisit.visitDateTime, selectedVisit.created_at)) + " น."
+                                            }).format(new Date(selectedVisit.visitDateTime || selectedVisit.created_at || 0)) + " น."
                                             : "ไม่ระบุเวลาเข้าพบ"}
                                     </p>
                                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.className}`}>
@@ -359,17 +345,18 @@ export function VisitDetailsModal({
                             </div>
                             <div className="p-5 sm:p-6 flex-1 bg-white/50">
                                 <div className="flex items-center gap-4 mb-5">
-                                    <div className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${selectedVisit.transportType === "personal"
-                                        ? "bg-[#788B64]/15 text-[#1b2a18] border-[#788B64]/30"
-                                        : selectedVisit.transportType === "shuttle"
+                                    <div className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${
+                                        selectedVisit.transportType === "personal"
+                                          ? "bg-[#788B64]/15 text-[#1b2a18] border-[#788B64]/30"
+                                          : selectedVisit.transportType === "shuttle"
                                             ? "bg-[#E2CCA8]/40 text-[#1b2a18] border-[#E2CCA8]"
                                             : "bg-zinc-100 text-zinc-600 border-zinc-200"
-                                        }`}>
+                                      }`}>
                                         {selectedVisit.transportType === "personal"
-                                            ? "🚗 เดินทางด้วยรถส่วนตัว"
-                                            : selectedVisit.transportType === "shuttle"
-                                                ? "🚌 รถรับ-ส่ง"
-                                                : "-"}
+                                          ? "🚗 เดินทางด้วยรถส่วนตัว"
+                                          : selectedVisit.transportType === "shuttle"
+                                            ? "🚌 รถรับ-ส่ง"
+                                            : "-"}
                                     </div>
                                     {selectedVisit.transportType === "personal" && (
                                         <div className="text-sm font-semibold text-zinc-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
@@ -538,160 +525,130 @@ export function VisitDetailsModal({
                         const foodData = foodValue && typeof foodValue === "object" ? foodValue : null;
                         const meals = Array.isArray(foodData?.meals) ? foodData.meals : [];
                         const hasMeals = meals.length > 0;
-                        const sdText = specialDietText(foodData);
-                        const alText = allergyText(foodData);
-                        const hasSpecialDiet = sdText !== "-";
-                        const hasAllergies = alText !== "-";
 
-                        if (!hasMeals && !hasSpecialDiet && !hasAllergies) return null;
+                        // ถ้าไม่มีการเลือกรับอาหารมื้อไหนเลย ไม่ต้องแสดงกล่องนี้
+                        if (!hasMeals) return null;
 
-                        const mealIcon = (meal: string) => {
-                            if (meal === "เช้า" || meal === "อาหารว่างเช้า") return <Coffee className="w-4 h-4 text-[#788B64]" />;
-                            if (meal === "กลางวัน") return <Sun className="w-4 h-4 text-[#788B64]" />;
-                            if (meal === "เย็น") return <Moon className="w-4 h-4 text-[#788B64]" />;
-                            return <Utensils className="w-4 h-4 text-zinc-500" />;
-                        };
+                        const hasBreakfast = meals.includes("เช้า");
+                        const hasLunch = meals.includes("กลางวัน");
+                        const hasDinner = meals.includes("เย็น");
+                        const hasMorningSnack = meals.includes("อาหารว่างเช้า");
+                        const hasAfternoonSnack = meals.includes("อาหารว่างบ่าย");
 
                         return (
-                            <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                            <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
                                 <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                                     <Utensils className="w-5 h-5 text-[#788B64]" />
-                                    <h3 className="text-base font-bold text-[#1b2a18]">อาหารและข้อจำกัด</h3>
+                                    <h3 className="text-base font-bold text-[#1b2a18]">ข้อมูลมื้ออาหารและเบรค</h3>
                                 </div>
 
-                                <div className="p-5 sm:p-6 bg-white/50">
-                                    {hasMeals ? (
-                                        <div className="space-y-4">
-                                            <div className="flex flex-wrap gap-2">
-                                                {meals.map((m: string, i: number) => (
-                                                    <span key={i} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-[#E2CCA8]/60 text-sm font-bold text-[#1b2a18] shadow-sm">
-                                                        {mealIcon(m)} {m}
-                                                    </span>
-                                                ))}
-                                            </div>
+                                <div className="p-5 sm:p-6 bg-white/50 flex-1">
+                                    <div className="space-y-4">
+                                        {/* จัดเรียงการ์ดเฉพาะมื้อหลัก */}
+                                        {(hasBreakfast || hasLunch || hasDinner) && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                
+                                                {/* มื้อเช้า */}
+                                                {hasBreakfast && (
+                                                    <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
+                                                        <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
+                                                            <Coffee className="w-4 h-4" /> เมนูเช้า
+                                                        </div>
+                                                        <div className="flex flex-col gap-1 flex-1 justify-center">
+                                                            <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
+                                                            <span className="font-semibold text-[#1b2a18] whitespace-pre-line">
+                                                                {foodData?.menus?.breakfastOther
+                                                                    ? `${foodData?.menus?.breakfast} - ${foodData?.menus?.breakfastOther}`
+                                                                    : (foodData?.menus?.breakfast || "-")}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
 
-                                            {foodData?.menus && (
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                    {/* มื้อเช้า */}
-                                                    {foodData?.menus?.breakfast && (
-                                                        <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
-                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
-                                                                <Coffee className="w-4 h-4" /> เมนูเช้า
-                                                            </div>
-                                                            <div className="flex flex-col gap-1 flex-1 justify-center">
+                                                {/* มื้อกลางวัน */}
+                                                {hasLunch && (
+                                                    <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
+                                                        <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
+                                                            <Sun className="w-4 h-4" /> เมนูกลางวัน
+                                                        </div>
+                                                        <div className="flex flex-col gap-3 flex-1 justify-center">
+                                                            <div className="flex flex-col gap-1">
                                                                 <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
-                                                                <span className="font-semibold text-[#1b2a18] whitespace-pre-line">
-                                                                    {foodData?.menus?.breakfastOther
-                                                                        ? `${foodData?.menus?.breakfast} - ${foodData?.menus?.breakfastOther}`
-                                                                        : (foodData?.menus?.breakfast || "-")}
+                                                                <span className="font-semibold text-[#1b2a18]">
+                                                                    {foodData?.menus?.lunch?.otherMain
+                                                                        ? `${foodData?.menus?.lunch?.main} - ${foodData?.menus?.lunch?.otherMain}`
+                                                                        : (foodData?.menus?.lunch?.main || "-")}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน (Dessert)</span>
+                                                                <span className="font-semibold text-[#1b2a18]">
+                                                                    {foodData?.menus?.lunch?.otherDessert
+                                                                        ? `${foodData?.menus?.lunch?.dessert} - ${foodData?.menus?.lunch?.otherDessert}`
+                                                                        : (foodData?.menus?.lunch?.dessert || "-")}
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                    )}
-                                                    {/* มื้อกลางวัน */}
-                                                    {foodData?.menus?.lunch && (
-                                                        <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
-                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
-                                                                <Sun className="w-4 h-4" /> เมนูกลางวัน
-                                                            </div>
-                                                            <div className="flex flex-col gap-3 flex-1 justify-center">
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-[#1b2a18]">
-                                                                        {foodData?.menus?.lunch?.otherMain
-                                                                            ? `${foodData?.menus?.lunch?.main} - ${foodData?.menus?.lunch?.otherMain}`
-                                                                            : (foodData?.menus?.lunch?.main || "-")}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน (Dessert)</span>
-                                                                    <span className="font-semibold text-[#1b2a18]">
-                                                                        {foodData?.menus?.lunch?.otherDessert
-                                                                            ? `${foodData?.menus?.lunch?.dessert} - ${foodData?.menus?.lunch?.otherDessert}`
-                                                                            : (foodData?.menus?.lunch?.dessert || "-")}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {/* มื้อเย็น */}
-                                                    {foodData?.menus?.dinner && (
-                                                        <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
-                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
-                                                                <Moon className="w-4 h-4" /> เมนูเย็น
-                                                            </div>
-                                                            <div className="flex flex-col gap-3 flex-1 justify-center">
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-[#1b2a18]">
-                                                                        {foodData?.menus?.dinner?.otherMain
-                                                                            ? `${foodData?.menus?.dinner?.main} - ${foodData?.menus?.dinner?.otherMain}`
-                                                                            : (foodData?.menus?.dinner?.main || "-")}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน (Dessert)</span>
-                                                                    <span className="font-semibold text-[#1b2a18]">
-                                                                        {foodData?.menus?.dinner?.otherDessert
-                                                                            ? `${foodData?.menus?.dinner?.dessert} - ${foodData?.menus?.dinner?.otherDessert}`
-                                                                            : (foodData?.menus?.dinner?.dessert || "-")}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
+                                                    </div>
+                                                )}
 
-                                            {(hasSpecialDiet || hasAllergies) && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                                    {hasSpecialDiet && (
-                                                        <div className="p-4 bg-[#FAEFCC]/40 rounded-xl border border-[#E2CCA8]/60 shadow-sm">
-                                                            <span className="block text-xs font-extrabold text-[#788B64] uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
-                                                            <div className="text-sm text-[#1b2a18] font-semibold whitespace-pre-line leading-relaxed">
-                                                                {sdText}
+                                                {/* มื้อเย็น */}
+                                                {hasDinner && (
+                                                    <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
+                                                        <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
+                                                            <Moon className="w-4 h-4" /> เมนูเย็น
+                                                        </div>
+                                                        <div className="flex flex-col gap-3 flex-1 justify-center">
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
+                                                                <span className="font-semibold text-[#1b2a18]">
+                                                                    {foodData?.menus?.dinner?.otherMain
+                                                                        ? `${foodData?.menus?.dinner?.main} - ${foodData?.menus?.dinner?.otherMain}`
+                                                                        : (foodData?.menus?.dinner?.main || "-")}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน (Dessert)</span>
+                                                                <span className="font-semibold text-[#1b2a18]">
+                                                                    {foodData?.menus?.dinner?.otherDessert
+                                                                        ? `${foodData?.menus?.dinner?.dessert} - ${foodData?.menus?.dinner?.otherDessert}`
+                                                                        : (foodData?.menus?.dinner?.dessert || "-")}
+                                                                </span>
                                                             </div>
                                                         </div>
-                                                    )}
-                                                    {hasAllergies && (
-                                                        <div className="p-4 bg-red-50/50 rounded-xl border border-red-200 shadow-sm">
-                                                            <span className="flex items-center gap-1.5 text-xs font-extrabold text-red-700 uppercase mb-3">
-                                                                <AlertCircle className="w-4 h-4" /> ข้อมูลการแพ้อาหาร
-                                                            </span>
-                                                            <div className="text-sm text-red-900 font-semibold whitespace-pre-line leading-relaxed">
-                                                                {alText}
-                                                            </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* อาหารว่าง (โชว์ล่างสุด แยกเป็นการ์ดเด่นๆ) */}
+                                        {(hasMorningSnack || hasAfternoonSnack) && (
+                                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {hasMorningSnack && (
+                                                    <div className="flex items-center gap-4 p-4 bg-[#788B64]/10 rounded-xl border border-[#788B64]/30 shadow-sm">
+                                                        <div className="bg-white p-2.5 rounded-full text-[#788B64] shrink-0 shadow-sm border border-[#E2CCA8]/40">
+                                                            <Coffee className="w-5 h-5" />
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {(hasSpecialDiet || hasAllergies) && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {hasSpecialDiet && (
-                                                        <div className="p-4 bg-[#FAEFCC]/40 rounded-xl border border-[#E2CCA8]/60 shadow-sm">
-                                                            <span className="block text-xs font-extrabold text-[#788B64] uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
-                                                            <div className="text-sm text-[#1b2a18] font-semibold whitespace-pre-line leading-relaxed">
-                                                                {sdText}
-                                                            </div>
+                                                        <div>
+                                                            <div className="text-[0.95rem] font-bold text-[#1b2a18]">อาหารว่างเช้า (Morning Break)</div>
+                                                            <div className="text-xs font-semibold text-[#788B64] mt-1">จัดเตรียมชุดเบรคช่วงเช้า</div>
                                                         </div>
-                                                    )}
-                                                    {hasAllergies && (
-                                                        <div className="p-4 bg-red-50/50 rounded-xl border border-red-200 shadow-sm">
-                                                            <span className="flex items-center gap-1.5 text-xs font-extrabold text-red-700 uppercase mb-3">
-                                                                <AlertCircle className="w-4 h-4" /> ข้อมูลการแพ้อาหาร
-                                                            </span>
-                                                            <div className="text-sm text-red-900 font-semibold whitespace-pre-line leading-relaxed">
-                                                                {alText}
-                                                            </div>
+                                                    </div>
+                                                )}
+                                                {hasAfternoonSnack && (
+                                                    <div className="flex items-center gap-4 p-4 bg-[#788B64]/10 rounded-xl border border-[#788B64]/30 shadow-sm">
+                                                        <div className="bg-white p-2.5 rounded-full text-[#788B64] shrink-0 shadow-sm border border-[#E2CCA8]/40">
+                                                            <Coffee className="w-5 h-5" />
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                                        <div>
+                                                            <div className="text-[0.95rem] font-bold text-[#1b2a18]">อาหารว่างบ่าย (Afternoon Break)</div>
+                                                            <div className="text-xs font-semibold text-[#788B64] mt-1">จัดเตรียมชุดเบรคช่วงบ่าย</div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -795,16 +752,16 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const sortedVisits = useMemo(() => {
         if (!visits) return [];
         return [...visits].sort((a, b) => {
-            // เปลี่ยนมาใช้ getVisitDateObj
-            const dateA = getVisitDateObj(a.visitDateTime, a.created_at).getTime();
-            const dateB = getVisitDateObj(b.visitDateTime, b.created_at).getTime();
+            const dateA = new Date(a.visitDateTime || a.created_at || 0).getTime();
+            const dateB = new Date(b.visitDateTime || b.created_at || 0).getTime();
             return dateA - dateB;
         });
     }, [visits]);
 
-    const toThaiDateKey = (visit: Visit) => {
-        const d = getVisitDateObj(visit.visitDateTime, visit.created_at);
-        if (isNaN(d.getTime()) || d.getTime() === 0) return "";
+    const toThaiDateKey = (value: string | null | undefined) => {
+        if (!value) return "";
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return "";
         return new Intl.DateTimeFormat("en-CA", {
             timeZone,
             year: "numeric",
@@ -827,7 +784,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         return sortedVisits.filter((v) => {
             if (!isActiveStatus(v.status)) return false;
 
-            const dateKey = toThaiDateKey(v);
+            const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
             if (filterDateFrom && dateKey && dateKey < filterDateFrom) return false;
             if (filterDateTo && dateKey && dateKey > filterDateTo) return false;
             if (filterDateFrom || filterDateTo) {
@@ -846,7 +803,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const exportableVisits = useMemo(() => {
         const qCompany = exportCompany.trim().toLowerCase();
         return sortedVisits.filter((v) => {
-            const dateKey = toThaiDateKey(v);
+            const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
             if (exportFrom && dateKey && dateKey < exportFrom) return false;
             if (exportTo && dateKey && dateKey > exportTo) return false;
             if (exportFrom || exportTo) {
@@ -918,18 +875,19 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         URL.revokeObjectURL(url);
     };
 
-    const formatExportDateTime = (visit: Visit) => {
-    const d = getVisitDateObj(visit.visitDateTime, visit.created_at);
-    if (isNaN(d.getTime()) || d.getTime() === 0) return "";
-    return new Intl.DateTimeFormat("th-TH", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone,
-    }).format(d);
-};
+    const formatExportDateTime = (value: string | null | undefined) => {
+        if (!value) return "";
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return "";
+        return new Intl.DateTimeFormat("th-TH", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone,
+        }).format(d);
+    };
 
     const exportRows = useMemo(() => {
         return exportableVisits.map((v) => {
@@ -941,7 +899,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             const submittedBy = isRecord(submittedByRaw) ? submittedByRaw : null;
             return {
                 id: String(v.id ?? ""),
-                วันและเวลา: formatExportDateTime(v),
+                วันและเวลา: formatExportDateTime(dt),
                 สถานะ: statusText(v.status),
                 ชื่อบริษัทที่เชิญมา: typeof v.clientCompany === "string" ? v.clientCompany : "",
                 ที่อยู่บริษัทที่เชิญมา: typeof v.companyAddress === "string" ? v.companyAddress : "",
@@ -1112,7 +1070,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         </thead>
                         <tbody className="divide-y divide-[#E2CCA8]/40">
                             {filteredVisits.map((visit, index) => {
-                                const visitDate = getVisitDateObj(visit.visitDateTime, visit.created_at);
+                                const visitDate = new Date(visit.visitDateTime || visit.created_at || 0);
                                 const monthShort = new Intl.DateTimeFormat("en-US", { month: "short", timeZone }).format(visitDate);
                                 const dayNum = new Intl.DateTimeFormat("en-US", { day: "2-digit", timeZone }).format(visitDate);
                                 const timeText = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone }).format(visitDate);
