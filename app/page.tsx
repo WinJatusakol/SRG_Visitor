@@ -93,6 +93,13 @@ type DialogState = {
   message: string;
 };
 
+type ValidationResult = {
+  messages: string[];
+  firstInvalidSelector: string | null;
+};
+
+type SectionStatus = "complete" | "incomplete";
+
 type RefOptionRow = {
   value: string;
   label_th: string | null;
@@ -206,11 +213,24 @@ const initialState: VisitFormState = {
   submittedByPhone: "",
 };
 
+const scrollToField = (selector: string | null) => {
+  if (!selector || typeof document === "undefined") return;
+  const element = document.querySelector(selector);
+  if (!(element instanceof HTMLElement)) return;
+  element.scrollIntoView({ behavior: "smooth", block: "center" });
+  window.setTimeout(() => {
+    if (typeof (element as HTMLInputElement).focus === "function") {
+      (element as HTMLInputElement).focus({ preventScroll: true });
+    }
+  }, 180);
+};
+
 export default function Home() {
   const [lang, setLang] = useState<Lang>("th");
   const [form, setForm] = useState<VisitFormState>(initialState);
   const [registrationFile, setRegistrationFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogState>({
     open: false,
     type: "error",
@@ -1094,19 +1114,188 @@ export default function Home() {
     return messages;
   };
 
+  const getFirstInvalidSelector = (): string | null => {
+    if (!form.clientCompany.trim()) return 'input[name="clientCompany"]';
+    if (!form.companyAddress.trim()) return 'input[name="companyAddress"]';
+    if (!form.country.trim()) return 'input[name="country"]';
+    if (!form.visitorType.trim()) return 'select[name="visitorType"]';
+    if (form.visitorType === "อื่นๆ" && !form.visitorTypeOther.trim()) return 'input[name="visitorTypeOther"]';
+    if (!form.totalGuests.trim()) return 'input[name="totalGuests"]';
+    if (Number(form.totalGuests || 0) > 20 && !registrationFile) return 'input[type="file"]';
+    if (Number(form.totalGuests || 0) > 0 && Number(form.totalGuests || 0) <= 20) {
+      const expectedCount = Number(form.totalGuests || 0);
+      for (let index = 0; index < expectedCount; index += 1) {
+        const guest = form.guests[index];
+        if (!guest) return `#guest-${index + 1} input`;
+        if (!guest.firstName.trim()) return `#guest-${index + 1} input[data-field="firstName"]`;
+        if (!guest.lastName.trim()) return `#guest-${index + 1} input[data-field="lastName"]`;
+        if (!guest.position.trim()) return `#guest-${index + 1} input[data-field="position"]`;
+        if (guest.allergies.includes("อื่นๆ") && !guest.allergyOther.trim()) return `#guest-${index + 1} input[data-field="allergyOther"]`;
+      }
+    }
+    if (!form.purposeOfVisit.trim()) return 'textarea[name="purposeOfVisit"]';
+    if (!form.visitDate.trim()) return 'input[name="visitDate"]';
+    if (!form.visitTime.trim()) return 'select[name="visitTime"]';
+    if (form.visitDate && form.visitTime) {
+      const selectedIso = buildVisitDateTimeIso(form.visitDate, form.visitTime);
+      const selected = selectedIso ? new Date(selectedIso) : null;
+      const nowThaiMs = Date.now() + THAI_OFFSET_MS;
+      if (!selected || Number.isNaN(selected.getTime()) || selected.getTime() < nowThaiMs) return 'input[name="visitDate"]';
+    }
+    if (!form.meetingRoom) return 'select[name="meetingRoom"]';
+    if (form.meetingRoom === "yes" && !form.meetingRoomSelection.trim()) return 'select[name="meetingRoomSelection"]';
+    if (form.siteVisitAreas.length > 0) {
+      if (form.siteVisitAreas.includes("บริษัทในเครือ") && form.siteVisitAffiliateCompanies.length === 0) return '#section-2 input[type="checkbox"]';
+      if (!form.siteVisitApproverName.trim()) return 'input[name="siteVisitApproverName"]';
+      if (!form.siteVisitApproverPosition.trim()) return 'input[name="siteVisitApproverPosition"]';
+    }
+    if (!form.transportType) return 'select[name="transportType"]';
+    if (form.transportType === "personal") {
+      const count = Number(form.carCount || 0);
+      if (!form.carCount.trim() || count <= 0) return 'input[name="carCount"]';
+      for (let index = 0; index < count; index += 1) {
+        const car = form.cars[index];
+        if (!car) return `#car-${index + 1} input`;
+        if (!car.brand.trim()) return `#car-${index + 1} input[data-field="brand"]`;
+        if (!car.license.trim()) return `#car-${index + 1} input[data-field="license"]`;
+      }
+    }
+    if (form.transportType === "shuttle") {
+      if (form.shuttleSchedules.length === 0) return '#section-2 button[data-add-shuttle="true"]';
+      for (let index = 0; index < form.shuttleSchedules.length; index += 1) {
+        const item = form.shuttleSchedules[index];
+        if (!item.date.trim() || !item.pickup.trim() || !item.destination.trim() || !item.time.trim()) return `#shuttle-${index + 1} input`;
+      }
+    }
+    if (!form.foodRequired) return 'select[name="foodRequired"]';
+    if (form.foodRequired === "yes" && form.meals.length === 0) return '#section-3 input[name="meal"]';
+    if (form.foodRequired === "yes") {
+      if (form.meals.includes("เช้า") && !form.breakfastMenu.trim()) return 'select[name="breakfastMenu"]';
+      if (form.meals.includes("เช้า") && isOtherMenuValue(form.breakfastMenu) && !form.breakfastMenuOther.trim()) return 'input[name="breakfastMenuOther"]';
+      if (form.meals.includes("กลางวัน") && !form.lunchMenu.trim()) return 'select[name="lunchMenu"]';
+      if (form.meals.includes("กลางวัน") && !form.lunchDessert.trim()) return 'select[name="lunchDessert"]';
+      if (form.meals.includes("กลางวัน") && isOtherMenuValue(form.lunchMenu) && !form.lunchMenuOther.trim()) return 'input[name="lunchMenuOther"]';
+      if (form.meals.includes("กลางวัน") && isOtherMenuValue(form.lunchDessert) && !form.lunchDessertOther.trim()) return 'input[name="lunchDessertOther"]';
+      if (form.meals.includes("เย็น") && !form.dinnerMenu.trim()) return 'select[name="dinnerMenu"]';
+      if (form.meals.includes("เย็น") && !form.dinnerDessert.trim()) return 'select[name="dinnerDessert"]';
+    }
+    if (!form.souvenir) return 'select[name="souvenir"]';
+    if (form.souvenir === "yes" && !form.souvenirGiftSet.trim()) return 'select[name="souvenirGiftSet"]';
+    if (form.souvenir === "yes" && (!form.souvenirGiftSetCount.trim() || Number(form.souvenirGiftSetCount || 0) <= 0)) return 'input[name="souvenirGiftSetCount"]';
+    if (!form.submittedByName.trim()) return 'input[name="submittedByName"]';
+    if (!form.submittedByPosition.trim()) return 'input[name="submittedByPosition"]';
+    if (!form.submittedByPhone.trim()) return 'input[name="submittedByPhone"]';
+    const internalCount = Number(form.internalAttendeeCount || 0);
+    if (!form.internalAttendeeCount.trim() || internalCount <= 0 || internalCount > 20) return 'input[name="internalAttendeeCount"]';
+    for (let index = 0; index < internalCount; index += 1) {
+      const attendee = form.internalAttendees[index];
+      if (!attendee) return `#internal-attendee-${index + 1} input`;
+      if (!attendee.firstName.trim()) return `#internal-attendee-${index + 1} input[data-field="firstName"]`;
+      if (!attendee.lastName.trim()) return `#internal-attendee-${index + 1} input[data-field="lastName"]`;
+      if (!attendee.position.trim()) return `#internal-attendee-${index + 1} input[data-field="position"]`;
+    }
+    if (registrationFile && registrationFile.size > 10 * 1024 * 1024) return 'input[type="file"]';
+    return null;
+  };
+
+  const validateWithScroll = (): ValidationResult => ({
+    messages: validate(),
+    firstInvalidSelector: getFirstInvalidSelector(),
+  });
+
+  const buildSubmissionPayload = () => {
+    const cars = form.transportType === "personal" ? form.cars : [];
+    const shuttleSchedules = form.transportType === "shuttle" ? form.shuttleSchedules : [];
+    const siteVisit =
+      form.siteVisitAreas.length > 0
+        ? {
+            areas: form.siteVisitAreas,
+            affiliateCompanies: form.siteVisitAffiliateCompanies,
+            approverName: form.siteVisitApproverName,
+            approverPosition: form.siteVisitApproverPosition,
+          }
+        : null;
+    const foodPreferences =
+      form.foodRequired === "yes"
+        ? {
+            meals: form.meals,
+            menus: {
+              breakfast: form.meals.includes("เช้า") ? form.breakfastMenu : "",
+              breakfastOther: form.meals.includes("เช้า") && isOtherMenuValue(form.breakfastMenu) ? form.breakfastMenuOther : "",
+              lunch: form.meals.includes("กลางวัน")
+                ? {
+                    main: form.lunchMenu,
+                    dessert: form.lunchDessert,
+                    otherMain: isOtherMenuValue(form.lunchMenu) ? form.lunchMenuOther : "",
+                    otherDessert: isOtherMenuValue(form.lunchDessert) ? form.lunchDessertOther : "",
+                  }
+                : { main: "", dessert: "", otherMain: "", otherDessert: "" },
+              dinner: form.meals.includes("เย็น")
+                ? {
+                    main: form.dinnerMenu,
+                    dessert: form.dinnerDessert,
+                    otherMain: isOtherMenuValue(form.dinnerMenu) ? form.dinnerMenuOther : "",
+                    otherDessert: isOtherMenuValue(form.dinnerDessert) ? form.dinnerDessertOther : "",
+                  }
+                : { main: "", dessert: "", otherMain: "", otherDessert: "" },
+            },
+          }
+        : null;
+    const souvenirPreferences =
+      form.souvenir === "yes"
+        ? {
+            giftSet: form.souvenirGiftSet,
+            count: Number(form.souvenirGiftSetCount || 0),
+            extra: form.souvenirExtra,
+          }
+        : null;
+    const submittedBy = {
+      name: form.submittedByName,
+      position: form.submittedByPosition,
+      phone: form.submittedByPhone,
+    };
+
+    return {
+      timestamp: new Date().toISOString(),
+      clientCompany: form.clientCompany,
+      companyAddress: form.companyAddress,
+      country: form.country,
+      visitorType: form.visitorType,
+      visitorTypeOther: form.visitorType === "อื่นๆ" ? form.visitorTypeOther : "",
+      contactPhone: form.submittedByPhone,
+      guests: form.guests,
+      purposeOfVisit: form.purposeOfVisit,
+      welcomeMessage: form.welcomeMessage,
+      internalAttendees: form.internalAttendees,
+      visitDateTime: form.visitDate && form.visitTime ? buildVisitDateTimeIso(form.visitDate, form.visitTime) : "",
+      meetingRoomSelection: form.meetingRoomSelection || "",
+      siteVisit,
+      transportType: form.transportType,
+      cars,
+      shuttleSchedules,
+      foodPreferences,
+      souvenirPreferences,
+      submittedBy,
+    };
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const messages = validate();
-    if (messages.length > 0) {
-      const combined = messages.join("\n");
+    const result = validateWithScroll();
+    if (result.messages.length > 0) {
       setDialog({
         open: true,
         type: "error",
-        message: combined,
+        message: result.messages.join("\n"),
       });
+      scrollToField(result.firstInvalidSelector);
       return;
     }
+
+    setReviewOpen(true);
+    return;
+    /*
 
     const cars = form.transportType === "personal" ? form.cars : [];
     const shuttleSchedules =
@@ -1280,6 +1469,86 @@ export default function Home() {
     } finally {
       setSubmitting(false);
     }
+    */
+  };
+
+  const confirmSubmit = async () => {
+    const payload = buildSubmissionPayload();
+    try {
+      const selectedVisitDateTime = String(payload.visitDateTime ?? "").trim();
+      if (selectedVisitDateTime) {
+        const supabase = createClient();
+        const { data: existing, error } = await supabase
+          .from("vip_visitor")
+          .select("id,status")
+          .eq("visitDateTime", selectedVisitDateTime)
+          .or("status.eq.1,status.is.null")
+          .limit(1);
+
+        if (!error && Array.isArray(existing) && existing.length > 0) {
+          setReviewOpen(false);
+          setDialog({
+            open: true,
+            type: "error",
+            message: t("วันและเวลานี้มีการจองแล้ว กรุณาเลือกเวลาอื่น", "This date/time is already booked. Please choose another slot."),
+          });
+          return;
+        }
+      }
+
+      setSubmitting(true);
+      const response = await (async () => {
+        if (!registrationFile) {
+          return fetch("/api/summit", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+        }
+
+        const formData = new FormData();
+        formData.append("data", JSON.stringify(payload));
+        formData.append("registrationFile", registrationFile);
+        return fetch("/api/summit", {
+          method: "POST",
+          body: formData,
+        });
+      })();
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || result.success === false) {
+        setDialog({
+          open: true,
+          type: "error",
+          message: result.error ?? `Request failed with status ${response.status}`,
+        });
+        return;
+      }
+
+      setForm(initialState);
+      setRegistrationFile(null);
+      setReviewOpen(false);
+      setDialog({
+        open: true,
+        type: "success",
+        message: result.warning
+          ? `${result.warning}\n${t("ส่งข้อมูลสำเร็จ ขอบคุณค่ะ", "Submitted successfully. Thank you.")}`
+          : t("ส่งข้อมูลสำเร็จ ขอบคุณค่ะ", "Submitted successfully. Thank you."),
+      });
+    } catch (error) {
+      setDialog({
+        open: true,
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : t("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง", "An error occurred. Please try again."),
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const meetingRoomYes = form.meetingRoom === "yes";
@@ -1287,6 +1556,53 @@ export default function Home() {
   const transportShuttle = form.transportType === "shuttle";
   const foodRequiredYes = form.foodRequired === "yes";
   const guestsCount = Number(form.totalGuests || 0);
+  const internalCount = Number(form.internalAttendeeCount || 0);
+  const sectionStatuses: Record<string, SectionStatus> = {
+    "section-1":
+      form.clientCompany.trim() &&
+      form.companyAddress.trim() &&
+      form.country.trim() &&
+      form.visitorType.trim() &&
+      (form.visitorType !== "อื่นๆ" || form.visitorTypeOther.trim()) &&
+      form.totalGuests.trim() &&
+      Number(form.totalGuests || 0) > 0 &&
+      form.purposeOfVisit.trim()
+        ? "complete"
+        : "incomplete",
+    "section-2":
+      form.visitDate.trim() &&
+      form.visitTime.trim() &&
+      form.meetingRoom &&
+      (form.meetingRoom !== "yes" || form.meetingRoomSelection.trim()) &&
+      form.transportType
+        ? "complete"
+        : "incomplete",
+    "section-3":
+      form.foodRequired &&
+      (form.foodRequired !== "yes" || form.meals.length > 0) &&
+      form.souvenir &&
+      (form.souvenir !== "yes" || (form.souvenirGiftSet.trim() && Number(form.souvenirGiftSetCount || 0) > 0))
+        ? "complete"
+        : "incomplete",
+    "section-4": form.welcomeMessage.trim() ? "complete" : "incomplete",
+    "section-5":
+      form.submittedByName.trim() &&
+      form.submittedByPosition.trim() &&
+      form.submittedByPhone.trim() &&
+      internalCount > 0
+        ? "complete"
+        : "incomplete",
+  };
+  const reviewLines = [
+    `${t("บริษัท", "Company")}: ${form.clientCompany || "-"}`,
+    `${t("จำนวนผู้เข้าร่วม", "Attendees")}: ${form.totalGuests || "0"}`,
+    `${t("วันเวลาเข้าเยี่ยม", "Visit date/time")}: ${form.visitDate && form.visitTime ? `${form.visitDate} ${form.visitTime}` : "-"}`,
+    `${t("ห้องประชุม", "Meeting room")}: ${form.meetingRoom === "yes" ? form.meetingRoomSelection || "-" : t("ไม่ใช้", "Not required")}`,
+    `${t("การเดินทาง", "Transport")}: ${form.transportType || "-"}`,
+    `${t("อาหาร", "Meals")}: ${form.foodRequired === "yes" ? (form.meals.length > 0 ? form.meals.join(", ") : "-") : t("ไม่ใช้", "Not required")}`,
+    `${t("ของที่ระลึก", "Souvenir")}: ${form.souvenir === "yes" ? `${form.souvenirGiftSet || "-"} x ${form.souvenirGiftSetCount || "0"}` : t("ไม่ใช้", "Not required")}`,
+    `${t("ผู้กรอกฟอร์ม", "Submitted by")}: ${[form.submittedByName, form.submittedByPosition].filter(Boolean).join(" / ") || "-"}`,
+  ];
 
   return (
     <div className="min-h-screen bg-[linear-gradient(135deg,#6b7d58_0%,#788B64_38%,#E2CCA8_78%,#FAEFCC_100%)] px-4 py-10 font-sans text-[#142015] flex justify-center">
@@ -1325,6 +1641,41 @@ export default function Home() {
                 }
               >
                 {t("ปิด", "Close")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {reviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-[#E2CCA8] bg-[#FAEFCC] px-6 py-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+            <div className="text-lg font-semibold text-[#2F3B2B]">{t("ตรวจสอบข้อมูลก่อนส่ง", "Review before submit")}</div>
+            <div className="mt-2 text-sm text-[#2F3B2B]/80">
+              {t("โปรดตรวจสอบข้อมูลสำคัญก่อนยืนยันส่งฟอร์ม", "Please review the key details before confirming submission.")}
+            </div>
+            <div className="mt-4 rounded-2xl border border-[#E2CCA8]/80 bg-white/70 p-4">
+              <div className="space-y-2 text-sm text-[#2F3B2B]">
+                {reviewLines.map((line) => (
+                  <div key={line}>{line}</div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded-full border border-[#E2CCA8] bg-white px-4 py-2 text-sm font-medium text-[#2F3B2B]"
+                onClick={() => setReviewOpen(false)}
+                disabled={submitting}
+              >
+                {t("กลับไปแก้ไข", "Back to edit")}
+              </button>
+              <button
+                type="button"
+                className="rounded-full bg-[#788B64] px-5 py-2 text-sm font-semibold text-white hover:bg-[#6b7d58] disabled:opacity-70"
+                onClick={() => void confirmSubmit()}
+                disabled={submitting}
+              >
+                {submitting ? t("กำลังส่ง...", "Submitting...") : t("ยืนยันส่งข้อมูล", "Confirm submit")}
               </button>
             </div>
           </div>
@@ -1388,6 +1739,22 @@ export default function Home() {
                 "คลิกเพื่อไปยังหัวข้อ และกดส่งข้อมูลที่แถบด้านล่าง",
                 "Click to jump to a section, then submit using the bottom bar."
               )}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+              {[
+                ["section-1", "1"],
+                ["section-2", "2"],
+                ["section-3", "3"],
+                ["section-4", "4"],
+                ["section-5", "5"],
+              ].map(([key, label]) => (
+                <span
+                  key={key}
+                  className={`rounded-full px-2.5 py-1 font-semibold ${sectionStatuses[key] === "complete" ? "bg-[#788B64] text-white" : "bg-[#E2CCA8] text-[#2F3B2B]"}`}
+                >
+                  {label}: {sectionStatuses[key] === "complete" ? t("ครบ", "Done") : t("ยังไม่ครบ", "Pending")}
+                </span>
+              ))}
             </div>
             <nav className="mt-4 space-y-2 text-sm">
               <a
@@ -1595,6 +1962,7 @@ export default function Home() {
                       return (
                         <div
                           key={String(index)}
+                          id={`guest-${index + 1}`}
                           className="rounded-lg border border-zinc-200 bg-white p-5"
                         >
                           <div className="text-sm font-semibold text-zinc-900">
@@ -1617,6 +1985,7 @@ export default function Home() {
                           </select>
                           <input
                             type="text"
+                            data-field="firstName"
                             value={guest.firstName}
                             onChange={(e) =>
                               handleGuestChange(
@@ -1643,6 +2012,7 @@ export default function Home() {
                           />
                           <input
                             type="text"
+                            data-field="lastName"
                             value={guest.lastName}
                             onChange={(e) =>
                               handleGuestChange(
@@ -1656,6 +2026,7 @@ export default function Home() {
                           />
                           <input
                             type="text"
+                            data-field="position"
                             value={guest.position}
                             onChange={(e) =>
                               handleGuestChange(
@@ -1721,6 +2092,7 @@ export default function Home() {
                                 </label>
                                 <input
                                   type="text"
+                                  data-field="allergyOther"
                                   value={guest.allergyOther}
                                   onChange={(e) =>
                                     handleGuestChange(index, "allergyOther", e.target.value)
@@ -1879,6 +2251,7 @@ export default function Home() {
                         <label key={item.value} className="flex items-center gap-2">
                           <input
                             type="checkbox"
+                            name="meal"
                             checked={form.siteVisitAreas.includes(item.value)}
                             onChange={(e) =>
                               handleSiteVisitAreaChange(item.value, e.target.checked)
@@ -1971,6 +2344,7 @@ export default function Home() {
                             return (
                               <div
                                 key={String(index)}
+                                id={`car-${index + 1}`}
                                 className="rounded-lg border border-zinc-200 bg-white p-4"
                               >
                                 <div className="text-sm font-semibold text-zinc-900">
@@ -1979,6 +2353,7 @@ export default function Home() {
                                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                                   <input
                                     type="text"
+                                    data-field="brand"
                                     value={car.brand}
                                     onChange={(e) =>
                                       handleCarChange(
@@ -1995,6 +2370,7 @@ export default function Home() {
                                   />
                                   <input
                                     type="text"
+                                    data-field="license"
                                     value={car.license}
                                     onChange={(e) =>
                                       handleCarChange(
@@ -2027,6 +2403,7 @@ export default function Home() {
                       </div>
                       <button
                         type="button"
+                        data-add-shuttle="true"
                         className="rounded-full border border-zinc-300 px-3 py-1 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50"
                         onClick={addShuttleSchedule}
                       >
@@ -2041,6 +2418,7 @@ export default function Home() {
                     {form.shuttleSchedules.map((item, index) => (
                       <div
                         key={`${item.date}-${index}`}
+                        id={`shuttle-${index + 1}`}
                         className="rounded-lg border border-zinc-200 bg-white p-4"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2174,6 +2552,7 @@ export default function Home() {
                         <label className="flex items-center gap-1">
                           <input
                             type="checkbox"
+                            name="meal"
                             value="เช้า"
                             checked={form.meals.includes("เช้า")}
                             onChange={handleMealsChange}
@@ -2184,6 +2563,7 @@ export default function Home() {
                         <label className="flex items-center gap-1">
                           <input
                             type="checkbox"
+                            name="meal"
                             value="กลางวัน"
                             checked={form.meals.includes("กลางวัน")}
                             onChange={handleMealsChange}
@@ -2194,6 +2574,7 @@ export default function Home() {
                         <label className="flex items-center gap-1">
                           <input
                             type="checkbox"
+                            name="meal"
                             value="เย็น"
                             checked={form.meals.includes("เย็น")}
                             onChange={handleMealsChange}
@@ -2206,6 +2587,7 @@ export default function Home() {
                         <label className="flex items-center gap-1">
                           <input
                             type="checkbox"
+                            name="meal"
                             value="อาหารว่างเช้า"
                             checked={form.meals.includes("อาหารว่างเช้า")}
                             onChange={handleMealsChange}
@@ -2609,6 +2991,7 @@ export default function Home() {
                       return (
                         <div
                           key={String(index)}
+                          id={`internal-attendee-${index + 1}`}
                           className="rounded-lg border border-zinc-200 bg-white p-4"
                         >
                           <div className="text-sm font-semibold text-zinc-900">
@@ -2617,6 +3000,7 @@ export default function Home() {
                           <div className="mt-3 grid gap-3 md:grid-cols-3">
                             <input
                               type="text"
+                              data-field="firstName"
                               value={attendee.firstName}
                               onChange={(e) =>
                                 handleInternalAttendeeChange(index, "firstName", e.target.value)
@@ -2626,6 +3010,7 @@ export default function Home() {
                             />
                             <input
                               type="text"
+                              data-field="lastName"
                               value={attendee.lastName}
                               onChange={(e) =>
                                 handleInternalAttendeeChange(index, "lastName", e.target.value)
@@ -2635,6 +3020,7 @@ export default function Home() {
                             />
                             <input
                               type="text"
+                              data-field="position"
                               value={attendee.position}
                               onChange={(e) =>
                                 handleInternalAttendeeChange(index, "position", e.target.value)
