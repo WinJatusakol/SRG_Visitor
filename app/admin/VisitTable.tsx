@@ -734,6 +734,21 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         };
     }, []);
 
+    useEffect(() => {
+        const onOpenVisit = (event: Event) => {
+            const customEvent = event as CustomEvent<{ visitorId?: string }>;
+            const visitorId = String(customEvent.detail?.visitorId ?? "").trim();
+            if (!visitorId) return;
+            const foundVisit = visits.find((visit) => String(visit.id) === visitorId) ?? null;
+            if (foundVisit) setSelectedVisit(foundVisit);
+        };
+
+        window.addEventListener("audit-log:open-visit", onOpenVisit as EventListener);
+        return () => {
+            window.removeEventListener("audit-log:open-visit", onOpenVisit as EventListener);
+        };
+    }, [visits]);
+
     const finishResult = () => {
         if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
         resultTimeoutRef.current = null;

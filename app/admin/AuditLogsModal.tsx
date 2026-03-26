@@ -9,6 +9,7 @@ type AuditLogRow = {
   actor_email: string | null;
   action: string;
   visitor_id: string;
+  company_name?: string | null;
   before: unknown | null;
   after: unknown | null;
   meta: unknown | null;
@@ -448,14 +449,20 @@ export default function AuditLogsModal() {
   const [detailsRow, setDetailsRow] = useState<AuditLogRow | null>(null);
 
   const [actorEmail, setActorEmail] = useState("");
+  const [companyQuery, setCompanyQuery] = useState("");
   const [action, setAction] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const baseParams = useMemo(() => {
     const params = new URLSearchParams();
+    if (companyQuery.trim()) params.set("company", companyQuery.trim());
     if (actorEmail.trim()) params.set("actorEmail", actorEmail.trim());
     if (action.trim()) params.set("action", action.trim());
+    if (dateFrom.trim()) params.set("dateFrom", dateFrom.trim());
+    if (dateTo.trim()) params.set("dateTo", dateTo.trim());
     return params;
-  }, [actorEmail, action]);
+  }, [action, actorEmail, companyQuery, dateFrom, dateTo]);
 
   const loadPage = useCallback(async (pageOffset: number, mode: "reset" | "append") => {
     setLoading(true);
@@ -481,6 +488,14 @@ export default function AuditLogsModal() {
       setLoading(false);
     }
   }, [baseParams]);
+
+  const openBooking = useCallback((id: string) => {
+    const safeId = String(id ?? "").trim();
+    if (!safeId) return;
+    window.dispatchEvent(new CustomEvent("audit-log:open-visit", { detail: { visitorId: safeId } }));
+    setDetailsRow(null);
+    setOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -525,6 +540,49 @@ export default function AuditLogsModal() {
             </div>
 
             <div className="shrink-0 border-b border-gray-200 bg-gray-50/30 px-6 py-3">
+              <div className="mb-3 flex flex-wrap items-end gap-3">
+                <div className="min-w-[140px]">
+                  <div className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">Company</div>
+                  <input
+                    value={companyQuery}
+                    onChange={(e) => setCompanyQuery(e.target.value)}
+                    placeholder="เช่น Sustain"
+                    className="w-56 max-w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">From</div>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">To</div>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompanyQuery("");
+                    setActorEmail("");
+                    setAction("");
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                  disabled={loading}
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+                >
+                  ล้างตัวกรอง
+                </button>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 <input
                   value={actorEmail}
@@ -555,6 +613,11 @@ export default function AuditLogsModal() {
                 >
                   {loading ? "กำลังโหลด..." : "รีเฟรช"}
                 </button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-gray-600">
+                <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1">บริษัท: {companyQuery.trim() || "ทั้งหมด"}</span>
+                <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1">Action: {action ? actionText(action) : "ทั้งหมด"}</span>
+                <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1">ช่วงเวลา: {dateFrom || "-"} ถึง {dateTo || "-"}</span>
               </div>
               {error && (
                 <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
@@ -593,9 +656,19 @@ export default function AuditLogsModal() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                          <span className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-gray-700">
-                            #{row.visitor_id}
-                          </span>
+                          <div className="mb-1 truncate font-semibold text-gray-900">{row.company_name || "-"}</div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-gray-700">
+                              #{row.visitor_id}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openBooking(String(row.visitor_id ?? ""))}
+                              className="hidden rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-2.5 py-1 text-xs font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
+                            >
+                              เปิด booking
+                            </button>
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           {row.action === "update" ? (
@@ -611,6 +684,13 @@ export default function AuditLogsModal() {
                                   >
                                     ดูรายละเอียด
                                   </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openBooking(String(row.visitor_id ?? ""))}
+                                    className="rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-3 py-1.5 text-sm font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
+                                  >
+                                    เปิด booking
+                                  </button>
                                   <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-700">
                                     เปลี่ยน {changes.length} รายการ
                                   </span>
@@ -618,7 +698,16 @@ export default function AuditLogsModal() {
                               );
                             })()
                           ) : (
-                            <div className="whitespace-pre-line">{summarize(row)}</div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="whitespace-pre-line">{summarize(row)}</div>
+                              <button
+                                type="button"
+                                onClick={() => openBooking(String(row.visitor_id ?? ""))}
+                                className="rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-3 py-1.5 text-sm font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
+                              >
+                                เปิด booking
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -677,6 +766,15 @@ export default function AuditLogsModal() {
 
             <div className="flex-1 overflow-auto p-5 bg-gray-50/30">
               <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                <div className="border-b border-gray-100 bg-white px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => openBooking(String(detailsRow.visitor_id ?? ""))}
+                    className="rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-3 py-1.5 text-sm font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
+                  >
+                    เปิด booking นี้
+                  </button>
+                </div>
                 {(() => {
                   const items = getChangeItems(detailsRow);
                   if (items.length === 0) {
