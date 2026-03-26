@@ -172,7 +172,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                       </select>
                     </div>
                     <div className="flex flex-col gap-1 lg:col-span-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ชื่อบริษัทที่เชิญมา</label>
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ชื่อบริษัทที่มาเยี่ยมชม</label>
                       <input
                         value={filterCompany}
                         onChange={(e) => setFilterCompany(e.target.value)}
