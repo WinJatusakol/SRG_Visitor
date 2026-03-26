@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, FileClock, X } from "lucide-react";
@@ -106,9 +106,9 @@ const labelFor = (field: string) => {
   const labels: Record<string, string> = {
     status: "สถานะ",
     visitDateTime: "วันและเวลา",
-    clientCompany: "ชื่อบริษัทที่เชิญมา",
-    companyAddress: "ที่อยู่บริษัทที่เชิญมา",
-    country: "ประเทศของบริษัทที่เชิญมา",
+    clientCompany: "ชื่อบริษัท/องค์กร",
+    companyAddress: "ที่อยู่บริษัท/องค์กร",
+    country: "ประเทศของบริษัท/องค์กร",
     visitorType: "ประเภทผู้เข้าเยี่ยมชม",
     visitorTypeOther: "ประเภทอื่นๆ",
     contactPhone: "เบอร์ผู้ประสานงาน",
@@ -134,7 +134,7 @@ const asNumber = (value: unknown) => {
   return Number.isFinite(n) ? n : null;
 };
 
-const limitText = (value: string, max = 220) => (value.length > max ? `${value.slice(0, max)}…` : value);
+const limitText = (value: string, max = 220) => (value.length > max ? `${value.slice(0, max)}...` : value);
 
 const formatUnknownObject = (value: unknown) => {
   const v = parseJsonDeep(value);
@@ -164,7 +164,7 @@ const formatUnknownObject = (value: unknown) => {
       return limitText(String(p), 160);
     };
     const lines = keys.slice(0, 8).map((k) => `${k}: ${previewValue(v[k])}`);
-    const suffix = keys.length > 8 ? `\n… (+${keys.length - 8})` : "";
+    const suffix = keys.length > 8 ? `\n... (+${keys.length - 8})` : "";
     return `${lines.join("\n")}${suffix}` || "-";
   }
   return limitText(String(v), 260);
@@ -180,6 +180,14 @@ const formatDateTime = (iso: string | null | undefined) => {
     timeZone: "Asia/Bangkok",
   }).format(d);
 };
+
+const toBangkokDateInput = (date: Date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 
 const statusText = (value: unknown) => {
   const n = Number(value);
@@ -531,6 +539,17 @@ export default function AuditLogsModal() {
     setOpen(false);
   }, []);
 
+  const applyQuickDateRange = useCallback((preset: "today" | "7d" | "30d") => {
+    const today = new Date();
+    const end = toBangkokDateInput(today);
+    const startDate = new Date(today);
+    if (preset === "7d") startDate.setDate(startDate.getDate() - 6);
+    if (preset === "30d") startDate.setDate(startDate.getDate() - 29);
+    const start = toBangkokDateInput(startDate);
+    setDateFrom(start);
+    setDateTo(end);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     setItems([]);
@@ -602,6 +621,29 @@ export default function AuditLogsModal() {
                     className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                   />
                 </div>
+                <div className="flex flex-wrap items-center gap-2 pb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => applyQuickDateRange("today")}
+                    className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    วันนี้
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyQuickDateRange("7d")}
+                    className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    7 วันล่าสุด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyQuickDateRange("30d")}
+                    className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    30 วันล่าสุด
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -668,7 +710,7 @@ export default function AuditLogsModal() {
                       <th className="px-4 py-3 w-44 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">เวลา</th>
                       <th className="px-4 py-3 w-64 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">อีเมล</th>
                       <th className="px-4 py-3 w-36 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">การกระทำ</th>
-                      <th className="px-4 py-3 w-24 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">รายการ</th>
+                      <th className="px-4 py-3 w-24 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">บริษัท/องค์กร</th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">รายละเอียด</th>
                     </tr>
                   </thead>
@@ -803,7 +845,7 @@ export default function AuditLogsModal() {
               <div>
                 <div className="text-lg font-bold text-gray-900">รายละเอียดการแก้ไข</div>
                 <div className="text-sm text-gray-500">
-                  #{detailsRow.visitor_id} • {detailsRow.actor_email || "-"} • {formatDateTime(detailsRow.created_at)}
+                  #{detailsRow.visitor_id} â€¢ {detailsRow.actor_email || "-"} â€¢ {formatDateTime(detailsRow.created_at)}
                 </div>
               </div>
               <button
@@ -877,3 +919,4 @@ export default function AuditLogsModal() {
     </>
   );
 }
+
