@@ -209,7 +209,7 @@ export function VisitDetailsModal({
                 </div>
 
                 <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                    <div data-audit-section="overview" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
                         <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                             <MessageSquareText className="w-5 h-5 text-[#788B64]" />
                             <h3 className="text-base font-bold text-[#1b2a18]">ข้อมูลผู้เข้าเยี่ยมชม</h3>
@@ -251,7 +251,7 @@ export function VisitDetailsModal({
 
                     <div className="space-y-6">
                         {/* Guests (ลูกค้า) */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                        <div data-audit-section="guests" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
                             <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div className="flex items-center gap-2">
                                     <Users className="w-5 h-5 text-[#788B64]" />
@@ -304,7 +304,7 @@ export function VisitDetailsModal({
                         </div>
 
                         {/* Internal Attendees (EPAC) */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                        <div data-audit-section="internal-attendees" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
                             <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Users className="w-5 h-5 text-[#788B64]" />
@@ -338,7 +338,7 @@ export function VisitDetailsModal({
                         </div>
 
                         {/* Transport */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                        <div data-audit-section="transport" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
                             <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                                 <CarFront className="w-5 h-5 text-[#788B64]" />
                                 <h3 className="text-base font-bold text-[#1b2a18]">ข้อมูลการเดินทาง</h3>
@@ -442,7 +442,7 @@ export function VisitDetailsModal({
                         const siteV = selectedVisit.siteVisit as any;
                         if (!siteV.areas || siteV.areas.length === 0) return null;
                         return (
-                            <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                            <div data-audit-section="site-visit" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
                                 <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                                     <MapPin className="w-5 h-5 text-[#788B64]" />
                                     <h3 className="text-base font-bold text-[#1b2a18]">การเข้าชมพื้นที่ (Site Visit)</h3>
@@ -483,7 +483,7 @@ export function VisitDetailsModal({
                     })() : null}
 
                     {/* Facilities & Extras */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                    <div data-audit-section="facilities" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
                         <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                             <Building2 className="w-5 h-5 text-[#788B64]" />
                             <h3 className="text-base font-bold text-[#1b2a18]">การอำนวยความสะดวก (Facilities & Extras)</h3>
@@ -536,7 +536,7 @@ export function VisitDetailsModal({
                         const hasAfternoonSnack = meals.includes("อาหารว่างบ่าย");
 
                         return (
-                            <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                            <div data-audit-section="food" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
                                 <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                                     <Utensils className="w-5 h-5 text-[#788B64]" />
                                     <h3 className="text-base font-bold text-[#1b2a18]">ข้อมูลมื้ออาหารและเบรค</h3>
@@ -656,7 +656,7 @@ export function VisitDetailsModal({
                 </div>
 
                 {/* Footer Modal */}
-                <div className="shrink-0 border-t border-[#E2CCA8]/60 bg-white px-6 py-4 sm:rounded-b-3xl">
+                <div data-audit-section="requester" className="shrink-0 border-t border-[#E2CCA8]/60 bg-white px-6 py-4 sm:rounded-b-3xl">
                     <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4">
                         <div className="text-xs text-zinc-500 font-medium flex flex-wrap items-center gap-x-4 gap-y-1">
                             <span className="flex items-center gap-1.5">
@@ -708,6 +708,7 @@ export function VisitDetailsModal({
 
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+    const [scrollTargetSection, setScrollTargetSection] = useState<string | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
     const [resultPopup, setResultPopup] = useState<{ open: boolean; kind: "bookingCanceled" }>({
@@ -736,11 +737,15 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
     useEffect(() => {
         const onOpenVisit = (event: Event) => {
-            const customEvent = event as CustomEvent<{ visitorId?: string }>;
+            const customEvent = event as CustomEvent<{ visitorId?: string; sectionId?: string }>;
             const visitorId = String(customEvent.detail?.visitorId ?? "").trim();
+            const sectionId = String(customEvent.detail?.sectionId ?? "").trim();
             if (!visitorId) return;
             const foundVisit = visits.find((visit) => String(visit.id) === visitorId) ?? null;
-            if (foundVisit) setSelectedVisit(foundVisit);
+            if (foundVisit) {
+                setScrollTargetSection(sectionId || null);
+                setSelectedVisit(foundVisit);
+            }
         };
 
         window.addEventListener("audit-log:open-visit", onOpenVisit as EventListener);
@@ -748,6 +753,17 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             window.removeEventListener("audit-log:open-visit", onOpenVisit as EventListener);
         };
     }, [visits]);
+
+    useEffect(() => {
+        if (!selectedVisit || !scrollTargetSection) return;
+        const timer = window.setTimeout(() => {
+            const target = document.querySelector(`[data-audit-section="${scrollTargetSection}"]`);
+            if (target instanceof HTMLElement) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }, 200);
+        return () => window.clearTimeout(timer);
+    }, [scrollTargetSection, selectedVisit]);
 
     const finishResult = () => {
         if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
@@ -1091,7 +1107,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                 const timeText = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone }).format(visitDate);
                                 const weekdayText = new Intl.DateTimeFormat("th-TH", { weekday: "long", timeZone }).format(visitDate);
                                 return (
-                                    <tr key={visit.id} onClick={() => setSelectedVisit(visit)} className="group transition-all duration-200 hover:bg-[#FAEFCC]/40 hover:shadow-md hover:shadow-[#788B64]/10 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10">
+                                    <tr key={visit.id} onClick={() => { setScrollTargetSection(null); setSelectedVisit(visit); }} className="group transition-all duration-200 hover:bg-[#FAEFCC]/40 hover:shadow-md hover:shadow-[#788B64]/10 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10">
                                         <td className="px-6 py-5 align-top">
                                             <div className="flex items-start gap-3">
                                                 <div className="shrink-0 w-12 h-12 bg-[#FAEFCC] text-[#788B64] rounded-xl flex flex-col items-center justify-center shadow-sm border border-[#E2CCA8] group-hover:bg-[#788B64] group-hover:text-white transition-colors">
@@ -1134,7 +1150,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
             <VisitDetailsModal
                 selectedVisit={selectedVisit}
-                onClose={() => setSelectedVisit(null)}
+                onClose={() => { setSelectedVisit(null); setScrollTargetSection(null); }}
                 timeZone={timeZone}
                 readOnly={false}
                 updatingStatus={updatingStatus}

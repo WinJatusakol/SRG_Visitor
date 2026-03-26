@@ -176,7 +176,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                       <input
                         value={filterCompany}
                         onChange={(e) => setFilterCompany(e.target.value)}
-                        placeholder="พิมพ์ชื่อบริษัทที่เชิญมาเพื่อค้นหา"
+                        placeholder="พิมพ์ชื่อบริษัทที่มาเยี่ยมชมเพื่อค้นหา"
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                       />
                     </div>
@@ -194,7 +194,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                           วันและเวลา
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
-                          ชื่อบริษัทที่เชิญมา
+                          ชื่อบริษัทที่เยี่ยมชม
                         </th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
                           วัตถุประสงค์

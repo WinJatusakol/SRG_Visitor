@@ -338,6 +338,20 @@ const formatValue = (field: string, value: unknown) => {
 
 type ChangeItem = { field: string; label: string; from: string; to: string };
 
+const fieldToSection = (field: string) => {
+  if (["clientCompany", "companyAddress", "country", "visitorType", "visitorTypeOther", "purposeOfVisit", "welcomeMessage", "visitDateTime", "status"].includes(field)) {
+    return "overview";
+  }
+  if (field === "guests") return "guests";
+  if (field === "internalAttendees") return "internal-attendees";
+  if (["transportType", "cars", "shuttleSchedules"].includes(field)) return "transport";
+  if (field === "siteVisit") return "site-visit";
+  if (["meetingRoomSelection", "souvenirPreferences"].includes(field)) return "facilities";
+  if (field === "foodPreferences") return "food";
+  if (["submittedBy", "contactPhone"].includes(field)) return "requester";
+  return "";
+};
+
 const getChangeItems = (row: AuditLogRow): ChangeItem[] => {
   const beforeValue = parseJsonDeep(row.before);
   const afterValue = parseJsonDeep(row.after);
@@ -468,6 +482,12 @@ const summarize = (row: AuditLogRow) => {
   return "-";
 };
 
+const primaryFieldForRow = (row: AuditLogRow) => {
+  if (row.action === "cancel" || row.action === "status_change") return "status";
+  const firstChange = getChangeItems(row)[0];
+  return firstChange?.field ?? "";
+};
+
 export default function AuditLogsModal() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AuditLogRow[]>([]);
@@ -483,6 +503,7 @@ export default function AuditLogsModal() {
   const [action, setAction] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [activeDatePreset, setActiveDatePreset] = useState<"" | "today" | "7d" | "30d">("");
   const [debouncedActorEmail, setDebouncedActorEmail] = useState("");
   const [debouncedCompanyQuery, setDebouncedCompanyQuery] = useState("");
 
@@ -531,10 +552,11 @@ export default function AuditLogsModal() {
     }
   }, [baseParams]);
 
-  const openBooking = useCallback((id: string) => {
+  const openBooking = useCallback((id: string, field?: string) => {
     const safeId = String(id ?? "").trim();
     if (!safeId) return;
-    window.dispatchEvent(new CustomEvent("audit-log:open-visit", { detail: { visitorId: safeId } }));
+    const sectionId = fieldToSection(String(field ?? "").trim());
+    window.dispatchEvent(new CustomEvent("audit-log:open-visit", { detail: { visitorId: safeId, sectionId } }));
     setDetailsRow(null);
     setOpen(false);
   }, []);
@@ -548,6 +570,7 @@ export default function AuditLogsModal() {
     const start = toBangkokDateInput(startDate);
     setDateFrom(start);
     setDateTo(end);
+    setActiveDatePreset(preset);
   }, []);
 
   useEffect(() => {
@@ -608,7 +631,10 @@ export default function AuditLogsModal() {
                   <input
                     type="date"
                     value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value);
+                      setActiveDatePreset("");
+                    }}
                     className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                   />
                 </div>
@@ -617,7 +643,10 @@ export default function AuditLogsModal() {
                   <input
                     type="date"
                     value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
+                    onChange={(e) => {
+                      setDateTo(e.target.value);
+                      setActiveDatePreset("");
+                    }}
                     className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                   />
                 </div>
@@ -625,21 +654,33 @@ export default function AuditLogsModal() {
                   <button
                     type="button"
                     onClick={() => applyQuickDateRange("today")}
-                    className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      activeDatePreset === "today"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     วันนี้
                   </button>
                   <button
                     type="button"
                     onClick={() => applyQuickDateRange("7d")}
-                    className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      activeDatePreset === "7d"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     7 วันล่าสุด
                   </button>
                   <button
                     type="button"
                     onClick={() => applyQuickDateRange("30d")}
-                    className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      activeDatePreset === "30d"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     30 วันล่าสุด
                   </button>
@@ -652,6 +693,7 @@ export default function AuditLogsModal() {
                     setAction("");
                     setDateFrom("");
                     setDateTo("");
+                    setActiveDatePreset("");
                   }}
                   disabled={loading}
                   className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"
@@ -660,6 +702,52 @@ export default function AuditLogsModal() {
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAction("")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      action === ""
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    ทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction("update")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      action === "update"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    แก้ไขข้อมูล
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction("cancel")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      action === "cancel"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    ยกเลิกการจอง
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction("status_change")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      action === "status_change"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    เปลี่ยนสถานะ
+                  </button>
+                </div>
                 <input
                   value={actorEmail}
                   onChange={(e) => setActorEmail(e.target.value)}
@@ -762,7 +850,7 @@ export default function AuditLogsModal() {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => openBooking(String(row.visitor_id ?? ""))}
+                                    onClick={() => openBooking(String(row.visitor_id ?? ""), primaryFieldForRow(row))}
                                     aria-label="เปิด booking"
                                     className="rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-3 py-1.5 text-[0px] font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
                                   >
@@ -783,7 +871,7 @@ export default function AuditLogsModal() {
                               <div className="whitespace-pre-line">{summarize(row)}</div>
                               <button
                                 type="button"
-                                onClick={() => openBooking(String(row.visitor_id ?? ""))}
+                                onClick={() => openBooking(String(row.visitor_id ?? ""), primaryFieldForRow(row))}
                                 aria-label="เปิด booking"
                                 className="rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-3 py-1.5 text-[0px] font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
                               >
@@ -863,7 +951,7 @@ export default function AuditLogsModal() {
                 <div className="border-b border-gray-100 bg-white px-4 py-3">
                   <button
                     type="button"
-                    onClick={() => openBooking(String(detailsRow.visitor_id ?? ""))}
+                    onClick={() => openBooking(String(detailsRow.visitor_id ?? ""), primaryFieldForRow(detailsRow))}
                     aria-label="เปิด booking"
                     className="rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-3 py-1.5 text-[0px] font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
                   >
