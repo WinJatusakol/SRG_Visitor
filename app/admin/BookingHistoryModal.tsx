@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { BANGKOK_TIME_ZONE, formatThaiDateTime, getVisitDateKey, getVisitTimeKey } from "@/lib/thai-date-time";
 import type { Visit } from "./visitTypes";
 import { VisitDetailsModal } from "./VisitTable";
 
@@ -15,12 +16,8 @@ const statusLabel = (status: number | null | undefined) => {
 };
 
 const formatDateTime = (iso: string | null | undefined) => {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  const date = new Intl.DateTimeFormat("th-TH", { year: "numeric", month: "short", day: "2-digit", timeZone: "Asia/Bangkok" }).format(d);
-  const time = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }).format(d);
-  return `${date} ${time} น.`;
+  const formatted = formatThaiDateTime(iso, BANGKOK_TIME_ZONE);
+  return formatted ? `${formatted} น.` : "-";
 };
 
 export default function BookingHistoryModal({ visits }: { visits: VisitWithStatus[] }) {
@@ -34,38 +31,28 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
   const sorted = useMemo(() => {
     const items = Array.isArray(visits) ? [...visits] : [];
     items.sort((a, b) => {
-      const da = new Date(a.visitDateTime || a.created_at || 0).getTime();
-      const db = new Date(b.visitDateTime || b.created_at || 0).getTime();
-      return db - da;
+      const dateKeyA = getVisitDateKey(a.visitDateTime || a.created_at || null, BANGKOK_TIME_ZONE);
+      const dateKeyB = getVisitDateKey(b.visitDateTime || b.created_at || null, BANGKOK_TIME_ZONE);
+      if (dateKeyA !== dateKeyB) return dateKeyB.localeCompare(dateKeyA);
+
+      const timeKeyA = getVisitTimeKey(a.visitDateTime || a.created_at || null);
+      const timeKeyB = getVisitTimeKey(b.visitDateTime || b.created_at || null);
+      return timeKeyB.localeCompare(timeKeyA);
     });
     return items;
   }, [visits]);
 
-  const timeZone = "Asia/Bangkok";
-
-  const toThaiDateKey = (value: string | null | undefined) => {
-    if (!value) return "";
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(d);
-  };
+  const timeZone = BANGKOK_TIME_ZONE;
 
   const isActiveStatus = (status: unknown) => status == null || Number(status) === 1;
 
   const filtered = useMemo(() => {
     const qCompany = filterCompany.trim().toLowerCase();
     return sorted.filter((v) => {
-      const dateKey = toThaiDateKey(v.visitDateTime || v.created_at || null);
+      const dateKey = getVisitDateKey(v.visitDateTime || v.created_at || null, timeZone);
       if (filterDateFrom && dateKey && dateKey < filterDateFrom) return false;
       if (filterDateTo && dateKey && dateKey > filterDateTo) return false;
-      if (filterDateFrom || filterDateTo) {
-        if (!dateKey) return false;
-      }
+      if ((filterDateFrom || filterDateTo) && !dateKey) return false;
 
       if (filterStatus === "active" && !isActiveStatus(v.status)) return false;
       if (filterStatus === "canceled" && Number(v.status) !== 0) return false;
@@ -78,21 +65,21 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
 
       return true;
     });
-  }, [filterCompany, filterDateFrom, filterDateTo, filterStatus, sorted]);
+  }, [filterCompany, filterDateFrom, filterDateTo, filterStatus, sorted, timeZone]);
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="px-4 py-2 bg-white border border-gray-300 shadow-sm text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition"
+        className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
       >
         ประวัติการจองทั้งหมด
       </button>
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
           onMouseDown={(e) => {
             if (e.currentTarget === e.target) {
               setSelectedVisit(null);
@@ -100,11 +87,11 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
             }
           }}
         >
-          <div className="w-full max-w-[96vw] h-[92vh] overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="h-[92vh] w-full max-w-[96vw] overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-[#FAEFCC]/60 px-6 py-4">
               <div>
                 <div className="text-lg font-semibold text-gray-900">ประวัติการจองทั้งหมด</div>
-                <div className="text-sm text-gray-500">ค้นหา/คัดกรองตามวัน สถานะ และบริษัท</div>
+                <div className="text-sm text-gray-500">ค้นหาและคัดกรองตามวัน สถานะ และบริษัท</div>
               </div>
               <button
                 type="button"
@@ -138,10 +125,10 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                   </button>
                 </div>
 
-                <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200 p-4">
+                <div className="rounded-2xl border border-gray-200 bg-white/80 p-4 shadow-sm backdrop-blur-xl">
                   <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-6">
                     <div className="flex flex-col gap-1 lg:col-span-1">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">จากวันที่</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">จากวันที่</label>
                       <input
                         type="date"
                         value={filterDateFrom}
@@ -150,7 +137,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                       />
                     </div>
                     <div className="flex flex-col gap-1 lg:col-span-1">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ถึงวันที่</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">ถึงวันที่</label>
                       <input
                         type="date"
                         value={filterDateTo}
@@ -159,7 +146,7 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                       />
                     </div>
                     <div className="flex flex-col gap-1 lg:col-span-1">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">สถานะ</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">สถานะ</label>
                       <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
@@ -172,11 +159,11 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                       </select>
                     </div>
                     <div className="flex flex-col gap-1 lg:col-span-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">ชื่อบริษัทที่เชิญมา</label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">ชื่อบริษัทที่มาเยี่ยมชม</label>
                       <input
                         value={filterCompany}
                         onChange={(e) => setFilterCompany(e.target.value)}
-                        placeholder="พิมพ์ชื่อบริษัทที่เชิญมาเพื่อค้นหา"
+                        placeholder="พิมพ์ชื่อบริษัทที่มาเยี่ยมชมเพื่อค้นหา"
                         className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
                       />
                     </div>
@@ -188,18 +175,18 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
               <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <div className="max-h-[72vh] overflow-auto">
                   <table className="min-w-max w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0 z-10">
+                    <thead className="sticky top-0 z-10 bg-gray-50">
                       <tr>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
+                        <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold text-gray-500">
                           วันและเวลา
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
-                          ชื่อบริษัทที่เชิญมา
+                        <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold text-gray-500">
+                          ชื่อบริษัทที่เยี่ยมชม
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
+                        <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold text-gray-500">
                           วัตถุประสงค์
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">
+                        <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-semibold text-gray-500">
                           สถานะ
                         </th>
                       </tr>
@@ -213,16 +200,16 @@ export default function BookingHistoryModal({ visits }: { visits: VisitWithStatu
                             onClick={() => setSelectedVisit(visit)}
                             className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50/40"} cursor-pointer hover:bg-blue-50/30`}
                           >
-                            <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
+                            <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-700">
                               {formatDateTime(visit.visitDateTime || visit.created_at || null)}
                             </td>
-                            <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
+                            <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-700">
                               {visit.clientCompany || "-"}
                             </td>
-                            <td className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap">
+                            <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-700">
                               {visit.purposeOfVisit || "-"}
                             </td>
-                            <td className="px-3 py-2 text-sm whitespace-nowrap">
+                            <td className="whitespace-nowrap px-3 py-2 text-sm">
                               <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${label.className}`}>
                                 {label.text}
                               </span>

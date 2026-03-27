@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -103,23 +103,40 @@ const meetingRoomLabelTh = (room: MeetingRoomRow) => {
   return `${base} (ความจุ ${capacity} คน)`;
 };
 
+const extractVisitDateTimeParts = (value: string | null | undefined) => {
+  if (!value) return null;
+  const normalized = value.trim();
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  if (!match) return null;
+  return { date: match[1], time: match[2] };
+};
+
 const toIsoDateInput = (value: string | null | undefined) => {
+  const parts = extractVisitDateTimeParts(value);
+  if (parts) return parts.date;
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Bangkok",
+  }).format(d);
 };
 
 const toIsoTimeInput = (value: string | null | undefined) => {
+  const parts = extractVisitDateTimeParts(value);
+  if (parts) return parts.time;
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Bangkok",
+  }).format(d);
 };
 
 const buildIsoUtc = (date: string, time: string) => {
@@ -251,7 +268,12 @@ export default function EditBookingModal({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [resultPopup, setResultPopup] = useState<{ open: boolean; kind: "saved" | "canceled" }>({
+  const [resultPopup, setResultPopup] = useState<{
+    open: boolean;
+    kind: "saved" | "canceled" | "error";
+    title?: string;
+    message?: string;
+  }>({
     open: false,
     kind: "saved",
   });
@@ -352,6 +374,18 @@ export default function EditBookingModal({
     setResultPopup({ open: true, kind });
     const durationMs = kind === "saved" ? 1800 : 1100;
     resultTimeoutRef.current = setTimeout(() => finishResult(), durationMs);
+  };
+
+  const showErrorResult = (message: string) => {
+    if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+    resultTimeoutRef.current = null;
+    resultActionRef.current = null;
+    setResultPopup({
+      open: true,
+      kind: "error",
+      title: "บันทึกการแก้ไขไม่สำเร็จ",
+      message,
+    });
   };
 
   useEffect(() => {
@@ -871,8 +905,12 @@ export default function EditBookingModal({
       setConfirmOpen(false);
       showResult("saved");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+      const rawMessage = error instanceof Error ? error.message : "Unknown error";
+      const message = rawMessage.includes("เวลาที่ท่านเลือกมีการจองแล้ว")
+        ? "เวลาที่ท่านเลือกมีการจองแล้ว กรุณาเลือกเวลาอื่น"
+        : rawMessage;
       setErrorMessage(message);
+      showErrorResult(message);
     } finally {
       setSaving(false);
     }
@@ -1949,10 +1987,14 @@ export default function EditBookingModal({
               </div>
               <div className="flex-1">
                 <div className="text-base font-bold text-gray-900">
-                  {resultPopup.kind === "saved" ? "แก้ไขสำเร็จ" : "ยกเลิกสำเร็จ"}
+                  {resultPopup.kind === "saved" ? "แก้ไขสำเร็จ" : resultPopup.kind === "canceled" ? "ยกเลิกสำเร็จ" : (resultPopup.title || "บันทึกการแก้ไขไม่สำเร็จ")}
                 </div>
                 <div className="mt-1 text-sm text-gray-600">
-                  {resultPopup.kind === "saved" ? "บันทึกการแก้ไขเรียบร้อย" : "ยกเลิกการแก้ไขเรียบร้อย"}
+                  {resultPopup.kind === "saved"
+                    ? "บันทึกการแก้ไขเรียบร้อย"
+                    : resultPopup.kind === "canceled"
+                      ? "ยกเลิกการแก้ไขเรียบร้อย"
+                      : (resultPopup.message || errorMessage || "ไม่สามารถบันทึกการแก้ไขได้")}
                 </div>
               </div>
             </div>
@@ -1962,3 +2004,4 @@ export default function EditBookingModal({
     </>
   );
 }
+
