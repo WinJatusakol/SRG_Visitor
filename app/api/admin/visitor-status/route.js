@@ -1,20 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-
-const requireAdmin = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  return user;
-};
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdminUser } from "@/lib/admin/auth";
 
 const AUDIT_TABLE = "vip_visitor_admin_audit_logs";
 
 export async function POST(request) {
   try {
-    const user = await requireAdmin();
+    const user = await requireAdminUser();
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }

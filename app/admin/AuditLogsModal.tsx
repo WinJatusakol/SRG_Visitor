@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, FileClock, X } from "lucide-react";
+import { BANGKOK_TIME_ZONE, formatThaiDateTime, formatThaiTimestamp, toBangkokDateInput } from "@/lib/thai-date-time";
 
 type AuditLogRow = {
   id: string | number;
@@ -171,23 +172,9 @@ const formatUnknownObject = (value: unknown) => {
 };
 
 const formatDateTime = (iso: string | null | undefined) => {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("th-TH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Bangkok",
-  }).format(d);
+  const formatted = formatThaiTimestamp(iso, BANGKOK_TIME_ZONE);
+  return formatted ? `${formatted} น.` : "-";
 };
-
-const toBangkokDateInput = (date: Date) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Bangkok",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
 
 const statusText = (value: unknown) => {
   const n = Number(value);
@@ -319,7 +306,10 @@ const formatValue = (field: string, value: unknown) => {
   const v = parseJsonDeep(value);
   if (v == null || v === "") return "-";
   if (field === "status") return statusText(v);
-  if (field === "visitDateTime" && typeof v === "string") return formatDateTime(v);
+  if (field === "visitDateTime" && typeof v === "string") {
+    const formattedVisit = formatThaiDateTime(v, BANGKOK_TIME_ZONE);
+    return formattedVisit ? `${formattedVisit} น.` : "-";
+  }
   if (field === "transportType") {
     const t = asString(v);
     if (t === "personal") return "ส่วนตัว";
@@ -795,10 +785,10 @@ export default function AuditLogsModal() {
                 <table className="min-w-full w-full table-fixed">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr className="border-b border-gray-200">
-                      <th className="px-4 py-3 w-44 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">เวลา</th>
-                      <th className="px-4 py-3 w-64 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">อีเมล</th>
-                      <th className="px-4 py-3 w-36 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">การกระทำ</th>
-                      <th className="px-4 py-3 w-24 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">บริษัท/องค์กร</th>
+                      <th className="w-52 border-r border-gray-100 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">เวลา</th>
+                      <th className="w-72 border-r border-gray-100 px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">อีเมล</th>
+                      <th className="w-36 border-r border-gray-100 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">การกระทำ</th>
+                      <th className="w-36 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">บริษัท/องค์กร</th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">รายละเอียด</th>
                     </tr>
                   </thead>
@@ -810,11 +800,11 @@ export default function AuditLogsModal() {
                           idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
                         } hover:bg-gray-50 transition-colors`}
                       >
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{formatDateTime(row.created_at)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
+                        <td className="border-r border-gray-100 px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{formatDateTime(row.created_at)}</td>
+                        <td className="border-r border-gray-100 px-5 py-3 text-sm text-gray-700">
                           <div className="truncate">{row.actor_email || "-"}</div>
                         </td>
-                        <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        <td className="border-r border-gray-100 px-4 py-3 text-sm whitespace-nowrap">
                           <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${actionBadgeClass(row.action)}`}>
                             {actionText(row.action)}
                           </span>
@@ -933,7 +923,7 @@ export default function AuditLogsModal() {
               <div>
                 <div className="text-lg font-bold text-gray-900">รายละเอียดการแก้ไข</div>
                 <div className="text-sm text-gray-500">
-                  #{detailsRow.visitor_id} â€¢ {detailsRow.actor_email || "-"} â€¢ {formatDateTime(detailsRow.created_at)}
+                  #{detailsRow.visitor_id} • {detailsRow.actor_email || "-"} • {formatDateTime(detailsRow.created_at)}
                 </div>
               </div>
               <button

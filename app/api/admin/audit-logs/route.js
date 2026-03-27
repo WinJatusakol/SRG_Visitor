@@ -1,14 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-
-const requireAdmin = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  return user;
-};
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdminUser } from "@/lib/admin/auth";
 
 const asInt = (value, fallback) => {
   const n = Number(value);
@@ -18,7 +10,7 @@ const asInt = (value, fallback) => {
 
 export async function GET(request) {
   try {
-    const user = await requireAdmin();
+    const user = await requireAdminUser();
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }

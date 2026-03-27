@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdminUser } from "@/lib/admin/auth";
 
 const isAllowedTable = (table) =>
   [
@@ -50,20 +51,9 @@ const nextSortIndex = async (supabase, table, groupKey) => {
   return Number.isFinite(max) ? max + 1 : 0;
 };
 
-const requireAdmin = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return null;
-  }
-  return user;
-};
-
 export async function GET(request) {
   try {
-    const user = await requireAdmin();
+    const user = await requireAdminUser();
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
@@ -107,7 +97,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const user = await requireAdmin();
+    const user = await requireAdminUser();
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
@@ -211,7 +201,7 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   try {
-    const user = await requireAdmin();
+    const user = await requireAdminUser();
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
