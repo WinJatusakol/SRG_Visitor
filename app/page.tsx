@@ -1681,32 +1681,39 @@ export default function Home() {
           </div>
         </div>
       )}
-      <main className="relative mx-auto w-full max-w-6xl rounded-2xl border border-[#E2CCA8]/80 bg-[#FAEFCC]/90 px-6 py-8 shadow-[0_16px_50px_rgba(0,0,0,0.18)] md:px-10 md:py-10">
-        <div className="relative mb-6 flex items-center justify-center">
-          <div className="flex flex-wrap items-center justify-center gap-6">
-            <Image
-              src="/mainlogo.png"
-              alt="Main logo"
-              width={360}
-              height={120}
-              className="h-16 w-auto"
-              priority
-            />
-            <Image
-              src="/EpacLogo.png"
-              alt="EPAC logo"
-              width={160}
-              height={160}
-              className="h-16 w-auto"
-              priority
-            />
-          </div>
-          <div className="absolute right-0 top-0 flex items-center gap-2">
+      <main className="relative mx-auto w-full max-w-6xl rounded-[30px] border border-[#E2CCA8]/70 bg-[linear-gradient(180deg,rgba(255,251,239,0.96),rgba(250,239,204,0.92))] px-6 py-8 shadow-[0_24px_64px_rgba(22,32,21,0.2)] md:px-10 md:py-10">
+        <div className="relative mb-4 px-3 pb-1 pt-5 md:px-6 md:pb-2 md:pt-6">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-full">
+              <div className="flex flex-col items-center justify-center gap-4 md:flex-row md:gap-1">
+                <div className="flex h-28 w-full max-w-[300px] items-center justify-center px-2">
+                  <Image
+                    src="/mainlogo.png"
+                    alt="Main logo"
+                    width={360}
+                    height={150}
+                    className="h-auto max-h-[84px] w-auto max-w-full object-contain"
+                    priority
+                  />
+                </div>
+                <div className="flex h-28 w-full max-w-[248px] items-center justify-center px-2">
+                  <Image
+                    src="/Epac_logo.png"
+                    alt="EPAC logo"
+                    width={176}
+                    height={176}
+                    className="h-auto max-h-[86px] w-auto max-w-full object-contain"
+                    priority
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="absolute right-4 top-4 z-10 flex justify-center md:right-6 md:top-6 md:justify-end">
             <button
               type="button"
               onClick={() => setLang((prev) => (prev === "th" ? "en" : "th"))}
               aria-label={t("เปลี่ยนภาษา", "Switch language")}
-              className="inline-flex items-center gap-2 rounded-full border border-[#788B64] bg-[#788B64] px-3 py-1 text-xm font-semibold text-white transition hover:bg-[#6b7d58]"
+              className="inline-flex items-center gap-2 rounded-full border border-white/75 bg-white/82 px-3 py-1.5 text-sm font-semibold text-[#2F3B2B] shadow-[0_10px_24px_rgba(47,59,43,0.12)] backdrop-blur transition hover:bg-white"
             >
               <Image
                 src={lang === "th" ? "/flags/th.svg" : "/flags/gb.svg"}
@@ -1719,10 +1726,11 @@ export default function Home() {
             </button>
           </div>
         </div>
-        <h1 className="text-center text-2xl font-semibold tracking-tight text-[#2F3B2B] md:text-2xl">
+        </div>
+        <h1 className="text-center text-lg font-semibold tracking-[0.08em] text-[#2F3B2B] md:text-xl">
           {t("แบบฟอร์มลงทะเบียนผู้เข้าชมโรงงาน", "Visitor Registration Form")}
         </h1>
-        <p className="mt-3 text-center text-sm text-[#2F3B2B]/80">
+        <p className="mx-auto mt-3 max-w-3xl text-center text-sm leading-7 text-[#2F3B2B]/72">
           {t(
             "กรอกข้อมูลให้ครบถ้วนเพื่อแจ้งหน่วยงานที่เกี่ยวข้อง และบันทึกลงระบบฐานข้อมูล",
             "Fill in the details to notify related departments and record the visit."

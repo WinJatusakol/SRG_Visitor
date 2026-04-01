@@ -1,9 +1,20 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import EditBookingModal from "./EditBookingModal";
 import type { Visit } from "./visitTypes";
+import {
+    BANGKOK_TIME_ZONE,
+    extractVisitDateTimeParts,
+    formatThaiDateTime,
+    formatThaiMonthShort,
+    formatThaiDay,
+    formatThaiTime,
+    formatThaiWeekday,
+    getVisitDateKey,
+    getVisitTimeKey,
+} from "@/lib/thai-date-time";
 import {
     CalendarClock,
     Building2,
@@ -18,8 +29,6 @@ import {
     Briefcase,
     ChevronRight,
     MessageSquareText,
-    AlertCircle,
-    Info,
     FileText,
     Download,
     Coffee,
@@ -35,40 +44,6 @@ import {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-const specialDietText = (value: unknown) => {
-    const data = isRecord(value) && isRecord(value.foodPreferences) ? value.foodPreferences : value;
-    if (!isRecord(data)) return "-";
-    const sd = data.specialDiet;
-    if (!isRecord(sd)) return "-";
-
-    const halal = Number(sd.halalSets ?? 0);
-    const vegan = Number(sd.veganSets ?? 0);
-    if (halal <= 0 && vegan <= 0) return "-";
-
-    const lines: string[] = [];
-    if (halal > 0) lines.push(`• ฮาลาล ${halal} ชุด`);
-    if (vegan > 0) lines.push(`• วีแกน ${vegan} ชุด`);
-    return lines.join("\n");
-};
-
-const allergyText = (value: unknown) => {
-    const data = isRecord(value) && isRecord(value.foodPreferences) ? value.foodPreferences : value;
-    if (!isRecord(data)) return "-";
-    const a = data.allergies;
-    if (!isRecord(a)) return "-";
-
-    const itemsRaw = a.items;
-    const items = Array.isArray(itemsRaw)
-        ? itemsRaw.filter((x): x is string => typeof x === "string" && x.trim().length > 0 && x !== "อื่นๆ")
-        : [];
-    const other = typeof a.other === "string" ? a.other.trim() : "";
-
-    const parts: string[] = [];
-    if (items.length > 0) parts.push(`• ${items.join(", ")}`);
-    if (other) parts.push(`• อื่นๆ: ${other}`);
-    return parts.length > 0 ? parts.join("\n") : "-";
-};
-
 const souvenirData = (value: unknown) => {
     if (!value) return null;
     const data = isRecord(value) && isRecord(value.souvenirPreferences) ? value.souvenirPreferences : value;
@@ -82,7 +57,7 @@ const souvenirData = (value: unknown) => {
     return { giftSet, count, extra };
 };
 
-// ปรับให้คืนค่า null ถ้าไม่มีไฟล์ เพื่อให้เอาไปใช้เป็นเงื่อนไขซ่อน/โชว์ได้
+// คืนค่า null หากไม่มีไฟล์แนบ เพื่อใช้เช็กว่าจะต้องแสดง section นี้หรือไม่
 const renderFileList = (value: unknown) => {
     let fileData: unknown = value;
     if (Array.isArray(value) && value.length > 0 && isRecord(value[0]) && "registrationFile" in value[0]) {
@@ -129,21 +104,7 @@ const renderFileList = (value: unknown) => {
         </div>
     );
 };
-export const getVisitDateObj = (visitDateTime?: any, createdAt?: any) => {
-    if (visitDateTime && typeof visitDateTime === "string") {
-        let cleanStr = visitDateTime.replace(/Z$/, "").replace(/\+00:00$/, "");
-        if (!cleanStr.match(/(\+|-)\d{2}:\d{2}$/)) {
-            cleanStr += "+07:00";
-        }
-        const d = new Date(cleanStr);
-        if (!isNaN(d.getTime())) return d;
-    }
-    if (createdAt && typeof createdAt === "string") {
-        const d = new Date(createdAt);
-        if (!isNaN(d.getTime())) return d;
-    }
-    return new Date(0);
-};
+
 export function VisitDetailsModal({
     selectedVisit,
     onClose,
@@ -195,15 +156,8 @@ export function VisitDetailsModal({
                                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                                     <p className="text-sm text-[#788B64] font-semibold flex items-center gap-1.5">
                                         <CalendarClock className="w-4 h-4" />
-                                        {selectedVisit.visitDateTime || selectedVisit.created_at
-                                            ? new Intl.DateTimeFormat("th-TH", {
-                                                year: "numeric",
-                                                month: "long",
-                                                day: "numeric",
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                                timeZone,
-                                            }).format(getVisitDateObj(selectedVisit.visitDateTime, selectedVisit.created_at)) + " น."
+                                        {formatThaiDateTime(selectedVisit.visitDateTime || selectedVisit.created_at || null, timeZone)
+                                            ? `${formatThaiDateTime(selectedVisit.visitDateTime || selectedVisit.created_at || null, timeZone)} น.`
                                             : "ไม่ระบุเวลาเข้าพบ"}
                                     </p>
                                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.className}`}>
@@ -223,7 +177,7 @@ export function VisitDetailsModal({
                 </div>
 
                 <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                    <div data-audit-section="overview" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
                         <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                             <MessageSquareText className="w-5 h-5 text-[#788B64]" />
                             <h3 className="text-base font-bold text-[#1b2a18]">ข้อมูลผู้เข้าเยี่ยมชม</h3>
@@ -254,7 +208,7 @@ export function VisitDetailsModal({
                                 <div className="bg-zinc-50/80 rounded-xl p-5 border border-[#E2CCA8]/60 mt-4">
                                     <div>
                                         <dt className="text-xs font-semibold text-[#788B64] uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                                            <MessageSquareText className="w-3.5 h-3.5" /> ข้อความ Welcome board
+                                            <MessageSquareText className="w-3.5 h-3.5" /> ข้อความบนป้ายต้อนรับ
                                         </dt>
                                         <dd className="text-base font-bold text-[#1b2a18]">{selectedVisit.welcomeMessage}</dd>
                                     </div>
@@ -264,15 +218,14 @@ export function VisitDetailsModal({
                     </div>
 
                     <div className="space-y-6">
-                        {/* Guests (ลูกค้า) */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                        {/* Guests */}
+                        <div data-audit-section="guests" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
                             <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div className="flex items-center gap-2">
                                     <Users className="w-5 h-5 text-[#788B64]" />
-                                    <h3 className="text-base font-bold text-[#1b2a18]">รายชื่อผู้เข้าเยี่ยมชม (ลูกค้า)</h3>
+                                    <h3 className="text-base font-bold text-[#1b2a18]">รายชื่อผู้เข้าเยี่ยมชม</h3>
                                     <span className="text-xs font-bold text-[#788B64] bg-[#788B64]/10 px-2.5 py-1 rounded-md border border-[#788B64]/20">{selectedVisit.guests?.length || 0} ท่าน</span>
                                 </div>
-                                {/* แสดงไฟล์ PDF แนบรายชื่อตรงนี้ ถ้ามี */}
                                 {regFilesContent !== null && (
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs font-semibold text-zinc-500">ไฟล์แนบรายชื่อ:</span>
@@ -298,7 +251,6 @@ export function VisitDetailsModal({
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {/* Badges พื้นที่อาหาร */}
                                                 <div className="flex flex-wrap items-center gap-2 sm:justify-end mt-2 sm:mt-0 pl-14 sm:pl-0">
                                                     {g.halal && <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-md border border-emerald-200">ฮาลาล</span>}
                                                     {g.vegan && <span className="px-2 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-md border border-green-200">มังสวิรัติ</span>}
@@ -317,8 +269,8 @@ export function VisitDetailsModal({
                             </div>
                         </div>
 
-                        {/* Internal Attendees (EPAC) */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                        {/* ผู้เข้าร่วมภายใน */}
+                        <div data-audit-section="internal-attendees" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
                             <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Users className="w-5 h-5 text-[#788B64]" />
@@ -352,24 +304,25 @@ export function VisitDetailsModal({
                         </div>
 
                         {/* Transport */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
+                        <div data-audit-section="transport" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
                             <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                                 <CarFront className="w-5 h-5 text-[#788B64]" />
                                 <h3 className="text-base font-bold text-[#1b2a18]">ข้อมูลการเดินทาง</h3>
                             </div>
                             <div className="p-5 sm:p-6 flex-1 bg-white/50">
                                 <div className="flex items-center gap-4 mb-5">
-                                    <div className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${selectedVisit.transportType === "personal"
-                                        ? "bg-[#788B64]/15 text-[#1b2a18] border-[#788B64]/30"
-                                        : selectedVisit.transportType === "shuttle"
+                                    <div className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${
+                                        selectedVisit.transportType === "personal"
+                                          ? "bg-[#788B64]/15 text-[#1b2a18] border-[#788B64]/30"
+                                          : selectedVisit.transportType === "shuttle"
                                             ? "bg-[#E2CCA8]/40 text-[#1b2a18] border-[#E2CCA8]"
                                             : "bg-zinc-100 text-zinc-600 border-zinc-200"
-                                        }`}>
+                                      }`}>
                                         {selectedVisit.transportType === "personal"
-                                            ? "🚗 เดินทางด้วยรถส่วนตัว"
-                                            : selectedVisit.transportType === "shuttle"
-                                                ? "🚌 รถรับ-ส่ง"
-                                                : "-"}
+                                          ? "เดินทางด้วยรถส่วนตัว"
+                                          : selectedVisit.transportType === "shuttle"
+                                            ? "รถรับ-ส่ง"
+                                            : "-"}
                                     </div>
                                     {selectedVisit.transportType === "personal" && (
                                         <div className="text-sm font-semibold text-zinc-600">จำนวน: {selectedVisit.cars?.length || 0} คัน</div>
@@ -399,7 +352,7 @@ export function VisitDetailsModal({
                                                         <tr>
                                                             <th className="px-4 py-3 font-bold text-[#788B64] whitespace-nowrap w-[40%]">วันและเวลา</th>
                                                             <th className="px-4 py-3 font-bold text-[#788B64] whitespace-nowrap w-[30%]">จุดรับ</th>
-                                                            <th className="px-4 py-3 font-bold text-[#788B64] whitespace-nowrap w-[30%]">จุดส่ง (จุดหมาย)</th>
+                                                            <th className="px-4 py-3 font-bold text-[#788B64] whitespace-nowrap w-[30%]">จุดส่ง</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-[#E2CCA8]/30">
@@ -418,7 +371,7 @@ export function VisitDetailsModal({
                                                                             month: "short",
                                                                             day: "numeric"
                                                                         }).format(new Date(s.date));
-                                                                    } catch (e) { }
+                                                                    } catch { }
                                                                 }
 
                                                                 return (
@@ -450,15 +403,15 @@ export function VisitDetailsModal({
                         </div>
                     </div>
 
-                    {/* Site Visit */}
+                    {/* การเข้าชมพื้นที่ */}
                     {selectedVisit.siteVisit ? (() => {
                         const siteV = selectedVisit.siteVisit as any;
                         if (!siteV.areas || siteV.areas.length === 0) return null;
                         return (
-                            <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                            <div data-audit-section="site-visit" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
                                 <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                                     <MapPin className="w-5 h-5 text-[#788B64]" />
-                                    <h3 className="text-base font-bold text-[#1b2a18]">การเข้าชมพื้นที่ (Site Visit)</h3>
+                                    <h3 className="text-base font-bold text-[#1b2a18]">การเข้าชมพื้นที่</h3>
                                 </div>
                                 <div className="p-5 sm:p-6 bg-white/50">
                                     <div className="mb-5">
@@ -495,11 +448,11 @@ export function VisitDetailsModal({
                         );
                     })() : null}
 
-                    {/* Facilities & Extras */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                    {/* การอำนวยความสะดวก */}
+                    <div data-audit-section="facilities" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
                         <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                             <Building2 className="w-5 h-5 text-[#788B64]" />
-                            <h3 className="text-base font-bold text-[#1b2a18]">การอำนวยความสะดวก (Facilities & Extras)</h3>
+                            <h3 className="text-base font-bold text-[#1b2a18]">การอำนวยความสะดวก</h3>
                         </div>
                         <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-5 bg-white/50">
                             <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/60 shadow-sm">
@@ -538,160 +491,130 @@ export function VisitDetailsModal({
                         const foodData = foodValue && typeof foodValue === "object" ? foodValue : null;
                         const meals = Array.isArray(foodData?.meals) ? foodData.meals : [];
                         const hasMeals = meals.length > 0;
-                        const sdText = specialDietText(foodData);
-                        const alText = allergyText(foodData);
-                        const hasSpecialDiet = sdText !== "-";
-                        const hasAllergies = alText !== "-";
 
-                        if (!hasMeals && !hasSpecialDiet && !hasAllergies) return null;
+                        // ถ้าไม่ได้เลือกมื้ออาหารใดเลย ก็ไม่ต้องแสดงกล่องนี้
+                        if (!hasMeals) return null;
 
-                        const mealIcon = (meal: string) => {
-                            if (meal === "เช้า" || meal === "อาหารว่างเช้า") return <Coffee className="w-4 h-4 text-[#788B64]" />;
-                            if (meal === "กลางวัน") return <Sun className="w-4 h-4 text-[#788B64]" />;
-                            if (meal === "เย็น") return <Moon className="w-4 h-4 text-[#788B64]" />;
-                            return <Utensils className="w-4 h-4 text-zinc-500" />;
-                        };
+                        const hasBreakfast = meals.includes("เช้า");
+                        const hasLunch = meals.includes("กลางวัน");
+                        const hasDinner = meals.includes("เย็น");
+                        const hasMorningSnack = meals.includes("อาหารว่างเช้า");
+                        const hasAfternoonSnack = meals.includes("อาหารว่างบ่าย");
 
                         return (
-                            <div className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden">
+                            <div data-audit-section="food" className="bg-white rounded-2xl shadow-sm border border-[#E2CCA8]/60 overflow-hidden flex flex-col">
                                 <div className="bg-[#FAEFCC]/40 px-5 sm:px-6 py-4 border-b border-[#E2CCA8]/60 flex items-center gap-2">
                                     <Utensils className="w-5 h-5 text-[#788B64]" />
-                                    <h3 className="text-base font-bold text-[#1b2a18]">อาหารและข้อจำกัด</h3>
+                                    <h3 className="text-base font-bold text-[#1b2a18]">ข้อมูลมื้ออาหารและเบรก</h3>
                                 </div>
 
-                                <div className="p-5 sm:p-6 bg-white/50">
-                                    {hasMeals ? (
-                                        <div className="space-y-4">
-                                            <div className="flex flex-wrap gap-2">
-                                                {meals.map((m: string, i: number) => (
-                                                    <span key={i} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-[#E2CCA8]/60 text-sm font-bold text-[#1b2a18] shadow-sm">
-                                                        {mealIcon(m)} {m}
-                                                    </span>
-                                                ))}
-                                            </div>
+                                <div className="p-5 sm:p-6 bg-white/50 flex-1">
+                                    <div className="space-y-4">
+                                        {/* การ์ดมื้อหลัก */}
+                                        {(hasBreakfast || hasLunch || hasDinner) && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                
+                                                {/* มื้อเช้า */}
+                                                {hasBreakfast && (
+                                                    <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
+                                                        <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
+                                                            <Coffee className="w-4 h-4" /> เมนูเช้า
+                                                        </div>
+                                                        <div className="flex flex-col gap-1 flex-1 justify-center">
+                                                            <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว</span>
+                                                            <span className="font-semibold text-[#1b2a18] whitespace-pre-line">
+                                                                {foodData?.menus?.breakfastOther
+                                                                    ? `${foodData?.menus?.breakfast} - ${foodData?.menus?.breakfastOther}`
+                                                                    : (foodData?.menus?.breakfast || "-")}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
 
-                                            {foodData?.menus && (
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                    {/* มื้อเช้า */}
-                                                    {foodData?.menus?.breakfast && (
-                                                        <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
-                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
-                                                                <Coffee className="w-4 h-4" /> เมนูเช้า
+                                                {/* มื้อกลางวัน */}
+                                                {hasLunch && (
+                                                    <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
+                                                        <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
+                                                            <Sun className="w-4 h-4" /> เมนูกลางวัน
+                                                        </div>
+                                                        <div className="flex flex-col gap-3 flex-1 justify-center">
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว</span>
+                                                                <span className="font-semibold text-[#1b2a18]">
+                                                                    {foodData?.menus?.lunch?.otherMain
+                                                                        ? `${foodData?.menus?.lunch?.main} - ${foodData?.menus?.lunch?.otherMain}`
+                                                                        : (foodData?.menus?.lunch?.main || "-")}
+                                                                </span>
                                                             </div>
-                                                            <div className="flex flex-col gap-1 flex-1 justify-center">
-                                                                <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
-                                                                <span className="font-semibold text-[#1b2a18] whitespace-pre-line">
-                                                                    {foodData?.menus?.breakfastOther
-                                                                        ? `${foodData?.menus?.breakfast} - ${foodData?.menus?.breakfastOther}`
-                                                                        : (foodData?.menus?.breakfast || "-")}
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน</span>
+                                                                <span className="font-semibold text-[#1b2a18]">
+                                                                    {foodData?.menus?.lunch?.otherDessert
+                                                                        ? `${foodData?.menus?.lunch?.dessert} - ${foodData?.menus?.lunch?.otherDessert}`
+                                                                        : (foodData?.menus?.lunch?.dessert || "-")}
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                    )}
-                                                    {/* มื้อกลางวัน */}
-                                                    {foodData?.menus?.lunch && (
-                                                        <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
-                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
-                                                                <Sun className="w-4 h-4" /> เมนูกลางวัน
-                                                            </div>
-                                                            <div className="flex flex-col gap-3 flex-1 justify-center">
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-[#1b2a18]">
-                                                                        {foodData?.menus?.lunch?.otherMain
-                                                                            ? `${foodData?.menus?.lunch?.main} - ${foodData?.menus?.lunch?.otherMain}`
-                                                                            : (foodData?.menus?.lunch?.main || "-")}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน (Dessert)</span>
-                                                                    <span className="font-semibold text-[#1b2a18]">
-                                                                        {foodData?.menus?.lunch?.otherDessert
-                                                                            ? `${foodData?.menus?.lunch?.dessert} - ${foodData?.menus?.lunch?.otherDessert}`
-                                                                            : (foodData?.menus?.lunch?.dessert || "-")}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {/* มื้อเย็น */}
-                                                    {foodData?.menus?.dinner && (
-                                                        <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
-                                                            <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
-                                                                <Moon className="w-4 h-4" /> เมนูเย็น
-                                                            </div>
-                                                            <div className="flex flex-col gap-3 flex-1 justify-center">
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว (Main)</span>
-                                                                    <span className="font-semibold text-[#1b2a18]">
-                                                                        {foodData?.menus?.dinner?.otherMain
-                                                                            ? `${foodData?.menus?.dinner?.main} - ${foodData?.menus?.dinner?.otherMain}`
-                                                                            : (foodData?.menus?.dinner?.main || "-")}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน (Dessert)</span>
-                                                                    <span className="font-semibold text-[#1b2a18]">
-                                                                        {foodData?.menus?.dinner?.otherDessert
-                                                                            ? `${foodData?.menus?.dinner?.dessert} - ${foodData?.menus?.dinner?.otherDessert}`
-                                                                            : (foodData?.menus?.dinner?.dessert || "-")}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
+                                                    </div>
+                                                )}
 
-                                            {(hasSpecialDiet || hasAllergies) && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                                    {hasSpecialDiet && (
-                                                        <div className="p-4 bg-[#FAEFCC]/40 rounded-xl border border-[#E2CCA8]/60 shadow-sm">
-                                                            <span className="block text-xs font-extrabold text-[#788B64] uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
-                                                            <div className="text-sm text-[#1b2a18] font-semibold whitespace-pre-line leading-relaxed">
-                                                                {sdText}
+                                                {/* มื้อเย็น */}
+                                                {hasDinner && (
+                                                    <div className="bg-white p-4 rounded-xl border border-[#E2CCA8]/50 shadow-sm flex flex-col">
+                                                        <div className="flex items-center gap-2 text-sm font-extrabold text-[#788B64] mb-3 pb-2 border-b border-[#E2CCA8]/30">
+                                                            <Moon className="w-4 h-4" /> เมนูเย็น
+                                                        </div>
+                                                        <div className="flex flex-col gap-3 flex-1 justify-center">
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="block text-xs font-bold text-zinc-400 uppercase">อาหารคาว</span>
+                                                                <span className="font-semibold text-[#1b2a18]">
+                                                                    {foodData?.menus?.dinner?.otherMain
+                                                                        ? `${foodData?.menus?.dinner?.main} - ${foodData?.menus?.dinner?.otherMain}`
+                                                                        : (foodData?.menus?.dinner?.main || "-")}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="block text-xs font-bold text-zinc-400 uppercase">ของหวาน</span>
+                                                                <span className="font-semibold text-[#1b2a18]">
+                                                                    {foodData?.menus?.dinner?.otherDessert
+                                                                        ? `${foodData?.menus?.dinner?.dessert} - ${foodData?.menus?.dinner?.otherDessert}`
+                                                                        : (foodData?.menus?.dinner?.dessert || "-")}
+                                                                </span>
                                                             </div>
                                                         </div>
-                                                    )}
-                                                    {hasAllergies && (
-                                                        <div className="p-4 bg-red-50/50 rounded-xl border border-red-200 shadow-sm">
-                                                            <span className="flex items-center gap-1.5 text-xs font-extrabold text-red-700 uppercase mb-3">
-                                                                <AlertCircle className="w-4 h-4" /> ข้อมูลการแพ้อาหาร
-                                                            </span>
-                                                            <div className="text-sm text-red-900 font-semibold whitespace-pre-line leading-relaxed">
-                                                                {alText}
-                                                            </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* อาหารว่าง */}
+                                        {(hasMorningSnack || hasAfternoonSnack) && (
+                                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {hasMorningSnack && (
+                                                    <div className="flex items-center gap-4 p-4 bg-[#788B64]/10 rounded-xl border border-[#788B64]/30 shadow-sm">
+                                                        <div className="bg-white p-2.5 rounded-full text-[#788B64] shrink-0 shadow-sm border border-[#E2CCA8]/40">
+                                                            <Coffee className="w-5 h-5" />
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {(hasSpecialDiet || hasAllergies) && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {hasSpecialDiet && (
-                                                        <div className="p-4 bg-[#FAEFCC]/40 rounded-xl border border-[#E2CCA8]/60 shadow-sm">
-                                                            <span className="block text-xs font-extrabold text-[#788B64] uppercase mb-3">อาหารพิเศษ (Special Diet)</span>
-                                                            <div className="text-sm text-[#1b2a18] font-semibold whitespace-pre-line leading-relaxed">
-                                                                {sdText}
-                                                            </div>
+                                                        <div>
+                                                            <div className="text-[0.95rem] font-bold text-[#1b2a18]">อาหารว่างเช้า (Morning Break)</div>
+                                                            <div className="text-xs font-semibold text-[#788B64] mt-1">จัดเตรียมชุดเบรกช่วงเช้า</div>
                                                         </div>
-                                                    )}
-                                                    {hasAllergies && (
-                                                        <div className="p-4 bg-red-50/50 rounded-xl border border-red-200 shadow-sm">
-                                                            <span className="flex items-center gap-1.5 text-xs font-extrabold text-red-700 uppercase mb-3">
-                                                                <AlertCircle className="w-4 h-4" /> ข้อมูลการแพ้อาหาร
-                                                            </span>
-                                                            <div className="text-sm text-red-900 font-semibold whitespace-pre-line leading-relaxed">
-                                                                {alText}
-                                                            </div>
+                                                    </div>
+                                                )}
+                                                {hasAfternoonSnack && (
+                                                    <div className="flex items-center gap-4 p-4 bg-[#788B64]/10 rounded-xl border border-[#788B64]/30 shadow-sm">
+                                                        <div className="bg-white p-2.5 rounded-full text-[#788B64] shrink-0 shadow-sm border border-[#E2CCA8]/40">
+                                                            <Coffee className="w-5 h-5" />
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                                        <div>
+                                                            <div className="text-[0.95rem] font-bold text-[#1b2a18]">อาหารว่างบ่าย (Afternoon Break)</div>
+                                                            <div className="text-xs font-semibold text-[#788B64] mt-1">จัดเตรียมชุดเบรกช่วงบ่าย</div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -699,7 +622,7 @@ export function VisitDetailsModal({
                 </div>
 
                 {/* Footer Modal */}
-                <div className="shrink-0 border-t border-[#E2CCA8]/60 bg-white px-6 py-4 sm:rounded-b-3xl">
+                <div data-audit-section="requester" className="shrink-0 border-t border-[#E2CCA8]/60 bg-white px-6 py-4 sm:rounded-b-3xl">
                     <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4">
                         <div className="text-xs text-zinc-500 font-medium flex flex-wrap items-center gap-x-4 gap-y-1">
                             <span className="flex items-center gap-1.5">
@@ -751,6 +674,7 @@ export function VisitDetailsModal({
 
 export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null);
+    const [scrollTargetSection, setScrollTargetSection] = useState<string | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
     const [resultPopup, setResultPopup] = useState<{ open: boolean; kind: "bookingCanceled" }>({
@@ -759,7 +683,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     });
     const resultTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const router = useRouter();
-    const timeZone = "Asia/Bangkok";
+    const timeZone = BANGKOK_TIME_ZONE;
     const [editVisit, setEditVisit] = useState<Visit | null>(null);
     const [filterDateFrom, setFilterDateFrom] = useState("");
     const [filterDateTo, setFilterDateTo] = useState("");
@@ -776,6 +700,36 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
         };
     }, []);
+
+    useEffect(() => {
+        const onOpenVisit = (event: Event) => {
+            const customEvent = event as CustomEvent<{ visitorId?: string; sectionId?: string }>;
+            const visitorId = String(customEvent.detail?.visitorId ?? "").trim();
+            const sectionId = String(customEvent.detail?.sectionId ?? "").trim();
+            if (!visitorId) return;
+            const foundVisit = visits.find((visit) => String(visit.id) === visitorId) ?? null;
+            if (foundVisit) {
+                setScrollTargetSection(sectionId || null);
+                setSelectedVisit(foundVisit);
+            }
+        };
+
+        window.addEventListener("audit-log:open-visit", onOpenVisit as EventListener);
+        return () => {
+            window.removeEventListener("audit-log:open-visit", onOpenVisit as EventListener);
+        };
+    }, [visits]);
+
+    useEffect(() => {
+        if (!selectedVisit || !scrollTargetSection) return;
+        const timer = window.setTimeout(() => {
+            const target = document.querySelector(`[data-audit-section="${scrollTargetSection}"]`);
+            if (target instanceof HTMLElement) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }, 200);
+        return () => window.clearTimeout(timer);
+    }, [scrollTargetSection, selectedVisit]);
 
     const finishResult = () => {
         if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
@@ -795,23 +749,15 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     const sortedVisits = useMemo(() => {
         if (!visits) return [];
         return [...visits].sort((a, b) => {
-            // เปลี่ยนมาใช้ getVisitDateObj
-            const dateA = getVisitDateObj(a.visitDateTime, a.created_at).getTime();
-            const dateB = getVisitDateObj(b.visitDateTime, b.created_at).getTime();
-            return dateA - dateB;
-        });
-    }, [visits]);
+            const dateKeyA = getVisitDateKey(a.visitDateTime || a.created_at || null, timeZone);
+            const dateKeyB = getVisitDateKey(b.visitDateTime || b.created_at || null, timeZone);
+            if (dateKeyA !== dateKeyB) return dateKeyA.localeCompare(dateKeyB);
 
-    const toThaiDateKey = (visit: Visit) => {
-        const d = getVisitDateObj(visit.visitDateTime, visit.created_at);
-        if (isNaN(d.getTime()) || d.getTime() === 0) return "";
-        return new Intl.DateTimeFormat("en-CA", {
-            timeZone,
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-        }).format(d);
-    };
+            const timeKeyA = getVisitTimeKey(a.visitDateTime || a.created_at || null);
+            const timeKeyB = getVisitTimeKey(b.visitDateTime || b.created_at || null);
+            return timeKeyA.localeCompare(timeKeyB);
+        });
+    }, [timeZone, visits]);
 
     const isActiveStatus = (status: unknown) => status == null || Number(status) === 1;
 
@@ -827,7 +773,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         return sortedVisits.filter((v) => {
             if (!isActiveStatus(v.status)) return false;
 
-            const dateKey = toThaiDateKey(v);
+            const dateKey = getVisitDateKey(v.visitDateTime || v.created_at || null, timeZone);
             if (filterDateFrom && dateKey && dateKey < filterDateFrom) return false;
             if (filterDateTo && dateKey && dateKey > filterDateTo) return false;
             if (filterDateFrom || filterDateTo) {
@@ -841,12 +787,12 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
             return true;
         });
-    }, [filterCompany, filterDateFrom, filterDateTo, sortedVisits]);
+    }, [filterCompany, filterDateFrom, filterDateTo, sortedVisits, timeZone]);
 
     const exportableVisits = useMemo(() => {
         const qCompany = exportCompany.trim().toLowerCase();
         return sortedVisits.filter((v) => {
-            const dateKey = toThaiDateKey(v);
+            const dateKey = getVisitDateKey(v.visitDateTime || v.created_at || null, timeZone);
             if (exportFrom && dateKey && dateKey < exportFrom) return false;
             if (exportTo && dateKey && dateKey > exportTo) return false;
             if (exportFrom || exportTo) {
@@ -864,7 +810,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
             return true;
         });
-    }, [exportCompany, exportFrom, exportStatus, exportTo, sortedVisits]);
+    }, [exportCompany, exportFrom, exportStatus, exportTo, sortedVisits, timeZone]);
 
     const downloadCsv = (rows: Array<Record<string, string>>, filename: string) => {
         const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -918,19 +864,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
         URL.revokeObjectURL(url);
     };
 
-    const formatExportDateTime = (visit: Visit) => {
-    const d = getVisitDateObj(visit.visitDateTime, visit.created_at);
-    if (isNaN(d.getTime()) || d.getTime() === 0) return "";
-    return new Intl.DateTimeFormat("th-TH", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone,
-    }).format(d);
-};
-
     const exportRows = useMemo(() => {
         return exportableVisits.map((v) => {
             const dt = v.visitDateTime || v.created_at || "";
@@ -941,24 +874,24 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             const submittedBy = isRecord(submittedByRaw) ? submittedByRaw : null;
             return {
                 id: String(v.id ?? ""),
-                วันและเวลา: formatExportDateTime(v),
-                สถานะ: statusText(v.status),
-                ชื่อบริษัทที่เชิญมา: typeof v.clientCompany === "string" ? v.clientCompany : "",
-                ที่อยู่บริษัทที่เชิญมา: typeof v.companyAddress === "string" ? v.companyAddress : "",
-                ประเทศของบริษัทที่เชิญมา: typeof v.country === "string" ? v.country : "",
-                ประเภทผู้เข้าเยี่ยมชม: (() => {
+                "วันและเวลา": formatThaiDateTime(dt, timeZone) ?? "",
+                "สถานะ": statusText(v.status),
+                "ชื่อบริษัท/องค์กร": typeof v.clientCompany === "string" ? v.clientCompany : "",
+                "ที่อยู่บริษัท/องค์กร": typeof v.companyAddress === "string" ? v.companyAddress : "",
+                "ประเทศของบริษัท/องค์กร": typeof v.country === "string" ? v.country : "",
+                "ประเภทผู้เข้าเยี่ยมชม": (() => {
                     const type = v.visitorType;
                     const other = v.visitorTypeOther;
                     if (type && other && type === "อื่นๆ") return `${type} - ${other}`;
                     return typeof type === "string" ? type : "";
                 })(),
-                วัตถุประสงค์: typeof v.purposeOfVisit === "string" ? v.purposeOfVisit : "",
-                จำนวนผู้เข้าร่วม: String((v.guests?.length ?? v.totalGuests ?? 0) || 0),
-                เบอร์ผู้ประสานงาน: typeof v.contactPhone === "string" ? v.contactPhone : "",
-                ชื่อผู้กรอกข้อมูล: typeof submittedBy?.name === "string" ? submittedBy.name : "",
+                "วัตถุประสงค์": typeof v.purposeOfVisit === "string" ? v.purposeOfVisit : "",
+                "จำนวนผู้เข้าร่วม": String((v.guests?.length ?? v.totalGuests ?? 0) || 0),
+                "เบอร์ผู้ประสานงาน": typeof v.contactPhone === "string" ? v.contactPhone : "",
+                "ชื่อผู้กรอกข้อมูล": typeof submittedBy?.name === "string" ? submittedBy.name : "",
             };
         });
-    }, [exportableVisits]);
+    }, [exportableVisits, timeZone]);
 
     const exportFilenameBase = useMemo(() => {
         const parts = [
@@ -1021,15 +954,15 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
                 <div>
                     <h2 className="text-2xl font-extrabold text-[#1b2a18]">
-                        Visitor Log
+                        บันทึกรายการผู้เข้าเยี่ยมชม
                     </h2>
-                    <p className="text-[#1b2a18]/70 text-sm mt-1">รายการแขกคนสำคัญและผู้มาเยือน</p>
+                    <p className="text-[#1b2a18]/70 text-sm mt-1">รายการแขกสำคัญและผู้มาเยือน</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md py-2 px-4 rounded-2xl shadow-sm border border-[#E2CCA8]/60">
                         <Users className="w-4 h-4 text-[#788B64]" />
                         <span className="text-sm font-medium text-[#1b2a18]">
-                            กำลังดำเนินอยู่: <span className="text-[#788B64] font-extrabold">{filteredVisits.length}</span> รายการ
+                            กำลังดำเนินการอยู่: <span className="text-[#788B64] font-extrabold">{filteredVisits.length}</span> รายการ
                         </span>
                     </div>
                     <button
@@ -1071,11 +1004,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         />
                     </div>
                     <div className="flex flex-col gap-1 lg:col-span-2">
-                        <label className="text-xs font-bold text-[#788B64] uppercase tracking-wider">ชื่อบริษัทที่เชิญมา</label>
+                        <label className="text-xs font-bold text-[#788B64] uppercase tracking-wider">ชื่อบริษัท/องค์กร</label>
                         <input
                             value={filterCompany}
                             onChange={(e) => setFilterCompany(e.target.value)}
-                            placeholder="พิมพ์ชื่อบริษัทที่เชิญมาเพื่อค้นหา"
+                            placeholder="พิมพ์ชื่อบริษัทหรือองค์กรเพื่อค้นหา"
                             className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                         />
                     </div>
@@ -1112,13 +1045,23 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                         </thead>
                         <tbody className="divide-y divide-[#E2CCA8]/40">
                             {filteredVisits.map((visit, index) => {
-                                const visitDate = getVisitDateObj(visit.visitDateTime, visit.created_at);
-                                const monthShort = new Intl.DateTimeFormat("en-US", { month: "short", timeZone }).format(visitDate);
-                                const dayNum = new Intl.DateTimeFormat("en-US", { day: "2-digit", timeZone }).format(visitDate);
-                                const timeText = new Intl.DateTimeFormat("th-TH", { hour: "2-digit", minute: "2-digit", timeZone }).format(visitDate);
-                                const weekdayText = new Intl.DateTimeFormat("th-TH", { weekday: "long", timeZone }).format(visitDate);
+                                const visitValue = visit.visitDateTime || visit.created_at || null;
+                                const visitParts = extractVisitDateTimeParts(visit.visitDateTime || null);
+                                const visitDate = new Date(visitValue || 0);
+                                const monthShort = visitParts
+                                    ? formatThaiMonthShort(visitParts.date, timeZone)
+                                    : formatThaiMonthShort(visitDate, timeZone);
+                                const dayNum = visitParts
+                                    ? formatThaiDay(visitParts.date, timeZone)
+                                    : formatThaiDay(visitDate, timeZone);
+                                const timeText = visitParts
+                                    ? formatThaiTime(visitParts.time, timeZone)
+                                    : formatThaiTime(visitDate, timeZone);
+                                const weekdayText = visitParts
+                                    ? formatThaiWeekday(visitParts.date, timeZone)
+                                    : formatThaiWeekday(visitDate, timeZone);
                                 return (
-                                    <tr key={visit.id} onClick={() => setSelectedVisit(visit)} className="group transition-all duration-200 hover:bg-[#FAEFCC]/40 hover:shadow-md hover:shadow-[#788B64]/10 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10">
+                                    <tr key={visit.id} onClick={() => { setScrollTargetSection(null); setSelectedVisit(visit); }} className="group transition-all duration-200 hover:bg-[#FAEFCC]/40 hover:shadow-md hover:shadow-[#788B64]/10 hover:-translate-y-1 rounded-2xl cursor-pointer relative z-10">
                                         <td className="px-6 py-5 align-top">
                                             <div className="flex items-start gap-3">
                                                 <div className="shrink-0 w-12 h-12 bg-[#FAEFCC] text-[#788B64] rounded-xl flex flex-col items-center justify-center shadow-sm border border-[#E2CCA8] group-hover:bg-[#788B64] group-hover:text-white transition-colors">
@@ -1161,7 +1104,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
 
             <VisitDetailsModal
                 selectedVisit={selectedVisit}
-                onClose={() => setSelectedVisit(null)}
+                onClose={() => { setSelectedVisit(null); setScrollTargetSection(null); }}
                 timeZone={timeZone}
                 readOnly={false}
                 updatingStatus={updatingStatus}
@@ -1179,9 +1122,9 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                 >
                     <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-zinc-200">
                         <div className="px-6 py-5">
-                            <div className="text-lg font-bold text-zinc-900">Cancel booking?</div>
+                            <div className="text-lg font-bold text-zinc-900">ยืนยันยกเลิกการจอง</div>
                             <div className="mt-2 text-sm text-zinc-600">
-                                ระบบจะเปลี่ยนสถานะเป็น “ยกเลิกแล้ว” และรายการจะหายจากหน้า Dashboard
+                                ระบบจะเปลี่ยนสถานะเป็น &quot;ยกเลิกแล้ว&quot; และรายการนี้จะหายจากหน้าแดชบอร์ด
                             </div>
                         </div>
                         <div className="flex items-center justify-end gap-3 border-t border-zinc-200 px-6 py-4 bg-zinc-50/50 rounded-b-2xl">
@@ -1191,7 +1134,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                 disabled={updatingStatus}
                                 className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed shadow-sm transition-colors"
                             >
-                                Cancel
+                                ปิด
                             </button>
                             <button
                                 type="button"
@@ -1199,7 +1142,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                 disabled={updatingStatus}
                                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-zinc-300 shadow-sm transition-colors"
                             >
-                                {updatingStatus ? "Cancelling..." : "Confirm"}
+                                {updatingStatus ? "กำลังยกเลิก..." : "ยืนยัน"}
                             </button>
                         </div>
                     </div>
@@ -1237,7 +1180,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                     <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-[#FAEFCC] shadow-2xl border border-[#E2CCA8] animate-in zoom-in-95 duration-200">
                         <div className="flex items-start justify-between gap-4 border-b border-[#E2CCA8]/60 bg-white/70 backdrop-blur px-6 py-4">
                             <div>
-                                <div className="text-lg font-bold text-[#1b2a18]">Export Data</div>
+                                <div className="text-lg font-bold text-[#1b2a18]">ส่งออกข้อมูล</div>
                                 <div className="text-sm font-medium text-[#788B64]">เลือกช่วงวันที่ สถานะ และบริษัท</div>
                             </div>
                             <button
@@ -1284,11 +1227,11 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                     </select>
                                 </div>
                                 <div className="flex flex-col gap-1 md:col-span-2">
-                                    <label className="text-sm font-semibold text-[#1b2a18]">ชื่อบริษัทที่เชิญมา</label>
+                                    <label className="text-sm font-semibold text-[#1b2a18]">ชื่อบริษัท/องค์กร</label>
                                     <input
                                         value={exportCompany}
                                         onChange={(e) => setExportCompany(e.target.value)}
-                                        placeholder="เว้นว่างเพื่อเอาทั้งหมด"
+                                        placeholder="เว้นว่างเพื่อเลือกทั้งหมด"
                                         className="rounded-lg border border-[#E2CCA8] bg-white px-3 py-2 text-sm outline-none focus:border-[#788B64] focus:ring-2 focus:ring-[#788B64]/30 transition-all"
                                     />
                                 </div>
@@ -1302,7 +1245,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
                                         <option value="excel">Excel (.xls)</option>
                                         <option value="csv">CSV (.csv)</option>
                                     </select>
-                                    <div className="mt-1 text-xs font-medium text-[#788B64]">วันที่/เวลาอ้างอิงเวลาไทย (Asia/Bangkok)</div>
+                                    <div className="mt-1 text-xs font-medium text-[#788B64]">วันที่และเวลาอ้างอิงเวลาไทย (Asia/Bangkok)</div>
                                 </div>
                             </div>
 
@@ -1354,7 +1297,7 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
     );
 }
 
-// Component ย่อยสำหรับข้อมูลทั่วไป
+// การ์ดข้อมูลทั่วไป
 function InfoCard({ label, value, icon }: { label: string; value: ReactNode; icon: ReactNode }) {
     const displayValue = value === null || value === undefined || value === "" ? "-" : value;
     return (
@@ -1372,7 +1315,7 @@ function InfoCard({ label, value, icon }: { label: string; value: ReactNode; ico
     );
 }
 
-// Component โลโก้บริษัท
+// ไอคอนตัวแทนบริษัท
 function CompanyAvatar({ name, size = "md", idx = 0 }: { name?: string | null; size?: "md" | "lg"; idx?: number }) {
     const initial = name && name.length > 0 ? name.charAt(0).toUpperCase() : <Building2 className={size === "lg" ? "w-6 h-6" : "w-4 h-4"} />;
 
@@ -1391,3 +1334,4 @@ function CompanyAvatar({ name, size = "md", idx = 0 }: { name?: string | null; s
         </div>
     );
 }
+

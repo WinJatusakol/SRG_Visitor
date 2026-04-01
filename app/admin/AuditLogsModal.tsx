@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FileClock, X } from "lucide-react";
+import { ArrowUpRight, FileClock, X } from "lucide-react";
+import { BANGKOK_TIME_ZONE, formatThaiDateTime, formatThaiTimestamp, toBangkokDateInput } from "@/lib/thai-date-time";
 
 type AuditLogRow = {
   id: string | number;
@@ -9,6 +10,7 @@ type AuditLogRow = {
   actor_email: string | null;
   action: string;
   visitor_id: string;
+  company_name?: string | null;
   before: unknown | null;
   after: unknown | null;
   meta: unknown | null;
@@ -79,13 +81,35 @@ const knownFields = [
   "souvenirPreferences",
 ];
 
+const importantFieldOrder = [
+  "clientCompany",
+  "visitDateTime",
+  "meetingRoomSelection",
+  "guests",
+  "internalAttendees",
+  "transportType",
+  "status",
+];
+
+const fieldPriority = Object.fromEntries(
+  importantFieldOrder.map((field, index) => [field, index + 1])
+);
+
+const sortChangeItems = (items: ChangeItem[]) =>
+  [...items].sort((a, b) => {
+    const aPriority = fieldPriority[a.field] ?? 999;
+    const bPriority = fieldPriority[b.field] ?? 999;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    return a.label.localeCompare(b.label, "th");
+  });
+
 const labelFor = (field: string) => {
   const labels: Record<string, string> = {
     status: "สถานะ",
     visitDateTime: "วันและเวลา",
-    clientCompany: "ชื่อบริษัทที่เชิญมา",
-    companyAddress: "ที่อยู่บริษัทที่เชิญมา",
-    country: "ประเทศของบริษัทที่เชิญมา",
+    clientCompany: "ชื่อบริษัท/องค์กร",
+    companyAddress: "ที่อยู่บริษัท/องค์กร",
+    country: "ประเทศของบริษัท/องค์กร",
     visitorType: "ประเภทผู้เข้าเยี่ยมชม",
     visitorTypeOther: "ประเภทอื่นๆ",
     contactPhone: "เบอร์ผู้ประสานงาน",
@@ -111,7 +135,7 @@ const asNumber = (value: unknown) => {
   return Number.isFinite(n) ? n : null;
 };
 
-const limitText = (value: string, max = 220) => (value.length > max ? `${value.slice(0, max)}…` : value);
+const limitText = (value: string, max = 220) => (value.length > max ? `${value.slice(0, max)}...` : value);
 
 const formatUnknownObject = (value: unknown) => {
   const v = parseJsonDeep(value);
@@ -141,21 +165,15 @@ const formatUnknownObject = (value: unknown) => {
       return limitText(String(p), 160);
     };
     const lines = keys.slice(0, 8).map((k) => `${k}: ${previewValue(v[k])}`);
-    const suffix = keys.length > 8 ? `\n… (+${keys.length - 8})` : "";
+    const suffix = keys.length > 8 ? `\n... (+${keys.length - 8})` : "";
     return `${lines.join("\n")}${suffix}` || "-";
   }
   return limitText(String(v), 260);
 };
 
 const formatDateTime = (iso: string | null | undefined) => {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("th-TH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Bangkok",
-  }).format(d);
+  const formatted = formatThaiTimestamp(iso, BANGKOK_TIME_ZONE);
+  return formatted ? `${formatted} น.` : "-";
 };
 
 const statusText = (value: unknown) => {
@@ -288,7 +306,10 @@ const formatValue = (field: string, value: unknown) => {
   const v = parseJsonDeep(value);
   if (v == null || v === "") return "-";
   if (field === "status") return statusText(v);
-  if (field === "visitDateTime" && typeof v === "string") return formatDateTime(v);
+  if (field === "visitDateTime" && typeof v === "string") {
+    const formattedVisit = formatThaiDateTime(v, BANGKOK_TIME_ZONE);
+    return formattedVisit ? `${formattedVisit} น.` : "-";
+  }
   if (field === "transportType") {
     const t = asString(v);
     if (t === "personal") return "ส่วนตัว";
@@ -306,6 +327,20 @@ const formatValue = (field: string, value: unknown) => {
 };
 
 type ChangeItem = { field: string; label: string; from: string; to: string };
+
+const fieldToSection = (field: string) => {
+  if (["clientCompany", "companyAddress", "country", "visitorType", "visitorTypeOther", "purposeOfVisit", "welcomeMessage", "visitDateTime", "status"].includes(field)) {
+    return "overview";
+  }
+  if (field === "guests") return "guests";
+  if (field === "internalAttendees") return "internal-attendees";
+  if (["transportType", "cars", "shuttleSchedules"].includes(field)) return "transport";
+  if (field === "siteVisit") return "site-visit";
+  if (["meetingRoomSelection", "souvenirPreferences"].includes(field)) return "facilities";
+  if (field === "foodPreferences") return "food";
+  if (["submittedBy", "contactPhone"].includes(field)) return "requester";
+  return "";
+};
 
 const getChangeItems = (row: AuditLogRow): ChangeItem[] => {
   const beforeValue = parseJsonDeep(row.before);
@@ -336,8 +371,8 @@ const getChangeItems = (row: AuditLogRow): ChangeItem[] => {
     });
   }
 
-  if (out.length > 0) return out;
-  if (!beforeRec || !afterRec) return out;
+  if (out.length > 0) return sortChangeItems(out);
+  if (!beforeRec || !afterRec) return sortChangeItems(out);
 
   for (const field of knownFields) {
     if (!(field in beforeRec) && !(field in afterRec)) continue;
@@ -352,7 +387,7 @@ const getChangeItems = (row: AuditLogRow): ChangeItem[] => {
     });
   }
 
-  if (out.length > 0) return out;
+  if (out.length > 0) return sortChangeItems(out);
 
   const ignored = new Set(["id", "created_at", "updated_at", "visitorId", "visitor_id"]);
   const allKeys = Array.from(new Set([...Object.keys(beforeRec), ...Object.keys(afterRec)]))
@@ -369,7 +404,7 @@ const getChangeItems = (row: AuditLogRow): ChangeItem[] => {
       to: formatValue(field, toRaw),
     });
   }
-  return out;
+  return sortChangeItems(out);
 };
 
 const summarize = (row: AuditLogRow) => {
@@ -437,6 +472,12 @@ const summarize = (row: AuditLogRow) => {
   return "-";
 };
 
+const primaryFieldForRow = (row: AuditLogRow) => {
+  if (row.action === "cancel" || row.action === "status_change") return "status";
+  const firstChange = getChangeItems(row)[0];
+  return firstChange?.field ?? "";
+};
+
 export default function AuditLogsModal() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AuditLogRow[]>([]);
@@ -448,14 +489,33 @@ export default function AuditLogsModal() {
   const [detailsRow, setDetailsRow] = useState<AuditLogRow | null>(null);
 
   const [actorEmail, setActorEmail] = useState("");
+  const [companyQuery, setCompanyQuery] = useState("");
   const [action, setAction] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [activeDatePreset, setActiveDatePreset] = useState<"" | "today" | "7d" | "30d">("");
+  const [debouncedActorEmail, setDebouncedActorEmail] = useState("");
+  const [debouncedCompanyQuery, setDebouncedCompanyQuery] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedCompanyQuery(companyQuery), 350);
+    return () => window.clearTimeout(timer);
+  }, [companyQuery]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedActorEmail(actorEmail), 350);
+    return () => window.clearTimeout(timer);
+  }, [actorEmail]);
 
   const baseParams = useMemo(() => {
     const params = new URLSearchParams();
-    if (actorEmail.trim()) params.set("actorEmail", actorEmail.trim());
+    if (debouncedCompanyQuery.trim()) params.set("company", debouncedCompanyQuery.trim());
+    if (debouncedActorEmail.trim()) params.set("actorEmail", debouncedActorEmail.trim());
     if (action.trim()) params.set("action", action.trim());
+    if (dateFrom.trim()) params.set("dateFrom", dateFrom.trim());
+    if (dateTo.trim()) params.set("dateTo", dateTo.trim());
     return params;
-  }, [actorEmail, action]);
+  }, [action, dateFrom, dateTo, debouncedActorEmail, debouncedCompanyQuery]);
 
   const loadPage = useCallback(async (pageOffset: number, mode: "reset" | "append") => {
     setLoading(true);
@@ -481,6 +541,27 @@ export default function AuditLogsModal() {
       setLoading(false);
     }
   }, [baseParams]);
+
+  const openBooking = useCallback((id: string, field?: string) => {
+    const safeId = String(id ?? "").trim();
+    if (!safeId) return;
+    const sectionId = fieldToSection(String(field ?? "").trim());
+    window.dispatchEvent(new CustomEvent("audit-log:open-visit", { detail: { visitorId: safeId, sectionId } }));
+    setDetailsRow(null);
+    setOpen(false);
+  }, []);
+
+  const applyQuickDateRange = useCallback((preset: "today" | "7d" | "30d") => {
+    const today = new Date();
+    const end = toBangkokDateInput(today);
+    const startDate = new Date(today);
+    if (preset === "7d") startDate.setDate(startDate.getDate() - 6);
+    if (preset === "30d") startDate.setDate(startDate.getDate() - 29);
+    const start = toBangkokDateInput(startDate);
+    setDateFrom(start);
+    setDateTo(end);
+    setActiveDatePreset(preset);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -524,8 +605,139 @@ export default function AuditLogsModal() {
               </button>
             </div>
 
-            <div className="shrink-0 border-b border-gray-200 bg-gray-50/30 px-6 py-3">
+            <div className="sticky top-0 z-20 shrink-0 border-b border-gray-200 bg-white/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+              <div className="mb-3 flex flex-wrap items-end gap-3">
+                <div className="min-w-[140px]">
+                  <div className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">Company</div>
+                  <input
+                    value={companyQuery}
+                    onChange={(e) => setCompanyQuery(e.target.value)}
+                    placeholder="เช่น Sustain"
+                    className="w-56 max-w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">From</div>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value);
+                      setActiveDatePreset("");
+                    }}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">To</div>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => {
+                      setDateTo(e.target.value);
+                      setActiveDatePreset("");
+                    }}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => applyQuickDateRange("today")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      activeDatePreset === "today"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    วันนี้
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyQuickDateRange("7d")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      activeDatePreset === "7d"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    7 วันล่าสุด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyQuickDateRange("30d")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      activeDatePreset === "30d"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    30 วันล่าสุด
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompanyQuery("");
+                    setActorEmail("");
+                    setAction("");
+                    setDateFrom("");
+                    setDateTo("");
+                    setActiveDatePreset("");
+                  }}
+                  disabled={loading}
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+                >
+                  ล้างตัวกรอง
+                </button>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAction("")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      action === ""
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    ทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction("update")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      action === "update"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    แก้ไขข้อมูล
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction("cancel")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      action === "cancel"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    ยกเลิกการจอง
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAction("status_change")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      action === "status_change"
+                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
+                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    เปลี่ยนสถานะ
+                  </button>
+                </div>
                 <input
                   value={actorEmail}
                   onChange={(e) => setActorEmail(e.target.value)}
@@ -556,6 +768,11 @@ export default function AuditLogsModal() {
                   {loading ? "กำลังโหลด..." : "รีเฟรช"}
                 </button>
               </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-gray-600">
+                <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1">บริษัท: {companyQuery.trim() || "ทั้งหมด"}</span>
+                <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1">Action: {action ? actionText(action) : "ทั้งหมด"}</span>
+                <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1">ช่วงเวลา: {dateFrom || "-"} ถึง {dateTo || "-"}</span>
+              </div>
               {error && (
                 <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
                   {error}
@@ -564,14 +781,14 @@ export default function AuditLogsModal() {
             </div>
 
             <div className="flex-1 overflow-auto p-6 bg-gray-50/30">
-              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <div className={`${items.length === 0 && !loading ? "hidden" : "overflow-hidden"} rounded-xl border border-gray-200 bg-white`}>
                 <table className="min-w-full w-full table-fixed">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr className="border-b border-gray-200">
-                      <th className="px-4 py-3 w-44 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">เวลา</th>
-                      <th className="px-4 py-3 w-64 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">อีเมล</th>
-                      <th className="px-4 py-3 w-36 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">การกระทำ</th>
-                      <th className="px-4 py-3 w-24 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">รายการ</th>
+                      <th className="w-52 border-r border-gray-100 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">เวลา</th>
+                      <th className="w-72 border-r border-gray-100 px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">อีเมล</th>
+                      <th className="w-36 border-r border-gray-100 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">การกระทำ</th>
+                      <th className="w-36 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">บริษัท/องค์กร</th>
                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">รายละเอียด</th>
                     </tr>
                   </thead>
@@ -583,19 +800,29 @@ export default function AuditLogsModal() {
                           idx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
                         } hover:bg-gray-50 transition-colors`}
                       >
-                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{formatDateTime(row.created_at)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
+                        <td className="border-r border-gray-100 px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{formatDateTime(row.created_at)}</td>
+                        <td className="border-r border-gray-100 px-5 py-3 text-sm text-gray-700">
                           <div className="truncate">{row.actor_email || "-"}</div>
                         </td>
-                        <td className="px-4 py-3 text-sm whitespace-nowrap">
+                        <td className="border-r border-gray-100 px-4 py-3 text-sm whitespace-nowrap">
                           <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${actionBadgeClass(row.action)}`}>
                             {actionText(row.action)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                          <span className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-gray-700">
-                            #{row.visitor_id}
-                          </span>
+                          <div className="mb-1 truncate font-semibold text-gray-900">{row.company_name || "-"}</div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-gray-700">
+                              #{row.visitor_id}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openBooking(String(row.visitor_id ?? ""))}
+                              className="hidden rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-2.5 py-1 text-xs font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
+                            >
+                              เปิด booking
+                            </button>
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700">
                           {row.action === "update" ? (
@@ -611,6 +838,18 @@ export default function AuditLogsModal() {
                                   >
                                     ดูรายละเอียด
                                   </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openBooking(String(row.visitor_id ?? ""), primaryFieldForRow(row))}
+                                    aria-label="เปิด booking"
+                                    className="rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-3 py-1.5 text-[0px] font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
+                                  >
+                                    <span className="inline-flex items-center gap-1 text-sm">
+                                      <ArrowUpRight className="h-3.5 w-3.5" />
+                                      เปิด
+                                    </span>
+                                    เปิด booking
+                                  </button>
                                   <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-700">
                                     เปลี่ยน {changes.length} รายการ
                                   </span>
@@ -618,7 +857,21 @@ export default function AuditLogsModal() {
                               );
                             })()
                           ) : (
-                            <div className="whitespace-pre-line">{summarize(row)}</div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="whitespace-pre-line">{summarize(row)}</div>
+                              <button
+                                type="button"
+                                onClick={() => openBooking(String(row.visitor_id ?? ""), primaryFieldForRow(row))}
+                                aria-label="เปิด booking"
+                                className="rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-3 py-1.5 text-[0px] font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
+                              >
+                                <span className="inline-flex items-center gap-1 text-sm">
+                                  <ArrowUpRight className="h-3.5 w-3.5" />
+                                  เปิด
+                                </span>
+                                เปิด booking
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -633,8 +886,16 @@ export default function AuditLogsModal() {
                   </tbody>
                 </table>
               </div>
+              {items.length === 0 && !loading && (
+                <div className="mt-4 rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center">
+                  <div className="text-base font-semibold text-gray-800">ไม่พบ log ตามเงื่อนไขนี้</div>
+                  <div className="mt-2 text-sm text-gray-500">
+                    ลองเปลี่ยนชื่อบริษัท, อีเมลผู้ดำเนินการ, ประเภทการกระทำ หรือช่วงวันที่ แล้วระบบจะค้นหาให้ใหม่
+                  </div>
+                </div>
+              )}
 
-              <div className="mt-4 flex items-center justify-between gap-3">
+              <div className={`mt-4 flex items-center justify-between gap-3 ${items.length === 0 && !loading ? "hidden" : ""}`}>
                 <div className="text-xs text-gray-500">แสดง {items.length} รายการ</div>
                 <button
                   type="button"
@@ -677,6 +938,20 @@ export default function AuditLogsModal() {
 
             <div className="flex-1 overflow-auto p-5 bg-gray-50/30">
               <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                <div className="border-b border-gray-100 bg-white px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => openBooking(String(detailsRow.visitor_id ?? ""), primaryFieldForRow(detailsRow))}
+                    aria-label="เปิด booking"
+                    className="rounded-md border border-[#788B64]/30 bg-[#788B64]/10 px-3 py-1.5 text-[0px] font-semibold text-[#1b2a18] hover:bg-[#788B64]/20"
+                  >
+                    <span className="inline-flex items-center gap-1 text-sm">
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      เปิด
+                    </span>
+                    เปิด booking นี้
+                  </button>
+                </div>
                 {(() => {
                   const items = getChangeItems(detailsRow);
                   if (items.length === 0) {
@@ -722,3 +997,4 @@ export default function AuditLogsModal() {
     </>
   );
 }
+

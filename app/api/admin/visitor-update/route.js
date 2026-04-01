@@ -1,14 +1,6 @@
-import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-
-const requireAdmin = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  return user;
-};
+﻿import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdminUser } from "@/lib/admin/auth";
 
 const isRecord = (value) => value && typeof value === "object" && !Array.isArray(value);
 
@@ -37,11 +29,11 @@ const guestSummary = (items) => {
   const parts = items
     .map((g, index) => {
       const fullName = [asText(g.firstName), asText(g.middleName), asText(g.lastName)].filter(Boolean).join(" ");
-      return fullName || `คนที่ ${index + 1}`;
+      return fullName || `à¸„à¸™à¸—à¸µà¹ˆ ${index + 1}`;
     })
     .filter(Boolean);
   const text = parts.join(", ");
-  return text.length > 220 ? `${text.slice(0, 220)}…` : text;
+  return text.length > 220 ? `${text.slice(0, 220)}â€¦` : text;
 };
 
 const internalAttendeeSummary = (items) => {
@@ -51,11 +43,11 @@ const internalAttendeeSummary = (items) => {
       const fullName = [asText(g.firstName), asText(g.lastName)].filter(Boolean).join(" ");
       const position = asText(g.position);
       const line = [fullName, position].filter(Boolean).join(" / ");
-      return line || `คนที่ ${index + 1}`;
+      return line || `à¸„à¸™à¸—à¸µà¹ˆ ${index + 1}`;
     })
     .filter(Boolean);
   const text = parts.join(", ");
-  return text.length > 220 ? `${text.slice(0, 220)}…` : text;
+  return text.length > 220 ? `${text.slice(0, 220)}â€¦` : text;
 };
 
 const carSummary = (items) => {
@@ -65,11 +57,11 @@ const carSummary = (items) => {
       const brand = asText(c.brand);
       const license = asText(c.license);
       const line = [brand, license].filter(Boolean).join(" / ");
-      return line || `คันที่ ${index + 1}`;
+      return line || `à¸„à¸±à¸™à¸—à¸µà¹ˆ ${index + 1}`;
     })
     .filter(Boolean);
   const text = parts.join(", ");
-  return text.length > 220 ? `${text.slice(0, 220)}…` : text;
+  return text.length > 220 ? `${text.slice(0, 220)}â€¦` : text;
 };
 
 const shuttleSummary = (items) => {
@@ -83,16 +75,16 @@ const shuttleSummary = (items) => {
       const line = [date, time, pickup && destination ? `${pickup} -> ${destination}` : ""]
         .filter(Boolean)
         .join(" | ");
-      return line || `รายการที่ ${index + 1}`;
+      return line || `à¸£à¸²à¸¢à¸à¸²à¸£à¸—à¸µà¹ˆ ${index + 1}`;
     })
     .filter(Boolean);
   const text = parts.join(", ");
-  return text.length > 220 ? `${text.slice(0, 220)}…` : text;
+  return text.length > 220 ? `${text.slice(0, 220)}â€¦` : text;
 };
 
 export async function POST(request) {
   try {
-    const user = await requireAdmin();
+    const user = await requireAdminUser();
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
@@ -224,7 +216,7 @@ export async function POST(request) {
 
           if (Array.isArray(conflicts) && conflicts.length > 0) {
             return NextResponse.json(
-              { success: false, error: "วันและเวลานี้มีการจองแล้ว กรุณาเลือกเวลาอื่น" },
+              { success: false, error: "เวลาที่ท่านเลือกมีการจองแล้ว กรุณาเลือกเวลาอื่น" },
               { status: 409 }
             );
           }
@@ -505,4 +497,5 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
+
 

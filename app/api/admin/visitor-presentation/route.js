@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdminUser } from "@/lib/admin/auth";
 import { randomUUID } from "crypto";
-
-const requireAdmin = async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  return user;
-};
 
 const toSafeFilename = (value) =>
   String(value || "")
@@ -19,7 +11,7 @@ const toSafeFilename = (value) =>
 
 export async function POST(request) {
   try {
-    const user = await requireAdmin();
+    const user = await requireAdminUser();
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
