@@ -186,13 +186,11 @@ const statusText = (value: unknown) => {
 const actionText = (action: string) => {
   if (action === "cancel") return "ยกเลิกการจอง";
   if (action === "update") return "แก้ไขข้อมูล";
-  if (action === "status_change") return "เปลี่ยนสถานะ";
   return action || "-";
 };
 
 const actionBadgeClass = (action: string) => {
   if (action === "cancel") return "bg-red-50 text-red-700 border-red-200";
-  if (action === "status_change") return "bg-amber-50 text-amber-800 border-amber-200";
   if (action === "update") return "bg-blue-50 text-blue-700 border-blue-200";
   return "bg-gray-50 text-gray-700 border-gray-200";
 };
@@ -461,7 +459,7 @@ const summarize = (row: AuditLogRow) => {
     if (genericParts.length > 0) return genericParts.join("\n");
   }
 
-  if (row.action === "cancel" || row.action === "status_change") {
+  if (row.action === "cancel") {
     const beforeStatus = beforeRec ? statusText(beforeRec.status) : "-";
     const afterStatus = afterRec ? statusText(afterRec.status) : "-";
     return `สถานะ: ${beforeStatus} → ${afterStatus}`;
@@ -473,7 +471,7 @@ const summarize = (row: AuditLogRow) => {
 };
 
 const primaryFieldForRow = (row: AuditLogRow) => {
-  if (row.action === "cancel" || row.action === "status_change") return "status";
+  if (row.action === "cancel") return "status";
   const firstChange = getChangeItems(row)[0];
   return firstChange?.field ?? "";
 };
@@ -593,7 +591,7 @@ export default function AuditLogsModal() {
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 bg-white px-6 py-4">
               <div>
                 <div className="text-lg font-bold text-gray-900">ประวัติการเปลี่ยนแปลงทั้งหมด</div>
-                <div className="text-sm text-gray-500">บันทึกการแก้ไข/ยกเลิก/เปลี่ยนสถานะโดยแอดมิน</div>
+                <div className="text-sm text-gray-500">บันทึกการแก้ไขและยกเลิกโดยแอดมิน</div>
               </div>
               <button
                 type="button"
@@ -726,17 +724,6 @@ export default function AuditLogsModal() {
                   >
                     ยกเลิกการจอง
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setAction("status_change")}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      action === "status_change"
-                        ? "border border-[#1b2a18] bg-[#1b2a18] text-white"
-                        : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    เปลี่ยนสถานะ
-                  </button>
                 </div>
                 <input
                   value={actorEmail}
@@ -752,7 +739,6 @@ export default function AuditLogsModal() {
                   <option value="">ทุกการกระทำ</option>
                   <option value="update">แก้ไขข้อมูล</option>
                   <option value="cancel">ยกเลิกการจอง</option>
-                  <option value="status_change">เปลี่ยนสถานะ</option>
                 </select>
                 <button
                   type="button"
