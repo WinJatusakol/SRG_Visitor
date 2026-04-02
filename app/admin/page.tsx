@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { getAdminAccess } from "@/lib/admin/auth";
 import { redirect } from "next/navigation";
 import VisitorTable from "./VisitTable";
@@ -6,6 +6,7 @@ import type { Visit } from "./visitTypes";
 import DataManager from "./DataManager";
 import BookingHistoryModal from "./BookingHistoryModal";
 import AuditLogsModal from "./AuditLogsModal";
+import AdminStatusSync from "./AdminStatusSync";
 
 type GuestRow = {
   sortIndex?: number | null;
@@ -43,25 +44,6 @@ export default async function AdminPage() {
   const access = await getAdminAccess();
   if (!access.user || !access.allowed) redirect("/login");
   const supabase = access.supabase ?? (await createClient());
-
-  const nowThai = new Date();
-  nowThai.setHours(nowThai.getHours() + 7);
-  const todayThai = nowThai.toISOString().slice(0, 10);
-  const midnightThaiIso = new Date(`${todayThai}T00:00:00+07:00`).toISOString();
-
-  try {
-    const adminSupabase = createServiceClient();
-    await adminSupabase
-      .from("vip_visitor")
-      .update({ status: 2 })
-      .eq("status", 1)
-      .lt("visitDateTime", midnightThaiIso);
-    await adminSupabase
-      .from("vip_visitor")
-      .update({ status: 2 })
-      .is("status", null)
-      .lt("visitDateTime", midnightThaiIso);
-  } catch {}
 
   const joinedSelect = `
     *,
@@ -183,6 +165,7 @@ export default async function AdminPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-[#faefcc] via-[#e2cca8] to-[#788b64] p-4 md:p-8">
+      <AdminStatusSync />
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex items-center justify-between">
           <div>

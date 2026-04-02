@@ -54,28 +54,6 @@ export async function POST(request) {
 
     const guests = Array.isArray(data.guests) ? data.guests : [];
     
-    // Check for overlapping visits
-    if (data.visitDateTime) {
-      const visitDateStr = data.visitDateTime.substring(0, 10);
-      const visitTimeStr = data.visitDateTime.substring(11, 16);
-      
-      const { data: existingVisits, error: checkError } = await supabase
-        .from("vip_visitor")
-        .select("id")
-        .like("visit_date_time", `${visitDateStr}T${visitTimeStr}%`)
-        .limit(1);
-        
-      if (!checkError && existingVisits && existingVisits.length > 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "มีการจองเข้าเยี่ยมชมในเวลานี้แล้ว กรุณาเลือกเวลาอื่น",
-          },
-          { status: 409 }
-        );
-      }
-    }
-
     const cars = Array.isArray(data.cars) ? data.cars : [];
     const shuttleSchedules = Array.isArray(data.shuttleSchedules)
       ? data.shuttleSchedules
