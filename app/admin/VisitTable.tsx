@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import EditBookingModal from "./EditBookingModal";
 import type { Visit } from "./visitTypes";
+import { downloadCsv, downloadExcel } from "./visit-table-export";
 import {
     BANGKOK_TIME_ZONE,
     extractVisitDateTimeParts,
@@ -811,58 +812,6 @@ export default function VisitorTablePremium({ visits }: { visits: Visit[] }) {
             return true;
         });
     }, [exportCompany, exportFrom, exportStatus, exportTo, sortedVisits, timeZone]);
-
-    const downloadCsv = (rows: Array<Record<string, string>>, filename: string) => {
-        const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-        const esc = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-        const lines = [
-            headers.map(esc).join(","),
-            ...rows.map((r) => headers.map((h) => esc(r[h] ?? "")).join(",")),
-        ];
-        const bom = "\ufeff";
-        const csv = bom + lines.join("\n");
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-    };
-
-    const downloadExcel = (rows: Array<Record<string, string>>, filename: string) => {
-        const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-        const escapeHtml = (text: string) =>
-            String(text ?? "")
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#39;");
-
-        const thead = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
-        const tbody = rows
-            .map((r) => `<tr>${headers.map((h) => `<td>${escapeHtml(r[h] ?? "")}</td>`).join("")}</tr>`)
-            .join("");
-
-        const html =
-            `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body>` +
-            `<table border="1">${thead}${tbody}</table>` +
-            `</body></html>`;
-
-        const bom = "\ufeff";
-        const blob = new Blob([bom + html], { type: "application/vnd.ms-excel;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-    };
 
     const exportRows = useMemo(() => {
         return exportableVisits.map((v) => {

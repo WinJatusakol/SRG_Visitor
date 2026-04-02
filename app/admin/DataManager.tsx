@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { createAdminData, deleteAdminData, fetchAdminData } from "./data-manager-api";
 
 type TableKey =
   | "meeting_rooms"
@@ -205,13 +206,7 @@ export default function RefDataManager() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/admin/data?table=${encodeURIComponent(table)}`);
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || result?.success === false) {
-        throw new Error(result?.error ?? `Request failed: ${response.status}`);
-      }
-
-      let fetchedItems = Array.isArray(result.items) ? (result.items as AnyRow[]) : [];
+      let fetchedItems = await fetchAdminData<AnyRow>(table);
 
       // ดักกรอง "อื่นๆ" หรือ "other"
       if (isFoodMenuTable(table) || table === "allergy_options") {
@@ -228,13 +223,10 @@ export default function RefDataManager() {
 
       // โหลดรายชื่อแผนกมาเผื่อไว้ใช้ใน combobox (ถ้าอยู่หน้าอีเมล)
       if (isDepartmentEmailTable(table)) {
-        const deptResponse = await fetch(`/api/admin/data?table=vip_visitor_departments`);
-        const deptResult = await deptResponse.json().catch(() => ({}));
-        if (deptResponse.ok && deptResult?.success) {
-            setDepartments(deptResult.items || []);
-            if (deptResult.items && deptResult.items.length > 0) {
-                setDeptEmailId(String(deptResult.items[0].id));
-            }
+        const departmentItems = await fetchAdminData<DepartmentRow>("vip_visitor_departments");
+        setDepartments(departmentItems);
+        if (departmentItems.length > 0) {
+            setDeptEmailId(String(departmentItems[0].id));
         }
       }
     } catch (e) {
@@ -303,15 +295,7 @@ export default function RefDataManager() {
         };
       }
 
-      const response = await fetch("/api/admin/data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table, data: payload }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || result?.success === false) {
-        throw new Error(result?.error ?? `Request failed: ${response.status}`);
-      }
+      await createAdminData(table, payload);
       await refresh();
       resetForm();
       showResult("success", "เพิ่มข้อมูลสำเร็จ");
@@ -329,15 +313,7 @@ export default function RefDataManager() {
     setSaving(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/data", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table, id: deleteConfirmId }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || result?.success === false) {
-        throw new Error(result?.error ?? `Request failed: ${response.status}`);
-      }
+      await deleteAdminData(table, deleteConfirmId);
       await refresh();
       showResult("success", "ลบข้อมูลสำเร็จ");
     } catch (e) {
