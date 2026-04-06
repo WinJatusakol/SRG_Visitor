@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VIP Visitor Form | Sustain Republix",
-  description: "แบบฟอร์มแจ้งเข้าพบแขก VIP",
+  title: "Visitor Form | Evolve Purity",
+  description: "แบบฟอร์มการเข้าเยี่ยมชมโรงงาน",
 };
 
 export default function RootLayout({
